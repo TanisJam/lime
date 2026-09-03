@@ -86,9 +86,18 @@ export function voiceLeadChord(
   targetTop: number,
 ): number[] {
   const triad = chordPitches(chord, baseOctave);
+  const candidates = voicingCandidates(triad);
+  // Keep the pad inside its register hard, not just by penalty: choose only
+  // among voicings that fit the band, so it can never drift up into the melody's
+  // range no matter how the harmony moves. Candidates are regenerated from the
+  // triad each bar, so this can't ratchet. If nothing fits (a very wide voicing),
+  // fall back to the full set and let the soft cost pull it back.
+  const inBand = candidates.filter((c) => c[0]! >= PAD_LOW && c[c.length - 1]! <= PAD_HIGH);
+  const pool = inBand.length > 0 ? inBand : candidates;
+
   let best: number[] | null = null;
   let bestCost = Infinity;
-  for (const cand of voicingCandidates(triad)) {
+  for (const cand of pool) {
     const cost = voicingCost(cand, previousVoicing, targetTop);
     if (cost < bestCost) {
       bestCost = cost;

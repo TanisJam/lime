@@ -73,6 +73,13 @@ const RECENT_EVENT_BARS = 8;
 const FORM_SPREAD = 0.7;
 
 /**
+ * How strongly the form's arch swings harmonic tension — a smaller amount than
+ * the energy swing, so the harmony ventures out and comes home without ever
+ * losing the plot.
+ */
+const HARM_SPREAD = 0.35;
+
+/**
  * Portable timer access. Core must not assume DOM or Node lib types, but both
  * environments (and Web Workers) expose these on `globalThis`. Hosts that would
  * rather drive composition themselves can ignore the timer and call `pump()`.
@@ -241,7 +248,9 @@ export class LimeEngine implements Lime {
     this.lastComposedState = state;
 
     // Ensure this bar and the next are planned (next is used for anticipation).
-    this.harmony.ensurePlannedThrough(bar + 1, hostState);
+    // The form gives harmony a journey too: chords venture away from the tonic
+    // through the development and climax, and settle home in the recap and coda.
+    this.harmony.ensurePlannedThrough(bar + 1, this.applyFormToHarmony(hostState, formState.deviation));
     const chord = this.harmony.chordAt(bar)!;
     const nextChord = this.harmony.chordAt(bar + 1);
     const phrase = this.phrases.at(bar);
@@ -302,6 +311,22 @@ export class LimeEngine implements Lime {
       ...host,
       energy: clamp01(host.energy + shift),
       density: clamp01(host.density + shift * 0.6),
+    };
+  }
+
+  /**
+   * Shape harmonic adventurousness by the form: the development and climax lift
+   * tension (chords wander from the tonic), the recap and coda lower it (home).
+   * Gated by host energy so a deliberately calm passage keeps its simple harmony.
+   */
+  private applyFormToHarmony(host: MusicalState, deviation: number): MusicalState {
+    const gate = clamp01((host.energy - 0.15) / 0.2);
+    const shift = deviation * HARM_SPREAD * gate;
+    if (shift === 0) return host;
+    return {
+      ...host,
+      tension: clamp01(host.tension + shift),
+      instability: clamp01(host.instability + shift * 0.5),
     };
   }
 
