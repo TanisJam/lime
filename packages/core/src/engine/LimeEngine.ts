@@ -15,6 +15,7 @@ import {
 } from "../state/MusicalState.js";
 import { StateManager } from "../state/StateManager.js";
 import { PhrasePlanner } from "../phrase/PhrasePlanner.js";
+import { PhraseDirector } from "../phrase/PhrasePlan.js";
 import { HarmonyPlanner } from "../harmony/HarmonyPlanner.js";
 import { pitchClassName } from "../harmony/Scale.js";
 import { chordLabel, chordRoman } from "../harmony/Chord.js";
@@ -86,6 +87,7 @@ export class LimeEngine implements Lime {
 
   private readonly stateManager: StateManager;
   private readonly phrases: PhrasePlanner;
+  private readonly director: PhraseDirector;
   private readonly harmony: HarmonyPlanner;
   private readonly orchestrator: Orchestrator;
   private readonly scheduler: CompositionScheduler;
@@ -123,6 +125,7 @@ export class LimeEngine implements Lime {
     this.phrases = new PhrasePlanner({
       phraseLengthBars: this.style.phraseLengthBars,
     });
+    this.director = new PhraseDirector();
     this.harmony = new HarmonyPlanner({
       rng: this.rng.derive("harmony"),
       phrasePlanner: this.phrases,
@@ -230,6 +233,7 @@ export class LimeEngine implements Lime {
     const chord = this.harmony.chordAt(bar)!;
     const nextChord = this.harmony.chordAt(bar + 1);
     const phrase = this.phrases.at(bar);
+    const phrasePlan = this.director.plan(state, phrase);
 
     const events = this.orchestrator.composeBar({
       bar,
@@ -239,6 +243,7 @@ export class LimeEngine implements Lime {
       chord,
       nextChord,
       phrase,
+      phrasePlan,
     });
 
     this.orchestrator.memory.expireCommitments(bar);
@@ -353,6 +358,7 @@ export class LimeEngine implements Lime {
       chordRoman: chord ? chordRoman(chord) : null,
       chordLabel: chord ? chordLabel(chord) : null,
       phrase: this.phrases.at(bar),
+      phrasePlan: this.director.plan(state, this.phrases.at(bar)),
       activeMotifId,
       motifCount: this.orchestrator.memory.motifs.length,
       currentState: state,

@@ -2,6 +2,7 @@ import type { MusicalState } from "../state/MusicalState.js";
 import type { Mode } from "../harmony/Scale.js";
 import type { NoteEvent } from "../events/MusicalEvent.js";
 import type { PhraseInfo } from "../phrase/PhrasePlanner.js";
+import type { PhrasePlan } from "../phrase/PhrasePlan.js";
 
 /** One planned chord, in a form convenient for a debug UI. */
 export interface UpcomingChord {
@@ -30,6 +31,8 @@ export interface DebugSnapshot {
   readonly chordLabel: string | null;
 
   readonly phrase: PhraseInfo | null;
+  /** The phrase-level gesture planned for the current bar (read-only view). */
+  readonly phrasePlan: PhrasePlan | null;
 
   readonly activeMotifId: string | null;
   readonly motifCount: number;

@@ -9,6 +9,7 @@ import {
   type StylePack,
   type NoteEvent,
   type VoiceId,
+  type PhrasePlan,
 } from "@lime/core";
 import { eventsToStandardMidiFile } from "@lime/midi";
 import { createToneRenderer, type ToneRenderer } from "@lime/renderer-tone";
@@ -533,6 +534,7 @@ function update(): void {
   $("#d-key").textContent = `${s.keyName} ${s.mode}`;
   $("#d-chord").textContent = s.chordLabel ? `${s.chordLabel} (${s.chordRoman})` : "–";
   $("#d-phrase").textContent = s.phrase ? `${s.phrase.role} ${s.phrase.barInPhrase + 1}/${s.phrase.lengthBars}` : "–";
+  $("#d-plan").textContent = s.phrasePlan ? fmtPlan(s.phrasePlan) : "–";
 
   // Upcoming harmony chips.
   const harmony = $("#d-harmony");
@@ -573,4 +575,17 @@ function update(): void {
 
 function fmt(v: number, isTempo: boolean): string {
   return isTempo ? v.toFixed(0) : v.toFixed(2);
+}
+
+const ARROW: Record<string, string> = { rising: "↑", falling: "↓", steady: "→" };
+
+/** Compact one-line view of the phrase gesture for the debug panel. */
+function fmtPlan(p: PhrasePlan): string {
+  const cad = p.cadenceIntent === "none" ? "" : ` · cad:${p.cadenceIntent}`;
+  return (
+    `e ${p.energyStart.toFixed(2)}${ARROW[p.rhythmicDensityDirection]}${p.energyEnd.toFixed(2)}` +
+    ` · t ${p.tensionStart.toFixed(2)}→${p.tensionEnd.toFixed(2)}` +
+    ` · harm ${ARROW[p.harmonicDirection]} · reg ${ARROW[p.melodicRegisterDirection]}` +
+    ` · mel:${p.melodicActivity}${cad}`
+  );
 }
