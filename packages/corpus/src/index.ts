@@ -12,6 +12,7 @@ export * from "./analysis/chordify.js";
 export * from "./analysis/harmonyStats.js";
 export * from "./analysis/melodyStats.js";
 export * from "./analysis/rhythmStats.js";
+export * from "./analysis/emotionEstimate.js";
 export * from "./style/emotionMapping.js";
 export * from "./style/compileStylePack.js";
 export * from "./build/mergeBuckets.js";

@@ -65,3 +65,28 @@ export function detectKey(score: CorpusScore): DetectedKey {
   }
   return best;
 }
+
+/** Key detection plus both correlations at the winning tonic. */
+export interface DetailedKey extends DetectedKey {
+  /** Major-profile correlation at the detected tonic. */
+  readonly majorCorr: number;
+  /** Minor-profile correlation at the detected tonic. */
+  readonly minorCorr: number;
+}
+
+/**
+ * Like {@link detectKey}, but also reports how major-like vs minor-like the
+ * piece is *at the winning tonic*. The signed margin `majorCorr − minorCorr` is
+ * a graded brightness cue — far more informative for valence than a hard
+ * major/minor flip, since a "major-key" piece steeped in minor color scores a
+ * small or negative margin.
+ */
+export function detectKeyDetailed(score: CorpusScore): DetailedKey {
+  const hist = pitchClassProfile(score);
+  const key = detectKey(score);
+  return {
+    ...key,
+    majorCorr: pearson(hist, rotate(MAJOR_PROFILE, key.tonicPc)),
+    minorCorr: pearson(hist, rotate(MINOR_PROFILE, key.tonicPc)),
+  };
+}
