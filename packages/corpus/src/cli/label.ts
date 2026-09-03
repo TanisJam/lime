@@ -1,8 +1,9 @@
-import { readdirSync, statSync, writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync } from "node:fs";
 import { join, relative, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { labelFile, summarize, QUADS, type LibraryEntry } from "../build/labelLibrary.js";
 import { genreForPath } from "../build/genreMap.js";
+import { walkMidi, type MidiFile } from "../build/walkMidi.js";
 
 /**
  * CLI: label the local ./midi collection into a classified library manifest.
@@ -15,12 +16,6 @@ import { genreForPath } from "../build/genreMap.js";
  */
 
 const PKG_ROOT = resolve(fileURLToPath(import.meta.url), "../../..");
-const MIDI_EXT = /\.midi?$/i;
-
-interface Found {
-  readonly abs: string;
-  readonly rel: string;
-}
 
 function parseArgs(argv: string[]): Record<string, string> {
   const out: Record<string, string> = {};
@@ -40,30 +35,6 @@ function parseArgs(argv: string[]): Record<string, string> {
   return out;
 }
 
-function walk(root: string, dir: string, maxBytes: number, acc: Found[]): void {
-  let entries;
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    const abs = join(dir, e.name);
-    if (e.isDirectory()) {
-      walk(root, abs, maxBytes, acc);
-    } else if (e.isFile() && MIDI_EXT.test(e.name)) {
-      let size = 0;
-      try {
-        size = statSync(abs).size;
-      } catch {
-        continue;
-      }
-      if (size > maxBytes) continue; // skip monster files before parsing
-      acc.push({ abs, rel: relative(root, abs) });
-    }
-  }
-}
-
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   const midiRoot = resolve(args.midi ?? join(PKG_ROOT, "../../midi"));
@@ -77,18 +48,16 @@ function main(): void {
   const maxBytes = Number(args["max-bytes"] ?? 2_000_000);
 
   console.log(`Scanning ${midiRoot} …`);
-  const found: Found[] = [];
-  walk(midiRoot, midiRoot, maxBytes, found);
-  found.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
+  const found = walkMidi(midiRoot, maxBytes);
 
   // Group by genre and, if sampling, cap per genre (evenly spaced for variety).
-  const byGenreFiles = new Map<string, Found[]>();
+  const byGenreFiles = new Map<string, MidiFile[]>();
   for (const f of found) {
     const g = genreForPath(f.rel);
     if (g === "exclude") continue;
     (byGenreFiles.get(g) ?? byGenreFiles.set(g, []).get(g)!).push(f);
   }
-  const selected: Found[] = [];
+  const selected: MidiFile[] = [];
   for (const [, files] of byGenreFiles) {
     if (sample > 0 && files.length > sample) {
       const stride = files.length / sample;

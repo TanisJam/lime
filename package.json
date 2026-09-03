@@ -10,6 +10,8 @@
     "test:watch": "pnpm --filter @lime/core test",
     "analyze": "node tools/analyze.mjs",
     "corpus:build": "pnpm --filter @lime/corpus build && node packages/corpus/dist/cli/build.js",
+    "corpus:label": "pnpm --filter @lime/corpus build && node packages/corpus/dist/cli/label.js",
+    "corpus:build-library": "pnpm --filter @lime/corpus build && node packages/corpus/dist/cli/build-library.js",
     "typecheck": "pnpm -r typecheck",
     "dev": "pnpm --filter @lime/demo dev",
     "demo": "pnpm --filter @lime/demo dev"

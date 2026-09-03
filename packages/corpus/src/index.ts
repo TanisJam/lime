@@ -16,6 +16,8 @@ export * from "./analysis/emotionEstimate.js";
 export * from "./analysis/segment.js";
 export * from "./build/genreMap.js";
 export * from "./build/labelLibrary.js";
+export * from "./build/walkMidi.js";
+export * from "./build/buildLibraryPacks.js";
 export * from "./style/emotionMapping.js";
 export * from "./style/compileStylePack.js";
 export * from "./build/mergeBuckets.js";
