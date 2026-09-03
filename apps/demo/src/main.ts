@@ -536,6 +536,7 @@ function update(): void {
   $("#d-phrase").textContent = s.phrase ? `${s.phrase.role} ${s.phrase.barInPhrase + 1}/${s.phrase.lengthBars}` : "–";
   $("#d-plan").textContent = s.phrasePlan ? fmtPlan(s.phrasePlan) : "–";
   $("#d-arr").textContent = s.activeVoices.length ? s.activeVoices.join(" + ") : "–";
+  $("#d-form").textContent = `${s.formSection} · ${(s.formIntensity * 100).toFixed(0)}%`;
 
   // Upcoming harmony chips.
   const harmony = $("#d-harmony");

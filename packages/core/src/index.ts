@@ -19,6 +19,7 @@ export * from "./harmony/HarmonyPlanner.js";
 // Phrase / motif / memory
 export * from "./phrase/PhrasePlanner.js";
 export * from "./phrase/PhrasePlan.js";
+export * from "./phrase/FormDirector.js";
 export * from "./motif/Motif.js";
 export * from "./motif/MotifGenerator.js";
 export * from "./motif/MotifTransformer.js";
