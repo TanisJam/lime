@@ -32,6 +32,7 @@ export * from "./percussion/PercussionGenerator.js";
 
 // Orchestration / scheduling / engine
 export * from "./orchestration/BarContext.js";
+export * from "./orchestration/Arrangement.js";
 export * from "./orchestration/Orchestrator.js";
 export * from "./scheduler/CompositionScheduler.js";
 export * from "./style/StylePack.js";

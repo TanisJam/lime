@@ -359,6 +359,7 @@ export class LimeEngine implements Lime {
       chordLabel: chord ? chordLabel(chord) : null,
       phrase: this.phrases.at(bar),
       phrasePlan: this.director.plan(state, this.phrases.at(bar)),
+      activeVoices: [...this.orchestrator.arrangement.current],
       activeMotifId,
       motifCount: this.orchestrator.memory.motifs.length,
       currentState: state,
