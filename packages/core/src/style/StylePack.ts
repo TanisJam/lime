@@ -77,6 +77,12 @@ export interface MelodyStyle {
   readonly intervalWeights?: Record<number, number>;
   /** Note-value name → weight, shaping generated motif rhythms. */
   readonly durationWeights?: Record<string, number>;
+  /**
+   * Probability (0..1) that a wide melodic leap is followed by a stepwise move
+   * in the opposite direction — classic leap resolution. Default 0.7. Lower it
+   * for a more angular, disjunct melodic character.
+   */
+  readonly leapResolution?: number;
 }
 
 /** Optional corpus-derived rhythmic configuration. */

@@ -13,6 +13,11 @@ import type { MelodyStyle } from "../style/StylePack.js";
 const MELODY_OCTAVE = 5;
 const TARGET_PITCH = 74;
 
+/** A leap of this many semitones (a 4th or wider) invites resolution. */
+const LEAP_SEMITONES = 5;
+/** Default chance a leap resolves stepwise, when the style doesn't set one. */
+const DEFAULT_LEAP_RESOLUTION = 0.7;
+
 /**
  * Melody voice — derived from motifs, never freshly random every bar.
  *
@@ -23,11 +28,13 @@ const TARGET_PITCH = 74;
  */
 export class MelodyGenerator {
   private readonly motifGen: MotifGenerator;
+  private readonly leapResolution: number;
   private activeMotif: Motif | undefined;
   private lastPitch: number | undefined;
 
   constructor(rng: SeededRandom, melody?: MelodyStyle) {
     this.motifGen = new MotifGenerator(rng.derive("motif"), melody);
+    this.leapResolution = melody?.leapResolution ?? DEFAULT_LEAP_RESOLUTION;
   }
 
   generateBar(ctx: BarContext, memory: ComposerMemory): NoteEvent[] {
@@ -53,13 +60,17 @@ export class MelodyGenerator {
     //    immediately from current state and kept diatonic (still in scale).
     const anchorDegree = this.chooseAnchor(ctx);
     const dissonanceProb = ctx.state.tension * 0.45;
-    const pitches = motif.intervals.map((step, i) => {
+    const degrees = motif.intervals.map((step, i) => {
       let degree = anchorDegree + step;
       if (i > 0 && ctx.rng.bool(dissonanceProb)) {
         degree += ctx.rng.bool() ? 1 : -1;
       }
-      return degreePitch(degree, ctx.chord.keyPc, ctx.chord.mode, MELODY_OCTAVE);
+      return degree;
     });
+    this.resolveLeaps(degrees, ctx);
+    const pitches = degrees.map((degree) =>
+      degreePitch(degree, ctx.chord.keyPc, ctx.chord.mode, MELODY_OCTAVE),
+    );
 
     // 5. Schedule within the bar.
     return this.schedule(motif, pitches, ctx, memory);
@@ -145,6 +156,39 @@ export class MelodyGenerator {
         break;
     }
     return m;
+  }
+
+  /**
+   * Leap resolution, on the diatonic degree line so every note stays in scale.
+   * After a wide leap (a 4th or more, measured in semitones), the following note
+   * tends to step back in the opposite direction — the classic "leap, then
+   * recover" gesture that keeps a melody singable. Probabilistic and
+   * style-controlled, eased off as complexity rises so busy, unstable passages
+   * keep some angularity. Covers the leap into the bar from the previous note
+   * too, not only leaps between notes within the bar.
+   */
+  private resolveLeaps(degrees: number[], ctx: BarContext): void {
+    const p = this.leapResolution * (1 - 0.4 * ctx.state.complexity);
+    if (p <= 0 || degrees.length < 2) return;
+    const pitchOf = (d: number): number =>
+      degreePitch(d, ctx.chord.keyPc, ctx.chord.mode, MELODY_OCTAVE);
+
+    // Leap carried across the bar line: last bar's pitch → this bar's first note.
+    // Resolve the second note back toward it.
+    if (this.lastPitch !== undefined) {
+      const inLeap = pitchOf(degrees[0]!) - this.lastPitch;
+      if (Math.abs(inLeap) >= LEAP_SEMITONES && ctx.rng.bool(p)) {
+        degrees[1] = degrees[0]! - Math.sign(inLeap);
+      }
+    }
+
+    // Leaps between notes within the bar: resolve the note after each one.
+    for (let i = 1; i < degrees.length - 1; i++) {
+      const leap = pitchOf(degrees[i]!) - pitchOf(degrees[i - 1]!);
+      if (Math.abs(leap) >= LEAP_SEMITONES && ctx.rng.bool(p)) {
+        degrees[i + 1] = degrees[i]! - Math.sign(leap);
+      }
+    }
   }
 
   private chooseAnchor(ctx: BarContext): number {
