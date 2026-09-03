@@ -1,6 +1,6 @@
 import type { NoteEvent } from "../events/MusicalEvent.js";
 import { ticksPerBar } from "../time/MusicalTime.js";
-import { voiceLeadChord, powerChordVoicing } from "../harmony/Voicing.js";
+import { voiceLeadChord, powerChordVoicing, seventhChordVoicing } from "../harmony/Voicing.js";
 import { ROLE_REGISTERS } from "../harmony/Registers.js";
 import { clamp01 } from "../state/MusicalState.js";
 import type { BarContext } from "../orchestration/BarContext.js";
@@ -46,6 +46,10 @@ export class PadGenerator {
       // that sits cleanly under distortion. No triad thinning/doubling; the bare
       // shape is the point.
       voicing = powerChordVoicing(chord, baseOctave, this.previousVoicing, targetTop);
+      this.previousVoicing = voicing;
+    } else if (this.chordStyle === "seventh") {
+      // Seventh chords: the extended colour of jazz/blues/soul. Kept whole.
+      voicing = seventhChordVoicing(chord, baseOctave, this.previousVoicing, targetTop);
       this.previousVoicing = voicing;
     } else {
       voicing = voiceLeadChord(chord, baseOctave, this.previousVoicing, targetTop);

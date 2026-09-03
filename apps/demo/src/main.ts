@@ -14,9 +14,9 @@ import {
 import { eventsToStandardMidiFile } from "@lime/midi";
 import {
   createToneRenderer,
-  ROCK_INSTRUMENTS,
-  METAL_INSTRUMENTS,
-  POP_INSTRUMENTS,
+  ROCK_INSTRUMENTS, METAL_INSTRUMENTS, POP_INSTRUMENTS, JAZZ_INSTRUMENTS,
+  BLUES_INSTRUMENTS, HIPHOP_INSTRUMENTS, ELECTRONIC_INSTRUMENTS, FOLK_INSTRUMENTS,
+  LATIN_INSTRUMENTS, FUNK_INSTRUMENTS, CLASSICAL_INSTRUMENTS,
   type ToneRenderer,
   type InstrumentFactory,
 } from "@lime/renderer-tone";
@@ -24,14 +24,33 @@ import {
 /**
  * Genre → instrument palette. The StylePack gives a genre its grammar; the
  * palette gives it its timbre. Genres without a palette fall back to the
- * default/sampled instruments.
+ * default/sampled instruments (ambient).
  */
 const GENRE_PALETTES: Record<string, Partial<Record<VoiceId, InstrumentFactory>>> = {
   "genre-rock-pop": ROCK_INSTRUMENTS,
   "genre-metal": METAL_INSTRUMENTS,
   "genre-pop": POP_INSTRUMENTS,
+  "genre-jazz": JAZZ_INSTRUMENTS,
+  "genre-blues": BLUES_INSTRUMENTS,
+  "genre-hiphop": HIPHOP_INSTRUMENTS,
+  "genre-electronic": ELECTRONIC_INSTRUMENTS,
+  "genre-folk": FOLK_INSTRUMENTS,
+  "genre-latin": LATIN_INSTRUMENTS,
+  "genre-funk": FUNK_INSTRUMENTS,
+  "genre-classical": CLASSICAL_INSTRUMENTS,
 };
-import { ambientMinimal, metalPack, popPack } from "@lime/styles";
+
+/** Friendly dropdown labels per genre id. */
+const GENRE_LABELS: Record<string, string> = {
+  "genre-rock-pop": "Rock", "genre-metal": "Metal", "genre-pop": "Pop",
+  "genre-jazz": "Jazz", "genre-blues": "Blues", "genre-hiphop": "Hip-hop",
+  "genre-electronic": "Electrónica", "genre-folk": "Folk", "genre-latin": "Latina",
+  "genre-funk": "R&B / Funk", "genre-classical": "Clásica", "genre-ambient": "Ambient",
+};
+import {
+  classicalPack, popPack, hiphopPack, electronicPack, jazzPack, bluesPack,
+  folkPack, latinPack, funkPack, metalPack, ambientPack,
+} from "@lime/styles";
 import * as Tone from "tone";
 import { SAMPLED_INSTRUMENTS } from "./sampledInstruments";
 
@@ -86,22 +105,42 @@ const corpusPacks: StyleEntry[] = Object.values(packModules)
   }))
   .sort((a, b) => a.id.localeCompare(b.id));
 
-// The genre dropdown. Each genre carries an energetic default so its groove and
-// drums play on selection; the emotion selector then drives live state. Rock and
-// the corpus genres are derived; Metal and Pop are authored (GENRES.md).
-const ROCK_STATE: MusicalStatePatch = { energy: 0.78, tension: 0.45, valence: 0.4, density: 0.62, complexity: 0.4, instability: 0.3, brightness: 0.5, tempo: 126 };
-const METAL_STATE: MusicalStatePatch = { energy: 0.9, tension: 0.62, valence: 0.28, density: 0.72, complexity: 0.5, instability: 0.4, brightness: 0.42, tempo: 160 };
-const POP_STATE: MusicalStatePatch = { energy: 0.7, tension: 0.3, valence: 0.72, density: 0.55, complexity: 0.35, instability: 0.25, brightness: 0.6, tempo: 118 };
-
+// The 12-genre dropdown. Each genre carries an energetic default so its groove
+// plays on selection; the emotion selector then drives live state. Rock is the
+// corpus-derived pack; the rest are authored (GENRES.md).
+const GENRE_STATE: Record<string, MusicalStatePatch> = {
+  "genre-classical": { energy: 0.5, valence: 0.6, tension: 0.3, density: 0.45, complexity: 0.4, instability: 0.25, brightness: 0.55, tempo: 90 },
+  "genre-pop": { energy: 0.7, valence: 0.72, tension: 0.3, density: 0.55, complexity: 0.35, instability: 0.25, brightness: 0.6, tempo: 118 },
+  "genre-rock-pop": { energy: 0.78, valence: 0.4, tension: 0.45, density: 0.62, complexity: 0.4, instability: 0.3, brightness: 0.5, tempo: 126 },
+  "genre-hiphop": { energy: 0.6, valence: 0.4, tension: 0.35, density: 0.5, complexity: 0.35, instability: 0.3, brightness: 0.45, tempo: 88 },
+  "genre-electronic": { energy: 0.76, valence: 0.45, tension: 0.4, density: 0.65, complexity: 0.45, instability: 0.35, brightness: 0.55, tempo: 126 },
+  "genre-jazz": { energy: 0.55, valence: 0.5, tension: 0.35, density: 0.5, complexity: 0.55, instability: 0.4, brightness: 0.55, tempo: 130 },
+  "genre-blues": { energy: 0.55, valence: 0.4, tension: 0.4, density: 0.5, complexity: 0.4, instability: 0.3, brightness: 0.45, tempo: 95 },
+  "genre-folk": { energy: 0.45, valence: 0.55, tension: 0.25, density: 0.4, complexity: 0.3, instability: 0.2, brightness: 0.55, tempo: 100 },
+  "genre-latin": { energy: 0.72, valence: 0.65, tension: 0.35, density: 0.6, complexity: 0.45, instability: 0.35, brightness: 0.6, tempo: 105 },
+  "genre-funk": { energy: 0.72, valence: 0.55, tension: 0.35, density: 0.62, complexity: 0.45, instability: 0.35, brightness: 0.55, tempo: 108 },
+  "genre-metal": { energy: 0.9, valence: 0.28, tension: 0.62, density: 0.72, complexity: 0.5, instability: 0.4, brightness: 0.42, tempo: 160 },
+  "genre-ambient": { energy: 0.32, valence: 0.5, tension: 0.2, density: 0.3, complexity: 0.25, instability: 0.15, brightness: 0.5, tempo: 68 },
+};
 const rockPack = corpusPacks.find((p) => p.id === "genre-rock-pop");
-const otherCorpus = corpusPacks.filter((p) =>
-  ["genre-classical", "genre-screen", "genre-hyperpop", "genre-arabic"].includes(p.id),
-);
+const entry = (style: StylePack): StyleEntry => ({
+  id: style.id,
+  style,
+  suggestedState: GENRE_STATE[style.id] ?? { ...MOODS.Calm },
+});
 const STYLES: StyleEntry[] = [
-  ...(rockPack ? [{ id: rockPack.style.id, style: rockPack.style, suggestedState: ROCK_STATE }] : []),
-  { id: metalPack.id, style: metalPack, suggestedState: METAL_STATE },
-  { id: popPack.id, style: popPack, suggestedState: POP_STATE },
-  ...otherCorpus,
+  entry(classicalPack),
+  entry(popPack),
+  ...(rockPack ? [{ id: rockPack.style.id, style: rockPack.style, suggestedState: GENRE_STATE["genre-rock-pop"]! }] : []),
+  entry(hiphopPack),
+  entry(electronicPack),
+  entry(jazzPack),
+  entry(bluesPack),
+  entry(folkPack),
+  entry(latinPack),
+  entry(funkPack),
+  entry(metalPack),
+  entry(ambientPack),
 ];
 
 /** A quadrant emotion preset: a corpus-derived state the host transitions to. */
@@ -233,12 +272,7 @@ function buildStyleSelector(): void {
   STYLES.forEach((e, i) => {
     const o = document.createElement("option");
     o.value = String(i);
-    o.textContent =
-      e.id === "genre-rock-pop"
-        ? "Rock"
-        : e.id.startsWith("genre-")
-          ? e.id.slice(6).replace(/(^|-)([a-z])/g, (_, s, c) => s + c.toUpperCase())
-          : e.id;
+    o.textContent = GENRE_LABELS[e.id] ?? e.id;
     sel.appendChild(o);
   });
   sel.addEventListener("change", () => {

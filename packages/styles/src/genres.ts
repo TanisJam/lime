@@ -65,28 +65,77 @@ function genrePack(s: GenreSpec): StylePack {
 
 /** Metal — heavier, faster rock: power chords, minor pentatonic, driving. */
 export const metalPack = genrePack({
-  id: "genre-metal",
-  modes: ["naturalMinor"],
-  defaultMode: "naturalMinor",
-  keyPc: 4, // E
-  tempoRange: [140, 180],
-  chordStyle: "power",
-  bassStyle: "root-drive",
-  groove: "backbeat",
+  id: "genre-metal", modes: ["naturalMinor"], defaultMode: "naturalMinor", keyPc: 4,
+  tempoRange: [140, 180], chordStyle: "power", bassStyle: "root-drive", groove: "backbeat",
   melodyScale: "minor-pentatonic",
 });
 
 /** Pop — bright diatonic four-chord loops over a straight backbeat. */
 export const popPack = genrePack({
-  id: "genre-pop",
-  modes: ["major", "naturalMinor"],
-  defaultMode: "major",
-  keyPc: 0, // C
-  tempoRange: [100, 128],
-  chordStyle: "triad",
-  bassStyle: "root-drive",
-  groove: "backbeat",
+  id: "genre-pop", modes: ["major", "naturalMinor"], defaultMode: "major", keyPc: 0,
+  tempoRange: [100, 128], chordStyle: "triad", bassStyle: "root-drive", groove: "backbeat",
 });
 
-/** Authored genre packs, growing toward the full twelve. */
-export const GENRE_PACKS: readonly StylePack[] = [metalPack, popPack];
+/** Jazz — ii–V–I sevenths, swung ride, walking bass, modal melody. */
+export const jazzPack = genrePack({
+  id: "genre-jazz", modes: ["major", "dorian", "mixolydian"], defaultMode: "major", keyPc: 0,
+  tempoRange: [90, 180], chordStyle: "seventh", bassStyle: "walking", groove: "swing",
+});
+
+/** Blues — dominant sevenths, shuffle, walking bass, blues scale. */
+export const bluesPack = genrePack({
+  id: "genre-blues", modes: ["mixolydian", "major"], defaultMode: "mixolydian", keyPc: 4,
+  tempoRange: [70, 120], chordStyle: "seventh", bassStyle: "walking", groove: "shuffle",
+  melodyScale: "blues",
+});
+
+/** Hip-hop — minor loops, boom-bap half-time, sub bass, pentatonic. */
+export const hiphopPack = genrePack({
+  id: "genre-hiphop", modes: ["naturalMinor", "dorian"], defaultMode: "naturalMinor", keyPc: 0,
+  tempoRange: [82, 96], chordStyle: "seventh", bassStyle: "sub", groove: "boom-bap",
+  melodyScale: "minor-pentatonic", phraseLengthBars: 4,
+});
+
+/** Electrónica — minor riffs, four-on-the-floor, sub bass, arps. */
+export const electronicPack = genrePack({
+  id: "genre-electronic", modes: ["naturalMinor", "dorian"], defaultMode: "naturalMinor", keyPc: 9,
+  tempoRange: [120, 130], chordStyle: "triad", bassStyle: "sub", groove: "four-on-floor",
+  melodyScale: "minor-pentatonic",
+});
+
+/** Folk — modal, open chords, drones, no drum kit. */
+export const folkPack = genrePack({
+  id: "genre-folk", modes: ["dorian", "mixolydian", "major"], defaultMode: "dorian", keyPc: 7,
+  tempoRange: [80, 120], chordStyle: "triad", groove: "none",
+});
+
+/** Latina — sevenths, clave, anticipated tumbao bass. */
+export const latinPack = genrePack({
+  id: "genre-latin", modes: ["major", "naturalMinor"], defaultMode: "major", keyPc: 2,
+  tempoRange: [90, 120], chordStyle: "seventh", bassStyle: "montuno", groove: "clave",
+});
+
+/** R&B / soul / funk — extended chords, 16th funk groove, funk bass. */
+export const funkPack = genrePack({
+  id: "genre-funk", modes: ["dorian", "mixolydian"], defaultMode: "dorian", keyPc: 4,
+  tempoRange: [95, 120], chordStyle: "seventh", bassStyle: "funk", groove: "funk",
+  melodyScale: "minor-pentatonic",
+});
+
+/** Clásica — functional triads, expressive, no drum kit. */
+export const classicalPack = genrePack({
+  id: "genre-classical", modes: ["major", "naturalMinor"], defaultMode: "major", keyPc: 0,
+  tempoRange: [60, 140], chordStyle: "triad", groove: "none",
+});
+
+/** Experimental / ambient — modal drones, slow, textural, no kit. */
+export const ambientPack = genrePack({
+  id: "genre-ambient", modes: ["dorian", "naturalMinor"], defaultMode: "dorian", keyPc: 9,
+  tempoRange: [50, 84], chordStyle: "triad", groove: "none",
+});
+
+/** All authored genre packs (every target genre except corpus-derived rock). */
+export const GENRE_PACKS: readonly StylePack[] = [
+  classicalPack, popPack, hiphopPack, electronicPack, jazzPack, bluesPack,
+  folkPack, latinPack, funkPack, metalPack, ambientPack,
+];

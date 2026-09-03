@@ -1,5 +1,6 @@
 import type { HarmonicEvent } from "./Chord.js";
 import { chordPitches } from "./Chord.js";
+import { degreePitch } from "./Scale.js";
 import { ROLE_REGISTERS } from "./Registers.js";
 
 /**
@@ -138,4 +139,40 @@ export function powerChordVoicing(
     }
   }
   return best!;
+}
+
+/**
+ * Seventh-chord voicing — root + third + fifth + diatonic seventh, the extended
+ * colour of jazz, blues, and soul. Octave placement chosen to sit in the pad
+ * register and keep the bottom near the previous chord.
+ */
+export function seventhChordVoicing(
+  chord: HarmonicEvent,
+  baseOctave: number,
+  previousVoicing: number[] | undefined,
+  targetTop: number,
+): number[] {
+  const [r, third, fifth] = chordPitches(chord, baseOctave) as [number, number, number];
+  let seventh = degreePitch(chord.degree + 6, chord.keyPc, chord.mode, baseOctave);
+  while (seventh <= fifth) seventh += 12;
+  const base = [r, third, fifth, seventh];
+  let best = base;
+  let bestCost = Infinity;
+  for (const shift of [-12, 0, 12]) {
+    const v = base.map((p) => p + shift);
+    const low = v[0]!;
+    const top = v[v.length - 1]!;
+    let cost = 0;
+    if (low < PAD_LOW) cost += (PAD_LOW - low) * 2;
+    if (top > PAD_HIGH) cost += (top - PAD_HIGH) * 2;
+    cost +=
+      previousVoicing && previousVoicing.length > 0
+        ? Math.abs(low - previousVoicing[0]!)
+        : Math.abs(top - targetTop);
+    if (cost < bestCost) {
+      bestCost = cost;
+      best = v;
+    }
+  }
+  return best.slice().sort((a, b) => a - b);
 }

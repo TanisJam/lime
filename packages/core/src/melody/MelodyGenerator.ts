@@ -10,20 +10,21 @@ import { MotifGenerator } from "../motif/MotifGenerator.js";
 import { augment, fragment, invert, transpose } from "../motif/MotifTransformer.js";
 import type { MelodyStyle, MelodyScale } from "../style/StylePack.js";
 
-/** Pitch-class offsets (from the tonic) of the pentatonic scales. */
-const PENTATONIC: Record<Exclude<MelodyScale, "diatonic">, readonly number[]> = {
+/** Pitch-class offsets (from the tonic) of the snap scales. */
+const SNAP_SCALES: Record<Exclude<MelodyScale, "diatonic">, readonly number[]> = {
   "minor-pentatonic": [0, 3, 5, 7, 10],
   "major-pentatonic": [0, 2, 4, 7, 9],
+  blues: [0, 3, 5, 6, 7, 10], // minor pentatonic + ♭5
 };
 
 /**
- * Snap a pitch to the nearest tone of a pentatonic scale in the key. Preserves
- * register (moves at most a whole step), so a diatonic contour becomes a
- * pentatonic riff without losing its shape.
+ * Snap a pitch to the nearest tone of a scale in the key. Preserves register
+ * (moves at most a whole step), so a diatonic contour becomes a pentatonic/blues
+ * riff without losing its shape.
  */
 function snapToScale(pitch: number, keyPc: number, scale: MelodyScale): number {
   if (scale === "diatonic") return pitch;
-  const set = PENTATONIC[scale];
+  const set = SNAP_SCALES[scale];
   const pc = (((pitch - keyPc) % 12) + 12) % 12;
   if (set.includes(pc)) return pitch;
   for (const d of [-1, 1, -2, 2]) {

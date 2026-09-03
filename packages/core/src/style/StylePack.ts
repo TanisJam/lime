@@ -72,7 +72,7 @@ export interface HarmonyStyle {
 }
 
 /** Scale the melody snaps to. `diatonic` is the default 7-note behaviour. */
-export type MelodyScale = "diatonic" | "minor-pentatonic" | "major-pentatonic";
+export type MelodyScale = "diatonic" | "minor-pentatonic" | "major-pentatonic" | "blues";
 
 /** Optional corpus-derived melodic configuration. */
 export interface MelodyStyle {
@@ -94,7 +94,15 @@ export interface MelodyStyle {
 }
 
 /** A named groove feel the percussion generator can lock to. */
-export type GrooveStyle = "backbeat";
+export type GrooveStyle =
+  | "backbeat" // rock/pop/metal: kick 1&3, snare 2&4, straight 8th hats
+  | "four-on-floor" // dance: kick every beat, offbeat open hats
+  | "shuffle" // blues: swung 8ths, backbeat
+  | "swing" // jazz: swung ride pattern, brushes
+  | "boom-bap" // hip-hop: half-time-ish, swung, sampled feel
+  | "funk" // R&B/funk: syncopated 16ths, ghost notes
+  | "clave" // latin: son-clave organized
+  | "none"; // no drum kit (classical/folk/ambient)
 
 /** Optional corpus-derived rhythmic configuration. */
 export interface RhythmStyle {
@@ -109,10 +117,16 @@ export interface RhythmStyle {
 }
 
 /** How chords are realized into pitches. */
-export type ChordStyle = "triad" | "power";
+export type ChordStyle = "triad" | "power" | "seventh";
 
-/** How the bass moves. `root-drive` = doubled chord root in straight 8ths (rock). */
-export type BassStyle = "default" | "root-drive";
+/** How the bass moves. */
+export type BassStyle =
+  | "default"
+  | "root-drive" // doubled chord root in straight 8ths (rock/pop)
+  | "walking" // quarter-note walking line through chord tones (jazz)
+  | "sub" // sparse sustained sub-bass on the root (hip-hop/electronic 808)
+  | "funk" // syncopated 16th root/octave with ghosts (funk/R&B)
+  | "montuno"; // anticipated tumbao (latin)
 
 export interface StylePack {
   readonly id: string;

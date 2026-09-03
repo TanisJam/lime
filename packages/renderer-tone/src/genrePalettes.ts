@@ -107,3 +107,67 @@ export const POP_INSTRUMENTS: Partial<Record<VoiceId, InstrumentFactory>> = {
   bass: popBassFactory,
   percussion: rockKitFactory,
 };
+
+// --- Shared voices for the remaining genres -----------------------------------
+
+/** Deep sub-bass (sine + a little triangle body) for 808/electronic/hip-hop. */
+export const subBassFactory: InstrumentFactory = (config) => {
+  const synth = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: "sine" },
+    envelope: { attack: 0.01, decay: 0.4, sustain: 0.8, release: 0.5 },
+    volume: linToDb(config?.gain ?? 0.55),
+  });
+  const filter = new Tone.Filter({ frequency: 700, type: "lowpass", rolloff: -24 });
+  const output = new Tone.Gain(1);
+  synth.chain(filter, output);
+  return {
+    output,
+    triggerNote(pitch, velocity, timeSec, durationSec) {
+      synth.triggerAttackRelease(midiNote(pitch), durationSec, timeSec, 0.6 + velocity * 0.4);
+    },
+    setBrightness(v) {
+      filter.frequency.rampTo(500 + Math.max(0, Math.min(1, v)) * 700, 0.3);
+    },
+    dispose() {
+      for (const n of [synth, filter, output]) n.dispose();
+    },
+  };
+};
+
+const warmLead: InstrumentFactory = (c) => cleanSynth({ gain: c?.gain ?? 0.3, wave: "triangle", cutoff: 3400, attack: 0.01, sustain: 0.6, release: 0.5, wet: 0.3 });
+const warmPad: InstrumentFactory = (c) => cleanSynth({ gain: c?.gain ?? 0.24, wave: "sawtooth", cutoff: 2400, attack: 0.05, sustain: 0.8, release: 1.2, wet: 0.4 });
+const brightLead: InstrumentFactory = (c) => cleanSynth({ gain: c?.gain ?? 0.3, wave: "sawtooth", cutoff: 4600, attack: 0.004, sustain: 0.5, release: 0.3, wet: 0.2 });
+const bluesGuitar: InstrumentFactory = (c) => guitarVoice({ gain: c?.gain ?? 0.3, distortion: 0.3, chebyshev: 3, cabHz: 5200, attack: 0.005, sustain: 0.6, release: 0.4 });
+
+/** Jazz — warm electric-piano-ish keys, rounded bass, brushed kit. */
+export const JAZZ_INSTRUMENTS: Partial<Record<VoiceId, InstrumentFactory>> = {
+  melody: warmLead, pad: warmPad, bass: popBassFactory, percussion: rockKitFactory,
+};
+/** Blues — lightly overdriven guitar over a shuffle kit. */
+export const BLUES_INSTRUMENTS: Partial<Record<VoiceId, InstrumentFactory>> = {
+  melody: bluesGuitar, pad: bluesGuitar, bass: rockBassFactory, percussion: rockKitFactory,
+};
+/** Hip-hop — synth keys, deep sub, boom-bap kit. */
+export const HIPHOP_INSTRUMENTS: Partial<Record<VoiceId, InstrumentFactory>> = {
+  melody: warmLead, pad: warmPad, bass: subBassFactory, percussion: rockKitFactory,
+};
+/** Electrónica — bright saws, sub bass, four-on-floor kit. */
+export const ELECTRONIC_INSTRUMENTS: Partial<Record<VoiceId, InstrumentFactory>> = {
+  melody: brightLead, pad: warmPad, bass: subBassFactory, percussion: rockKitFactory,
+};
+/** Folk — soft clean voices, no kit. */
+export const FOLK_INSTRUMENTS: Partial<Record<VoiceId, InstrumentFactory>> = {
+  melody: warmLead, pad: warmPad, bass: popBassFactory,
+};
+/** Latin — bright piano-ish keys, rounded bass, clave kit. */
+export const LATIN_INSTRUMENTS: Partial<Record<VoiceId, InstrumentFactory>> = {
+  melody: brightLead, pad: warmPad, bass: popBassFactory, percussion: rockKitFactory,
+};
+/** Funk — bright clav-ish lead, punchy bass, funk kit. */
+export const FUNK_INSTRUMENTS: Partial<Record<VoiceId, InstrumentFactory>> = {
+  melody: brightLead, pad: warmPad, bass: popBassFactory, percussion: rockKitFactory,
+};
+/** Clásica — warm string-ish ensemble, soft bass, no kit. */
+export const CLASSICAL_INSTRUMENTS: Partial<Record<VoiceId, InstrumentFactory>> = {
+  melody: warmLead, pad: warmPad, bass: popBassFactory,
+};
