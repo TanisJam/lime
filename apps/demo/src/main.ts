@@ -583,6 +583,7 @@ const ARROW: Record<string, string> = { rising: "↑", falling: "↓", steady: "
 function fmtPlan(p: PhrasePlan): string {
   const cad = p.cadenceIntent === "none" ? "" : ` · cad:${p.cadenceIntent}`;
   return (
+    `${p.shape} · ` +
     `e ${p.energyStart.toFixed(2)}${ARROW[p.rhythmicDensityDirection]}${p.energyEnd.toFixed(2)}` +
     ` · t ${p.tensionStart.toFixed(2)}→${p.tensionEnd.toFixed(2)}` +
     ` · harm ${ARROW[p.harmonicDirection]} · reg ${ARROW[p.melodicRegisterDirection]}` +

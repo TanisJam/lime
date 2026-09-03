@@ -16,9 +16,13 @@ const BASS_OCTAVE = 2;
  */
 export class BassGenerator {
   generateBar(ctx: BarContext): NoteEvent[] {
-    const { chord, nextChord, state, rng, meter, barStartTick } = ctx;
+    const { chord, nextChord, state, phrasePlan, rng, meter, barStartTick } = ctx;
     const barLen = ticksPerBar(meter);
     const beat = ticksPerBeat(meter);
+    // Phrase shape: the bass pattern follows the phrase's energy arc, so it
+    // gathers motion through a build and settles into a cadence. Loudness stays
+    // on raw state (that is the dynamics step).
+    const arc = phrasePlan.energy;
 
     const root = chordRoot(chord, BASS_OCTAVE);
     // Diatonic fifth (chord tone), not a blind perfect fifth — the vii° / ii°
@@ -42,14 +46,14 @@ export class BassGenerator {
       });
     };
 
-    if (state.energy < 0.3) {
+    if (arc < 0.3) {
       // One sustained root for the whole bar.
       push(0, barLen, root);
-    } else if (state.energy < 0.55) {
+    } else if (arc < 0.55) {
       // Root then fifth, half notes.
       push(0, beat * 2, root);
       push(beat * 2, beat * 2, state.instability > 0.4 ? fifth : root);
-    } else if (state.energy < 0.8) {
+    } else if (arc < 0.8) {
       // Quarter pulse: root, fifth, root, then anticipate the next root.
       const last = nextChord && state.complexity > 0.5 ? nextRoot : fifth;
       const pitches = [root, fifth, root, last];

@@ -93,6 +93,27 @@ describe("PhraseDirector", () => {
     expect(cold.tensionEnd).toBeGreaterThanOrEqual(0);
   });
 
+  it("derives a phrase shape from role and tension", () => {
+    const calm = state({ energy: 0.5, tension: 0.2 });
+    expect(director.plan(calm, phrases.at(STATEMENT_BAR)).shape).toBe("statement");
+    expect(director.plan(calm, phrases.at(VARIATION_BAR)).shape).toBe("statement");
+    expect(director.plan(calm, phrases.at(DEVELOPMENT_BAR)).shape).toBe("development");
+    expect(director.plan(calm, phrases.at(CADENCE_START_BAR)).shape).toBe("cadence");
+    // High tension takes over as unease, except on a cadence phrase.
+    const tense = state({ energy: 0.5, tension: 0.7 });
+    expect(director.plan(tense, phrases.at(STATEMENT_BAR)).shape).toBe("unease");
+    expect(director.plan(tense, phrases.at(DEVELOPMENT_BAR)).shape).toBe("unease");
+    expect(director.plan(tense, phrases.at(CADENCE_START_BAR)).shape).toBe("cadence");
+  });
+
+  it("scales the arc down when there is little energy to build on", () => {
+    const faint = director.plan(state({ energy: 0.06 }), phrases.at(DEVELOPMENT_BAR + 3));
+    const full = director.plan(state({ energy: 0.5 }), phrases.at(DEVELOPMENT_BAR + 3));
+    // A near-silent passage barely breathes; a mid passage gets the full build.
+    expect(faint.energyEnd - faint.energyStart).toBeLessThan(full.energyEnd - full.energyStart);
+    expect(faint.energyEnd).toBeLessThan(0.22); // stays under the voices' silence gate
+  });
+
   it("plans melodic activity from energy, leaving quiet phrases tacet", () => {
     const phrase = phrases.at(STATEMENT_BAR);
     expect(director.plan(state({ energy: 0.1 }), phrase).melodicActivity).toBe("tacet");

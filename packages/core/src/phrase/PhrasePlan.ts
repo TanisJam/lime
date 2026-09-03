@@ -34,6 +34,13 @@ export type MelodicActivity = "lead" | "sparse" | "tacet";
 export type CadenceIntent = "none" | "approaching" | "resolving";
 
 /**
+ * The dramatic character of a phrase — its gesture in one word. Statements lay
+ * out an idea, developments build, cadences resolve, and an unease phrase is one
+ * where tension has taken over regardless of grammatical role.
+ */
+export type PhraseShape = "statement" | "development" | "cadence" | "unease";
+
+/**
  * One coherent gesture for a single bar, planned before any voice generates.
  *
  * `energyStart`/`energyEnd` (and the tension pair) describe the arc across the
@@ -42,6 +49,8 @@ export type CadenceIntent = "none" | "approaching" | "resolving";
  */
 export interface PhrasePlan {
   readonly role: PhraseRole;
+  /** The phrase's dramatic character — what the whole gesture is doing. */
+  readonly shape: PhraseShape;
   readonly barInPhrase: number;
   readonly lengthBars: number;
   /** 0 at the phrase's first bar, 1 at its last (0 for a 1-bar phrase). */
@@ -112,10 +121,14 @@ export class PhraseDirector {
     const span = phrase.lengthBars > 1 ? phrase.lengthBars - 1 : 1;
     const position = phrase.barInPhrase / span;
 
+    // Scale the arc by how much energy there is to work with: a nearly-silent
+    // passage barely breathes (calm stays calm, below the voices' thresholds),
+    // while a mid-to-high passage gets the full build or release.
+    const drive = clamp01(state.energy / 0.35);
     const energyStart = clamp01(state.energy);
-    const energyEnd = clamp01(state.energy + shape.energyDelta);
+    const energyEnd = clamp01(state.energy + shape.energyDelta * drive);
     const tensionStart = clamp01(state.tension);
-    const tensionEnd = clamp01(state.tension + shape.tensionDelta);
+    const tensionEnd = clamp01(state.tension + shape.tensionDelta * drive);
 
     const cadenceIntent = this.cadenceIntent(phrase);
     // A resolving/approaching cadence always heads home; otherwise the harmony
@@ -127,6 +140,7 @@ export class PhraseDirector {
 
     return {
       role: phrase.role,
+      shape: this.shapeOf(state, phrase),
       barInPhrase: phrase.barInPhrase,
       lengthBars: phrase.lengthBars,
       position,
@@ -142,6 +156,16 @@ export class PhraseDirector {
       rhythmicDensityDirection: directionOf(energyEnd - energyStart),
       cadenceIntent,
     };
+  }
+
+  private shapeOf(state: MusicalState, phrase: PhraseInfo): PhraseShape {
+    // A cadence phrase always reads as a cadence. Otherwise high tension takes
+    // over as unease, developments build, and everything else is a statement
+    // (a plain statement or its variation — both lay the idea out).
+    if (phrase.isCadencePhrase) return "cadence";
+    if (state.tension >= 0.6) return "unease";
+    if (phrase.role === "development") return "development";
+    return "statement";
   }
 
   private cadenceIntent(phrase: PhraseInfo): CadenceIntent {

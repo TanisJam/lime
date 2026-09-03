@@ -41,9 +41,12 @@ export class PadGenerator {
     }
 
     // Re-attacks per bar: pads stay smooth; more motion only when energetic.
+    // Driven by the phrase arc, so re-attacks pick up through a build and ease
+    // off into a cadence rather than holding a flat rate across the phrase.
+    const arc = ctx.phrasePlan.energy;
     let reattacks: number;
-    if (state.energy < 0.4) reattacks = 1;
-    else if (state.energy < 0.75) reattacks = 2;
+    if (arc < 0.4) reattacks = 1;
+    else if (arc < 0.75) reattacks = 2;
     else reattacks = state.complexity > 0.6 ? 4 : 2;
 
     const division = barLen / reattacks;

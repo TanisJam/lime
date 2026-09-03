@@ -27,10 +27,15 @@ export class PercussionGenerator {
   }
 
   generateBar(ctx: BarContext): NoteEvent[] {
-    const { state, rng, meter, barStartTick } = ctx;
+    const { state, phrasePlan, rng, meter, barStartTick } = ctx;
+
+    // Phrase shape: the rhythm follows the phrase's energy arc, so a phrase
+    // builds or thins across its bars instead of four statistically identical
+    // ones. Loudness (velocity) stays on raw state — that is the dynamics step.
+    const arc = phrasePlan.energy;
 
     // Below this energy, percussion is silent.
-    if (state.energy < 0.22) return [];
+    if (arc < 0.22) return [];
 
     const beat = ticksPerBeat(meter);
     const barLen = ticksPerBar(meter);
@@ -38,9 +43,13 @@ export class PercussionGenerator {
     const events: NoteEvent[] = [];
 
     // Tension drives syncopation directly (realized immediately, per handoff).
-    const syncopation = clamp01(0.25 * state.complexity + 0.35 * state.instability + 0.45 * state.tension);
-    const subdivision = state.energy > 0.7 && state.complexity > 0.5 ? 4 : 2; // per beat
-    const hatDensity = clamp01(0.2 + 0.7 * state.density + 0.3 * state.energy);
+    // Unease phrases lean into it a little harder.
+    const uneaseBoost = phrasePlan.shape === "unease" ? 0.12 : 0;
+    const syncopation = clamp01(
+      0.25 * state.complexity + 0.35 * state.instability + 0.45 * state.tension + uneaseBoost,
+    );
+    const subdivision = arc > 0.7 && state.complexity > 0.5 ? 4 : 2; // per beat
+    const hatDensity = clamp01(0.2 + 0.7 * state.density + 0.3 * arc);
 
     const hit = (
       time: number,
@@ -58,9 +67,9 @@ export class PercussionGenerator {
       });
     };
 
-    // Kick: downbeat, plus beat 3 as energy grows, plus occasional syncopation.
+    // Kick: downbeat, plus beat 3 as the phrase grows, plus occasional syncopation.
     hit(0, "kick", 0.7 + 0.2 * state.energy);
-    if (state.energy > 0.4 && beats >= 4) {
+    if (arc > 0.4 && beats >= 4) {
       hit(beat * 2, "kick", 0.6 + 0.2 * state.energy);
     }
     if (rng.bool(syncopation * 0.5)) {
@@ -68,7 +77,7 @@ export class PercussionGenerator {
     }
 
     // Snare/backbeat: beats 2 and 4 (0-indexed 1 and 3) once there's drive.
-    if (state.energy > 0.45) {
+    if (arc > 0.45) {
       hit(beat, "snare", 0.55 + 0.2 * state.energy);
       if (beats >= 4) hit(beat * 3, "snare", 0.55 + 0.2 * state.energy);
     }
