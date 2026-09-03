@@ -16,9 +16,9 @@ packages/corpus/data/
 /midi/
 
 # Large intermediate: the full per-file/per-section label manifest is a build
-# artifact (regenerate with `node packages/corpus/dist/cli/label.js`). Only the
-# StylePacks derived from it belong in the repo.
-packages/corpus/generated/library-labels.json
+# artifact (regenerate with `pnpm corpus:label`). Kept out of generated/ (the
+# demo's StylePack glob) — only the derived StylePacks belong in the repo.
+packages/corpus/labels/
 
 # Local tooling metadata (not part of the project)
 .atl/

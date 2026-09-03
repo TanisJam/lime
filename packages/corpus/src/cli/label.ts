@@ -38,7 +38,9 @@ function parseArgs(argv: string[]): Record<string, string> {
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   const midiRoot = resolve(args.midi ?? join(PKG_ROOT, "../../midi"));
-  const outFile = resolve(args.out ?? join(PKG_ROOT, "generated/library-labels.json"));
+  // NB: NOT under generated/ — that dir is the demo's StylePack glob, and this
+  // manifest is not a pack (and is 25 MB). Keep it in its own labels/ dir.
+  const outFile = resolve(args.out ?? join(PKG_ROOT, "labels/library-labels.json"));
   const sample = Number(args.sample ?? 0);
   const opts = {
     barsPerSection: Number(args.bars ?? 8),

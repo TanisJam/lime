@@ -57,9 +57,11 @@ const packModules = import.meta.glob("../../../packages/corpus/generated/*.json"
   eager: true,
 }) as Record<string, { default: { style: StylePack; suggestedState?: MusicalStatePatch } }>;
 
-const corpusPacks: StyleEntry[] = Object.entries(packModules)
-  .filter(([path]) => !path.endsWith("index.json"))
-  .map(([, mod]) => ({
+const corpusPacks: StyleEntry[] = Object.values(packModules)
+  // Only entries that actually carry a StylePack — skips index.json and any
+  // other non-pack JSON that happens to live in generated/ (e.g. a manifest).
+  .filter((mod) => mod.default?.style?.id)
+  .map((mod) => ({
     id: mod.default.style.id,
     style: mod.default.style,
     suggestedState: mod.default.suggestedState,
