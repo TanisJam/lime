@@ -34,3 +34,35 @@ describe("MotifGenerator — corpus melody style", () => {
     expect(a.rhythm).toEqual(b.rhythm);
   });
 });
+
+describe("MotifGenerator — motif quality", () => {
+  const gens = ["q1", "q2", "q3", "q4"].map((s) => new MotifGenerator(new SeededRandom(s)));
+
+  it("gives each motif a recognizable rhythmic cell (at most two durations)", () => {
+    for (const g of gens) {
+      for (const cx of [0.2, 0.5, 0.85]) {
+        for (let i = 0; i < 20; i++) {
+          expect(new Set(g.create(cx).rhythm).size).toBeLessThanOrEqual(2);
+        }
+      }
+    }
+  });
+
+  it("keeps the pitch contour within a limited range", () => {
+    for (const g of gens) {
+      for (const cx of [0.2, 0.5, 0.85]) {
+        for (let i = 0; i < 20; i++) {
+          const iv = g.create(cx).intervals;
+          const span = Math.max(...iv) - Math.min(...iv);
+          expect(span).toBeLessThanOrEqual(12);
+        }
+      }
+    }
+  });
+
+  it("always anchors the first interval at 0", () => {
+    for (const g of gens) {
+      for (const cx of [0.2, 0.85]) expect(g.create(cx).intervals[0]).toBe(0);
+    }
+  });
+});

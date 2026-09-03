@@ -3,6 +3,32 @@ import { Durations, type MusicalDuration } from "../time/MusicalTime.js";
 import type { MelodyStyle } from "../style/StylePack.js";
 import type { Motif } from "./Motif.js";
 
+/** The shape a motif's pitch contour traces from start to end. */
+export type Contour = "rising" | "falling" | "arch" | "valley" | "static";
+
+const CONTOURS: readonly Contour[] = ["rising", "falling", "arch", "valley", "static"];
+
+/**
+ * Target diatonic offset for note `i` of `n` under a contour, scaled to `peak`.
+ * `t` runs 0→1 across the motif; the shapes are a line up, a line down, an
+ * up-then-down arch, a down-then-up valley, and a held static line.
+ */
+function contourTarget(contour: Contour, i: number, n: number, peak: number): number {
+  const t = n > 1 ? i / (n - 1) : 0;
+  switch (contour) {
+    case "rising":
+      return peak * t;
+    case "falling":
+      return -peak * t;
+    case "arch":
+      return peak * Math.sin(Math.PI * t);
+    case "valley":
+      return -peak * Math.sin(Math.PI * t);
+    case "static":
+      return 0;
+  }
+}
+
 /**
  * Creates fresh motifs from a small grammar. Deterministic given the RNG stream.
  *
@@ -58,24 +84,67 @@ export class MotifGenerator {
   create(complexity: number): Motif {
     const id = `m${this.counter++}`;
     const noteCount = this.rng.int(3, complexity > 0.6 ? 6 : 4);
+    const contour = this.rng.pick(CONTOURS);
 
+    const intervals = this.buildContour(noteCount, contour, complexity);
+    const rhythm = this.buildRhythm(noteCount, complexity);
+
+    return { id, intervals, rhythm };
+  }
+
+  /**
+   * Diatonic step offsets shaped toward an intentional contour and held within
+   * a limited range. Rather than a free random walk, each note biases toward a
+   * per-position target envelope, so the motif has a recognizable shape (a rise,
+   * a fall, an arch, a valley, or a held static line) instead of wandering.
+   */
+  private buildContour(noteCount: number, contour: Contour, complexity: number): number[] {
     const steps = this.steps ?? (complexity > 0.5 ? [-3, -2, -1, 1, 2, 3, 4] : [-2, -1, 1, 2, 3]);
-    const stepWeights = this.stepWeights ?? (complexity > 0.5 ? [1, 2, 3, 3, 2, 1.5, 1] : [1, 3, 3, 2, 1]);
+    const stepWeights =
+      this.stepWeights ?? (complexity > 0.5 ? [1, 2, 3, 3, 2, 1.5, 1] : [1, 3, 3, 2, 1]);
+    // Peak amplitude of the shape: a 3rd to a 6th, wider with complexity.
+    const peak = 2 + Math.round(complexity * 3);
 
     const intervals: number[] = [0];
     let cur = 0;
     for (let i = 1; i < noteCount; i++) {
-      const step = this.rng.weighted(steps, stepWeights);
+      const target = contourTarget(contour, i, noteCount, peak);
+      const step = this.pickStepToward(steps, stepWeights, target - cur);
       cur += step;
-      // Keep the contour within a reasonable range.
-      if (cur > 6) cur = 6;
-      if (cur < -5) cur = -5;
       intervals.push(cur);
     }
+    return intervals;
+  }
 
-    const rhythm: MusicalDuration[] = intervals.map(() => this.pickDuration(complexity));
+  /**
+   * Pick a vocabulary step, biased toward `want` (the signed distance still to
+   * travel to the contour target). The base weights are preserved — so a corpus
+   * interval vocabulary keeps its character — and only re-weighted by direction,
+   * which leaves a single-sign vocabulary (e.g. only +2) untouched.
+   */
+  private pickStepToward(steps: number[], weights: number[], want: number): number {
+    const dir = Math.sign(want);
+    if (dir === 0) return this.rng.weighted(steps, weights);
+    const biased = steps.map((s, i) => {
+      const w = weights[i]!;
+      // Favor steps that move toward the target; mildly damp those going away.
+      return Math.sign(s) === dir ? w * 2.2 : w * 0.5;
+    });
+    return this.rng.weighted(steps, biased);
+  }
 
-    return { id, intervals, rhythm };
+  /**
+   * A short rhythmic cell (one or two durations) tiled across the motif, so the
+   * motif carries a recognizable rhythmic identity that survives transposition
+   * and return — instead of every note drawing an unrelated duration.
+   */
+  private buildRhythm(noteCount: number, complexity: number): MusicalDuration[] {
+    const cellLen = noteCount >= 4 && this.rng.bool(0.6) ? 2 : 1;
+    const cell: MusicalDuration[] = [];
+    for (let i = 0; i < cellLen; i++) cell.push(this.pickDuration(complexity));
+    const rhythm: MusicalDuration[] = [];
+    for (let i = 0; i < noteCount; i++) rhythm.push(cell[i % cellLen]!);
+    return rhythm;
   }
 
   private pickDuration(complexity: number): MusicalDuration {
