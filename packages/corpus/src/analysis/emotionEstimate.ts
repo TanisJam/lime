@@ -26,7 +26,8 @@ import { detectKeyDetailed, pitchClassProfile } from "./keyDetection.js";
 /** Raw perceptual features behind an estimate — surfaced for the manifest/QA. */
 export interface EmotionFeatures {
   readonly tempoBpm: number;
-  readonly notesPerSecond: number;
+  /** Distinct rhythmic onsets per second (chords/doublings collapse to one). */
+  readonly onsetsPerSecond: number;
   readonly avgVelocity: number;
   readonly avgPitch: number;
   readonly mode: Mode;
@@ -42,8 +43,8 @@ export interface EmotionFeatures {
 // Centres and spreads that map a raw feature onto a −1..1 contribution.
 const TEMPO_CENTER = 110; // bpm that reads as neutral arousal
 const TEMPO_SPREAD = 55;
-const DENSITY_CENTER = 7; // onsets/sec that reads as neutral arousal
-const DENSITY_SPREAD = 6;
+const DENSITY_CENTER = 4.5; // distinct onsets/sec that reads as neutral arousal
+const DENSITY_SPREAD = 3.8;
 const VELOCITY_CENTER = 0.62;
 const VELOCITY_SPREAD = 0.28;
 const PITCH_CENTER = 62; // ~D4, neutral brightness
@@ -88,17 +89,23 @@ export function emotionFeatures(score: CorpusScore): EmotionFeatures {
   for (const n of pitched) pitchSum += n.pitch;
   const avgPitch = pitched.length > 0 ? pitchSum / pitched.length : PITCH_CENTER;
 
+  // Distinct rhythmic onsets — collapse a chord or a six-instrument hit that
+  // shares a start tick into one event, so density reads rhythmic activity, not
+  // arrangement thickness (a piano and an orchestra on the same groove match).
+  const onsetSet = new Set<number>();
+  for (const n of score.notes) onsetSet.add(n.start);
+
   const ticks = scoreDurationTicks(score);
   const quarters = score.ppq > 0 ? ticks / score.ppq : 0;
   const seconds = quarters * (60 / (score.tempoBpm > 0 ? score.tempoBpm : 120));
-  const notesPerSecond = seconds > 0 ? noteCount / seconds : 0;
+  const onsetsPerSecond = seconds > 0 ? onsetSet.size / seconds : 0;
 
   const key = detectKeyDetailed(score);
   const thirdColor = thirdColorAt(pitchClassProfile(score), key.tonicPc);
 
   return {
     tempoBpm: score.tempoBpm,
-    notesPerSecond,
+    onsetsPerSecond,
     avgVelocity,
     avgPitch,
     mode: key.mode,
@@ -116,7 +123,7 @@ export function estimateEmotion(score: CorpusScore): EmotionAnnotation {
 
   // Arousal: tempo + density + loudness, each centred and normalised.
   const aTempo = clampUnit((f.tempoBpm - TEMPO_CENTER) / TEMPO_SPREAD);
-  const aDensity = clampUnit((f.notesPerSecond - DENSITY_CENTER) / DENSITY_SPREAD);
+  const aDensity = clampUnit((f.onsetsPerSecond - DENSITY_CENTER) / DENSITY_SPREAD);
   const aVel = clampUnit((f.avgVelocity - VELOCITY_CENTER) / VELOCITY_SPREAD);
   const arousal = clampUnit(
     AROUSAL_WEIGHTS.tempo * aTempo +
