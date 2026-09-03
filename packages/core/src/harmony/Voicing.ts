@@ -1,5 +1,6 @@
 import type { HarmonicEvent } from "./Chord.js";
 import { chordPitches } from "./Chord.js";
+import { ROLE_REGISTERS } from "./Registers.js";
 
 /**
  * Chord voicing with real voice leading.
@@ -14,8 +15,8 @@ import { chordPitches } from "./Chord.js";
  */
 
 /** Comfortable pad register; notes outside it are penalized back in. */
-const PAD_LOW = 40;
-const PAD_HIGH = 84;
+const PAD_LOW = ROLE_REGISTERS.pad.lo;
+const PAD_HIGH = ROLE_REGISTERS.pad.hi;
 /** A single voice moving more than a 5th reads as a leap, not a glide. */
 const LEAP_LIMIT = 7;
 /** Reward per held (common) tone — biases toward letting shared notes ring. */

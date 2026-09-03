@@ -1,6 +1,7 @@
 import type { NoteEvent } from "../events/MusicalEvent.js";
 import { ticksPerBar } from "../time/MusicalTime.js";
 import { voiceLeadChord } from "../harmony/Voicing.js";
+import { ROLE_REGISTERS } from "../harmony/Registers.js";
 import { clamp01 } from "../state/MusicalState.js";
 import type { BarContext } from "../orchestration/BarContext.js";
 
@@ -19,7 +20,9 @@ export class PadGenerator {
     const barLen = ticksPerBar(meter);
 
     const baseOctave = state.brightness < 0.35 ? 3 : 4;
-    const targetTop = Math.round(60 + state.brightness * 12);
+    // Keep the pad's top within its own register, below the melody's range, so
+    // brightness moves it around the low-to-upper-mid without crowding the line.
+    const targetTop = Math.round(58 + state.brightness * 13);
     // Voice-lead the harmonic core (the triad), then remember it as the anchor
     // for the next bar — before any density thinning/doubling below, so the
     // voice leading always compares like triad with like triad.
@@ -30,8 +33,11 @@ export class PadGenerator {
     if (state.density < 0.25 && voicing.length > 2) {
       voicing = [voicing[0]!, voicing[voicing.length - 1]!];
     }
+    // Thicken with an octave doubling when strong — but only while it stays in
+    // the pad's register, so the doubling never climbs into the melody's range.
     if (state.energy > 0.6 && state.density > 0.5) {
-      voicing = [...voicing, voicing[0]! + 12];
+      const doubled = voicing[0]! + 12;
+      if (doubled <= ROLE_REGISTERS.pad.hi) voicing = [...voicing, doubled];
     }
 
     // Re-attacks per bar: pads stay smooth; more motion only when energetic.

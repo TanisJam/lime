@@ -12,6 +12,7 @@ export * from "./state/StateManager.js";
 export * from "./harmony/Scale.js";
 export * from "./harmony/Chord.js";
 export * from "./harmony/Voicing.js";
+export * from "./harmony/Registers.js";
 export * from "./harmony/HarmonyRules.js";
 export * from "./harmony/HarmonyPlanner.js";
 
