@@ -3,6 +3,7 @@ import type { MusicalState } from "../state/MusicalState.js";
 import type { HarmonicEvent } from "../harmony/Chord.js";
 import type { PhraseInfo } from "../phrase/PhrasePlanner.js";
 import type { PhrasePlan } from "../phrase/PhrasePlan.js";
+import type { OrchestrationPlan } from "./OrchestrationPlan.js";
 import type { SeededRandom } from "../random/SeededRandom.js";
 
 /**
@@ -32,6 +33,14 @@ export interface BarContext {
    * shape the same arc instead of each re-deriving from raw `state`.
    */
   readonly phrasePlan: PhrasePlan;
+  /**
+   * The bar's orchestration: which roles are active, their depth/focus, and a
+   * shared activity budget. Planned by the OrchestrationDirector before any
+   * voice generates. Generators may read their own role's activity/depth
+   * instead of re-deriving density from raw `state` (wired in per voice from
+   * Phase 3 on).
+   */
+  readonly orchestration: OrchestrationPlan;
   /** Bar-scoped deterministic RNG for the emitting voice. */
   readonly rng: SeededRandom;
 }

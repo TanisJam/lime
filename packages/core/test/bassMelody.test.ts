@@ -5,6 +5,8 @@ import { testStyle } from "./helpers.js";
 import { PhraseDirector } from "../src/phrase/PhrasePlan.js";
 import type { PhrasePlan, MelodicActivity } from "../src/phrase/PhrasePlan.js";
 import { PhrasePlanner } from "../src/phrase/PhrasePlanner.js";
+import { OrchestrationDirector } from "../src/orchestration/OrchestrationDirector.js";
+import { FormDirector } from "../src/phrase/FormDirector.js";
 import { makeHarmonicEvent } from "../src/harmony/Chord.js";
 import { DEFAULT_STATE, applyPatch } from "../src/state/MusicalState.js";
 import { SeededRandom } from "../src/random/SeededRandom.js";
@@ -22,6 +24,8 @@ function bassOnsets(activity: MelodicActivity): number {
   const phrase = phrases.at(8); // a development phrase
   const basePlan = director.plan(state, phrase);
   const plan: PhrasePlan = { ...basePlan, melodicActivity: activity };
+  const form = new FormDirector().at(8, 4);
+  const orchestration = new OrchestrationDirector().plan(state, plan, form);
   const chord = makeHarmonicEvent({ bar: 0, durationBars: 1, degree: 1, keyPc: 0, mode: "major" });
   const ctx: BarContext = {
     bar: 8,
@@ -32,6 +36,7 @@ function bassOnsets(activity: MelodicActivity): number {
     nextChord: makeHarmonicEvent({ bar: 1, durationBars: 1, degree: 5, keyPc: 0, mode: "major" }),
     phrase,
     phrasePlan: plan,
+    orchestration,
     rng: new SeededRandom("bass-melody"),
   };
   return new BassGenerator().generateBar(ctx).length;

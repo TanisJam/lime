@@ -7,7 +7,7 @@ import { BassGenerator } from "../bass/BassGenerator.js";
 import { MelodyGenerator } from "../melody/MelodyGenerator.js";
 import { PercussionGenerator } from "../percussion/PercussionGenerator.js";
 import type { BarContext } from "./BarContext.js";
-import { Arrangement } from "./Arrangement.js";
+import { ROLE_FOR_VOICE, type WiredVoice } from "./MusicalRole.js";
 import type { MelodyStyle, RhythmStyle } from "../style/StylePack.js";
 
 /** BarContext without the per-voice RNG (filled in per voice by the orchestrator). */
@@ -28,7 +28,6 @@ export interface OrchestratorHints {
  */
 export class Orchestrator {
   readonly memory: ComposerMemory;
-  readonly arrangement = new Arrangement();
 
   private readonly pad = new PadGenerator();
   private readonly bass = new BassGenerator();
@@ -55,22 +54,25 @@ export class Orchestrator {
     const key = String(base.bar);
     const events: NoteEvent[] = [];
 
-    // Arrangement: energy decides which voices are present this bar, with
-    // hysteresis so they build up and drop out gradually instead of flickering.
-    const active = this.arrangement.update(base.state.energy);
+    // Which voices play is decided upstream by the OrchestrationDirector and
+    // arrives as the active-role set on the plan; a voice runs when its role is
+    // active. (The director still carries the energy-gated hysteresis, so the
+    // set builds up and drops out gradually rather than flickering.)
+    const roles = new Set(base.orchestration.activeRoles);
+    const plays = (voice: WiredVoice): boolean => roles.has(ROLE_FOR_VOICE[voice]);
 
-    if (active.has("pad")) {
+    if (plays("pad")) {
       events.push(...this.pad.generateBar({ ...base, rng: this.padRng.derive(key) }));
     }
-    if (active.has("bass")) {
+    if (plays("bass")) {
       events.push(...this.bass.generateBar({ ...base, rng: this.bassRng.derive(key) }));
     }
-    if (active.has("melody")) {
+    if (plays("melody")) {
       events.push(
         ...this.melody.generateBar({ ...base, rng: this.melodyRng.derive(key) }, this.memory),
       );
     }
-    if (active.has("percussion")) {
+    if (plays("percussion")) {
       events.push(...this.percussion.generateBar({ ...base, rng: this.percRng.derive(key) }));
     }
 
