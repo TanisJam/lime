@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { BassGenerator } from "../src/bass/BassGenerator.js";
+import { LimeEngine } from "../src/engine/LimeEngine.js";
+import { testStyle } from "./helpers.js";
 import { PhraseDirector } from "../src/phrase/PhrasePlan.js";
 import type { PhrasePlan, MelodicActivity } from "../src/phrase/PhrasePlan.js";
 import { PhrasePlanner } from "../src/phrase/PhrasePlanner.js";
@@ -46,5 +48,25 @@ describe("bass/melody relationship", () => {
 
   it("is deterministic", () => {
     expect(bassOnsets("lead")).toBe(bassOnsets("lead"));
+  });
+});
+
+describe("bass musicality", () => {
+  it("breathes: the bass rests on some interior bars instead of every one", () => {
+    const engine = new LimeEngine({
+      seed: "bass-breath",
+      style: testStyle,
+      initialState: { energy: 0.55, density: 0.5, complexity: 0.5, tempo: 84 },
+    });
+    let restBars = 0;
+    let playedBars = 0;
+    for (let bar = 0; bar < 64; bar++) {
+      const hasBass = engine.composeBar(bar).some((e) => e.voice === "bass");
+      if (hasBass) playedBars++;
+      else restBars++;
+    }
+    // It still carries the harmony most of the time, but it is not on every bar.
+    expect(playedBars).toBeGreaterThan(0);
+    expect(restBars).toBeGreaterThan(0);
   });
 });
