@@ -14,4 +14,14 @@ export {
   rockRhythmFactory,
   rockBassFactory,
   rockKitFactory,
+  guitarVoice,
 } from "./rockPalette.js";
+export {
+  METAL_INSTRUMENTS,
+  POP_INSTRUMENTS,
+  metalLeadFactory,
+  metalRhythmFactory,
+  popLeadFactory,
+  popPadFactory,
+  popBassFactory,
+} from "./genrePalettes.js";

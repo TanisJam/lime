@@ -25,7 +25,7 @@ const midiNote = (pitch: number): string => Tone.Frequency(pitch, "midi").toNote
  * filtered-noise pick transient and a few ms of strum/humanize per note keep it
  * from sounding static.
  */
-function guitarVoice(opts: {
+export function guitarVoice(opts: {
   gain: number;
   distortion: number;
   chebyshev: number;

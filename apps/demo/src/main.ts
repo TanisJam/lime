@@ -15,19 +15,23 @@ import { eventsToStandardMidiFile } from "@lime/midi";
 import {
   createToneRenderer,
   ROCK_INSTRUMENTS,
+  METAL_INSTRUMENTS,
+  POP_INSTRUMENTS,
   type ToneRenderer,
   type InstrumentFactory,
 } from "@lime/renderer-tone";
 
 /**
  * Genre → instrument palette. The StylePack gives a genre its grammar; the
- * palette gives it its timbre. Rock is the first (GENRES.md §7); others fall back
- * to the default/sampled palette until their palettes land.
+ * palette gives it its timbre. Genres without a palette fall back to the
+ * default/sampled instruments.
  */
 const GENRE_PALETTES: Record<string, Partial<Record<VoiceId, InstrumentFactory>>> = {
   "genre-rock-pop": ROCK_INSTRUMENTS,
+  "genre-metal": METAL_INSTRUMENTS,
+  "genre-pop": POP_INSTRUMENTS,
 };
-import { ambientMinimal } from "@lime/styles";
+import { ambientMinimal, metalPack, popPack } from "@lime/styles";
 import * as Tone from "tone";
 import { SAMPLED_INSTRUMENTS } from "./sampledInstruments";
 
@@ -82,17 +86,23 @@ const corpusPacks: StyleEntry[] = Object.values(packModules)
   }))
   .sort((a, b) => a.id.localeCompare(b.id));
 
-// Rock-focused test build: the genre dropdown is JUST Rock, with an energetic
-// default so the backbeat plays on entry. The full genre list returns once rock
-// is dialed in by ear. The emotion selector still drives live state.
-const ROCK_STATE: MusicalStatePatch = {
-  energy: 0.78, tension: 0.45, valence: 0.4, density: 0.62,
-  complexity: 0.4, instability: 0.3, brightness: 0.5, tempo: 126,
-};
+// The genre dropdown. Each genre carries an energetic default so its groove and
+// drums play on selection; the emotion selector then drives live state. Rock and
+// the corpus genres are derived; Metal and Pop are authored (GENRES.md).
+const ROCK_STATE: MusicalStatePatch = { energy: 0.78, tension: 0.45, valence: 0.4, density: 0.62, complexity: 0.4, instability: 0.3, brightness: 0.5, tempo: 126 };
+const METAL_STATE: MusicalStatePatch = { energy: 0.9, tension: 0.62, valence: 0.28, density: 0.72, complexity: 0.5, instability: 0.4, brightness: 0.42, tempo: 160 };
+const POP_STATE: MusicalStatePatch = { energy: 0.7, tension: 0.3, valence: 0.72, density: 0.55, complexity: 0.35, instability: 0.25, brightness: 0.6, tempo: 118 };
+
 const rockPack = corpusPacks.find((p) => p.id === "genre-rock-pop");
-const STYLES: StyleEntry[] = rockPack
-  ? [{ id: rockPack.style.id, style: rockPack.style, suggestedState: ROCK_STATE }]
-  : [{ id: "ambient-minimal (built-in)", style: ambientMinimal, suggestedState: { ...MOODS.Calm } }];
+const otherCorpus = corpusPacks.filter((p) =>
+  ["genre-classical", "genre-screen", "genre-hyperpop", "genre-arabic"].includes(p.id),
+);
+const STYLES: StyleEntry[] = [
+  ...(rockPack ? [{ id: rockPack.style.id, style: rockPack.style, suggestedState: ROCK_STATE }] : []),
+  { id: metalPack.id, style: metalPack, suggestedState: METAL_STATE },
+  { id: popPack.id, style: popPack, suggestedState: POP_STATE },
+  ...otherCorpus,
+];
 
 /** A quadrant emotion preset: a corpus-derived state the host transitions to. */
 interface EmotionPreset {
