@@ -1,6 +1,6 @@
 import type { NoteEvent } from "../events/MusicalEvent.js";
 import { ticksPerBar } from "../time/MusicalTime.js";
-import { voiceLeadTriad } from "../harmony/Voicing.js";
+import { voiceLeadChord } from "../harmony/Voicing.js";
 import { clamp01 } from "../state/MusicalState.js";
 import type { BarContext } from "../orchestration/BarContext.js";
 
@@ -12,7 +12,7 @@ import type { BarContext } from "../orchestration/BarContext.js";
  * and how often the chord re-attacks within a bar (energy/complexity).
  */
 export class PadGenerator {
-  private previousTop: number | undefined;
+  private previousVoicing: number[] | undefined;
 
   generateBar(ctx: BarContext): NoteEvent[] {
     const { chord, state, rng, meter, barStartTick } = ctx;
@@ -20,8 +20,11 @@ export class PadGenerator {
 
     const baseOctave = state.brightness < 0.35 ? 3 : 4;
     const targetTop = Math.round(60 + state.brightness * 12);
-    let voicing = voiceLeadTriad(chord, baseOctave, this.previousTop, targetTop);
-    this.previousTop = Math.max(...voicing);
+    // Voice-lead the harmonic core (the triad), then remember it as the anchor
+    // for the next bar — before any density thinning/doubling below, so the
+    // voice leading always compares like triad with like triad.
+    let voicing = voiceLeadChord(chord, baseOctave, this.previousVoicing, targetTop);
+    this.previousVoicing = voicing;
 
     // Note count: thin out at low density, thicken (octave doubling) when strong.
     if (state.density < 0.25 && voicing.length > 2) {
