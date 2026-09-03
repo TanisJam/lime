@@ -1,0 +1,48 @@
+[
+  {
+    "id": "emotion-calm",
+    "file": "emotion-calm.json",
+    "bucket": "calm",
+    "sampleCount": 5885,
+    "emotion": {
+      "valence": 0.6672268907562998,
+      "arousal": -0.6672268907562998
+    }
+  },
+  {
+    "id": "emotion-happy",
+    "file": "emotion-happy.json",
+    "bucket": "happy",
+    "sampleCount": 5810,
+    "emotion": {
+      "valence": 0.6916408668730628,
+      "arousal": 0.6916408668730628
+    }
+  },
+  {
+    "id": "emotion-sad",
+    "file": "emotion-sad.json",
+    "bucket": "sad",
+    "sampleCount": 3719,
+    "emotion": {
+      "valence": -0.6388489208633068,
+      "arousal": -0.6388489208633068
+    }
+  },
+  {
+    "id": "emotion-tense",
+    "file": "emotion-tense.json",
+    "bucket": "tense",
+    "sampleCount": 4418,
+    "emotion": {
+      "valence": -0.6504983388704293,
+      "arousal": 0.6504983388704293
+    }
+  },
+  {
+    "id": "lakh-all",
+    "file": "lakh-all.json",
+    "bucket": "all",
+    "sampleCount": 21845
+  }
+]

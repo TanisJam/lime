@@ -1,0 +1,190 @@
+import type { NoteEvent } from "../events/MusicalEvent.js";
+import type { SeededRandom } from "../random/SeededRandom.js";
+import { ticksPerBar } from "../time/MusicalTime.js";
+import { clamp01 } from "../state/MusicalState.js";
+import { degreePitch, triadDegrees } from "../harmony/Scale.js";
+import type { BarContext } from "../orchestration/BarContext.js";
+import type { ComposerMemory } from "../memory/ComposerMemory.js";
+import type { Motif } from "../motif/Motif.js";
+import { MotifGenerator } from "../motif/MotifGenerator.js";
+import { augment, fragment, invert, transpose } from "../motif/MotifTransformer.js";
+import type { MelodyStyle } from "../style/StylePack.js";
+
+const MELODY_OCTAVE = 5;
+const TARGET_PITCH = 74;
+
+/**
+ * Melody voice — derived from motifs, never freshly random every bar.
+ *
+ * Flow: pick/return/introduce a motif → adapt it to the current chord → apply a
+ * role-appropriate variation → schedule. Density and energy gate whether melody
+ * sounds at all; at low energy it deliberately falls silent for bars. Motif
+ * recurrence gives the music a memory.
+ */
+export class MelodyGenerator {
+  private readonly motifGen: MotifGenerator;
+  private activeMotif: Motif | undefined;
+  private lastPitch: number | undefined;
+
+  constructor(rng: SeededRandom, melody?: MelodyStyle) {
+    this.motifGen = new MotifGenerator(rng.derive("motif"), melody);
+  }
+
+  generateBar(ctx: BarContext, memory: ComposerMemory): NoteEvent[] {
+    const { state, phrase, rng } = ctx;
+
+    // 1. Play or rest? Silence is valid, especially at low energy.
+    const pPlay = clamp01(-0.05 + 0.85 * state.energy + 0.5 * state.density);
+    const boosted = phrase.role === "statement" ? pPlay + 0.15 : pPlay;
+    if (!rng.bool(clamp01(boosted))) return [];
+
+    // 2. Choose the motif for this bar.
+    const base = this.selectMotif(ctx, memory);
+    memory.markMotifUsed(base.id);
+
+    // 3. Vary it according to phrase role and complexity/instability.
+    const motif = this.vary(base, ctx);
+
+    // 4. Adapt to the current chord: anchor on a chord tone near the last pitch.
+    //    Tension adds dissonance: some notes are displaced to a neighboring
+    //    scale tone (a suspension/appoggiatura against the chord), realized
+    //    immediately from current state and kept diatonic (still in scale).
+    const anchorDegree = this.chooseAnchor(ctx);
+    const dissonanceProb = ctx.state.tension * 0.45;
+    const pitches = motif.intervals.map((step, i) => {
+      let degree = anchorDegree + step;
+      if (i > 0 && ctx.rng.bool(dissonanceProb)) {
+        degree += ctx.rng.bool() ? 1 : -1;
+      }
+      return degreePitch(degree, ctx.chord.keyPc, ctx.chord.mode, MELODY_OCTAVE);
+    });
+
+    // 5. Schedule within the bar.
+    return this.schedule(motif, pitches, ctx, memory);
+  }
+
+  private selectMotif(ctx: BarContext, memory: ComposerMemory): Motif {
+    const { state, phrase, rng } = ctx;
+
+    if (memory.motifs.length === 0) {
+      const m = this.motifGen.create(state.complexity);
+      memory.addMotif(m);
+      this.activeMotif = m;
+      return m;
+    }
+
+    if (phrase.isStart) {
+      if (phrase.role === "statement") {
+        // Present the primary theme; occasionally mint a new one when unstable.
+        if (rng.bool(0.2 * state.instability)) {
+          const m = this.motifGen.create(state.complexity);
+          memory.addMotif(m);
+          this.activeMotif = m;
+          return m;
+        }
+        this.activeMotif = memory.motifs[0]!;
+      } else if (rng.bool(0.3 * state.instability)) {
+        // Bring back an older motif for recurrence.
+        this.activeMotif = rng.pick(memory.motifs);
+      }
+    }
+
+    // Rarely introduce a brand-new motif mid-piece for future return.
+    if (rng.bool(0.05 * state.instability) && memory.motifs.length < 6) {
+      const m = this.motifGen.create(state.complexity);
+      memory.addMotif(m);
+    }
+
+    return this.activeMotif ?? memory.motifs[0]!;
+  }
+
+  private vary(base: Motif, ctx: BarContext): Motif {
+    const { state, phrase, rng } = ctx;
+    let m = base;
+    const amount = 0.5 * state.complexity + 0.5 * state.instability;
+
+    switch (phrase.role) {
+      case "statement":
+        // Mostly as-is; occasional octave-neutral transpose.
+        if (rng.bool(0.2 * amount)) m = transpose(m, rng.pick([-1, 1, 2]));
+        break;
+      case "variation":
+        if (rng.bool(0.6)) m = transpose(m, rng.pick([-2, -1, 1, 2]));
+        if (rng.bool(0.3 * amount)) m = augment(m, rng.pick([1.5, 2]));
+        break;
+      case "development":
+        if (rng.bool(0.5)) m = invert(m);
+        if (rng.bool(0.5)) m = transpose(m, rng.pick([-3, -2, 2, 3]));
+        if (rng.bool(0.4 * amount) && m.intervals.length > 2) {
+          m = fragment(m, m.intervals.length - 1);
+        }
+        break;
+      case "cadence":
+        // Wind down: shorten and slow.
+        if (m.intervals.length > 2 && rng.bool(0.6)) {
+          m = fragment(m, Math.max(2, m.intervals.length - 1));
+        }
+        if (rng.bool(0.4)) m = augment(m, 1.5);
+        break;
+    }
+    return m;
+  }
+
+  private chooseAnchor(ctx: BarContext): number {
+    const target = this.lastPitch ?? TARGET_PITCH;
+    const [d1, d3, d5] = triadDegrees(ctx.chord.degree);
+    let best = d1;
+    let bestCost = Infinity;
+    for (const deg of [d1, d3, d5]) {
+      const pitch = degreePitch(deg, ctx.chord.keyPc, ctx.chord.mode, MELODY_OCTAVE);
+      const cost = Math.abs(pitch - target);
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = deg;
+      }
+    }
+    return best;
+  }
+
+  private schedule(
+    motif: Motif,
+    pitches: number[],
+    ctx: BarContext,
+    memory: ComposerMemory,
+  ): NoteEvent[] {
+    const { state, rng, meter, barStartTick } = ctx;
+    const barLen = ticksPerBar(meter);
+
+    // Optional starting rest for breathing room (more likely when sparse).
+    let cursor = 0;
+    if (state.density < 0.5 && rng.bool(0.35)) {
+      cursor = Math.round(barLen / 4);
+    }
+
+    const velBase = clamp01(0.4 + 0.35 * state.energy + 0.05 * state.valence);
+    const events: NoteEvent[] = [];
+
+    for (let i = 0; i < pitches.length; i++) {
+      const dur = motif.rhythm[i] ?? 0;
+      if (cursor >= barLen) break; // out of bar — remaining notes become silence
+      const time = barStartTick + cursor;
+      const clippedDur = Math.min(dur, barLen - cursor);
+      const timingJitter = Math.round((rng.next() - 0.5) * 6);
+      const accent = i === 0 ? 0.1 : 0;
+      const pitch = pitches[i]!;
+      events.push({
+        type: "note",
+        time: Math.max(barStartTick, time + timingJitter),
+        duration: Math.max(1, clippedDur),
+        pitch,
+        velocity: clamp01(velBase + accent + (rng.next() - 0.5) * 0.08),
+        voice: "melody",
+      });
+      memory.recordPitch(pitch);
+      this.lastPitch = pitch;
+      cursor += dur;
+    }
+
+    return events;
+  }
+}

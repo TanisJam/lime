@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LIME — Live Interactive Music Engine</title>
+  </head>
+  <body>
+    <div id="enter-overlay">
+      <div class="enter-card">
+        <h1>LIME</h1>
+        <p class="tagline">A continuous adaptive music engine for the web.</p>
+        <button id="enter-btn">▶ ENTER LIME</button>
+        <p class="hint">Audio starts on click (browser autoplay policy).</p>
+      </div>
+    </div>
+
+    <main id="app" hidden>
+      <header>
+        <h1>LIME</h1>
+        <div class="header-actions">
+          <button id="showcase-btn" class="toggle">Showcase: off</button>
+          <button id="stop-btn" class="toggle">Stop</button>
+        </div>
+      </header>
+
+      <section class="panel controls">
+        <h2>Style pack</h2>
+        <div class="style-row">
+          <select id="style-select"></select>
+          <button id="reseed-btn" class="toggle" title="Recompose with a new seed">⟳ seed</button>
+        </div>
+
+        <h2>Moods</h2>
+        <div id="moods" class="moods"></div>
+
+        <h2>State</h2>
+        <div id="sliders" class="sliders"></div>
+      </section>
+
+      <section class="panel debug">
+        <h2>Composer</h2>
+        <div class="clock">
+          <div><span class="k">Bar</span><span id="d-bar" class="v">–</span></div>
+          <div><span class="k">Beat</span><span id="d-beat" class="v">–</span></div>
+          <div><span class="k">BPM</span><span id="d-bpm" class="v">–</span></div>
+          <div><span class="k">Key</span><span id="d-key" class="v">–</span></div>
+          <div><span class="k">Chord</span><span id="d-chord" class="v">–</span></div>
+          <div><span class="k">Phrase</span><span id="d-phrase" class="v">–</span></div>
+        </div>
+
+        <h3>Upcoming harmony</h3>
+        <div id="d-harmony" class="harmony"></div>
+
+        <h3>Motifs</h3>
+        <div class="motif-line">
+          <span>active <b id="d-motif">–</b></span>
+          <span>known <b id="d-motif-count">0</b></span>
+          <span>horizon <b id="d-horizon">0</b> bars</span>
+        </div>
+
+        <h3>Activity (last bars)</h3>
+        <div id="d-activity" class="activity"></div>
+
+        <h3>Current vs target</h3>
+        <div id="d-state" class="statebars"></div>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

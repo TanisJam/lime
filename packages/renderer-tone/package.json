@@ -1,0 +1,27 @@
+{
+  "name": "@lime/renderer-tone",
+  "version": "0.1.0",
+  "description": "LIME browser renderer using Tone.js. The only place Tone.js is allowed.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@lime/core": "workspace:*",
+    "tone": "^15.0.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

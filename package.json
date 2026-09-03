@@ -1,0 +1,30 @@
+{
+  "name": "lime-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LIME — Live Interactive Music Engine. A continuous adaptive music engine for the web.",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/**\" build",
+    "test": "pnpm --filter @lime/core test:run && pnpm --filter @lime/corpus test:run",
+    "test:watch": "pnpm --filter @lime/core test",
+    "analyze": "node tools/analyze.mjs",
+    "corpus:build": "pnpm --filter @lime/corpus build && node packages/corpus/dist/cli/build.js",
+    "typecheck": "pnpm -r typecheck",
+    "dev": "pnpm --filter @lime/demo dev",
+    "demo": "pnpm --filter @lime/demo dev"
+  },
+  "keywords": [
+    "music",
+    "generative",
+    "adaptive",
+    "procedural",
+    "composer",
+    "game-audio"
+  ],
+  "license": "MIT",
+  "packageManager": "pnpm@10.7.0",
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

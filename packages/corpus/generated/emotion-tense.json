@@ -1,0 +1,309 @@
+{
+  "style": {
+    "id": "emotion-tense",
+    "modes": [
+      "major",
+      "naturalMinor",
+      "dorian",
+      "mixolydian"
+    ],
+    "defaultMode": "naturalMinor",
+    "keyPc": 2,
+    "phraseLengthBars": 8,
+    "tempoRange": [
+      120,
+      130
+    ],
+    "instrumentation": {
+      "reverbWet": 0.35,
+      "reverbDecay": 4,
+      "delayWet": 0.1,
+      "percussionGain": 0.55,
+      "pad": {
+        "oscillator": "sine",
+        "attack": 1.2,
+        "decay": 1,
+        "sustain": 0.7,
+        "release": 2.5,
+        "filterCutoff": 2400,
+        "gain": 0.42
+      },
+      "bass": {
+        "oscillator": "triangle",
+        "attack": 0.03,
+        "decay": 0.3,
+        "sustain": 0.6,
+        "release": 0.5,
+        "filterCutoff": 800,
+        "gain": 0.5
+      },
+      "melody": {
+        "oscillator": "triangle",
+        "attack": 0.05,
+        "decay": 0.35,
+        "sustain": 0.5,
+        "release": 0.8,
+        "filterCutoff": 3000,
+        "gain": 0.4
+      }
+    },
+    "harmony": {
+      "transitions": {
+        "1": [
+          {
+            "degree": 6,
+            "weight": 4
+          },
+          {
+            "degree": 4,
+            "weight": 3.4682779456193353
+          },
+          {
+            "degree": 5,
+            "weight": 2.634441087613293
+          },
+          {
+            "degree": 2,
+            "weight": 1.9214501510574018
+          },
+          {
+            "degree": 3,
+            "weight": 1.6314199395770392
+          },
+          {
+            "degree": 7,
+            "weight": 1.5589123867069485
+          }
+        ],
+        "2": [
+          {
+            "degree": 1,
+            "weight": 4
+          },
+          {
+            "degree": 5,
+            "weight": 1.348314606741573
+          },
+          {
+            "degree": 4,
+            "weight": 1.0786516853932584
+          },
+          {
+            "degree": 6,
+            "weight": 1.0112359550561798
+          },
+          {
+            "degree": 3,
+            "weight": 0.5842696629213483
+          },
+          {
+            "degree": 7,
+            "weight": 0.3146067415730337
+          }
+        ],
+        "3": [
+          {
+            "degree": 1,
+            "weight": 4
+          },
+          {
+            "degree": 4,
+            "weight": 3.2363636363636363
+          },
+          {
+            "degree": 6,
+            "weight": 1.9272727272727272
+          },
+          {
+            "degree": 7,
+            "weight": 1.3818181818181818
+          },
+          {
+            "degree": 5,
+            "weight": 1.2
+          },
+          {
+            "degree": 2,
+            "weight": 1.1636363636363636
+          }
+        ],
+        "4": [
+          {
+            "degree": 1,
+            "weight": 4
+          },
+          {
+            "degree": 5,
+            "weight": 1.382716049382716
+          },
+          {
+            "degree": 6,
+            "weight": 1.0740740740740742
+          },
+          {
+            "degree": 3,
+            "weight": 0.8271604938271605
+          },
+          {
+            "degree": 2,
+            "weight": 0.7901234567901234
+          },
+          {
+            "degree": 7,
+            "weight": 0.37037037037037035
+          }
+        ],
+        "5": [
+          {
+            "degree": 1,
+            "weight": 4
+          },
+          {
+            "degree": 6,
+            "weight": 1.3941908713692945
+          },
+          {
+            "degree": 4,
+            "weight": 1.2448132780082988
+          },
+          {
+            "degree": 2,
+            "weight": 0.8630705394190872
+          },
+          {
+            "degree": 3,
+            "weight": 0.4979253112033195
+          },
+          {
+            "degree": 7,
+            "weight": 0.46473029045643155
+          }
+        ],
+        "6": [
+          {
+            "degree": 1,
+            "weight": 4
+          },
+          {
+            "degree": 4,
+            "weight": 1.946360153256705
+          },
+          {
+            "degree": 3,
+            "weight": 1.3333333333333333
+          },
+          {
+            "degree": 5,
+            "weight": 1.0574712643678161
+          },
+          {
+            "degree": 7,
+            "weight": 0.8275862068965517
+          },
+          {
+            "degree": 2,
+            "weight": 0.8122605363984674
+          }
+        ],
+        "7": [
+          {
+            "degree": 1,
+            "weight": 4
+          },
+          {
+            "degree": 4,
+            "weight": 1.8
+          },
+          {
+            "degree": 5,
+            "weight": 1.5
+          },
+          {
+            "degree": 6,
+            "weight": 1.2
+          },
+          {
+            "degree": 3,
+            "weight": 0.6666666666666666
+          },
+          {
+            "degree": 2,
+            "weight": 0.4
+          }
+        ]
+      }
+    },
+    "melody": {
+      "intervalWeights": {
+        "1": 4247,
+        "2": 5956,
+        "3": 5128,
+        "4": 3591,
+        "5": 3024,
+        "6": 1225,
+        "-1": 4211,
+        "-2": 6317,
+        "-4": 3385,
+        "-5": 3014,
+        "-6": 1055,
+        "-3": 4449
+      },
+      "durationWeights": {
+        "whole": 8298,
+        "eighth": 20697,
+        "half": 10810,
+        "dottedQuarter": 10541,
+        "dottedEighth": 14186,
+        "quarter": 14094,
+        "sixteenth": 22595
+      }
+    },
+    "rhythm": {
+      "onsetProfile": [
+        1,
+        0.8190941502706985,
+        0.8811567410537435,
+        0.880760596857256,
+        0.9965667502971082,
+        0.8406179849465205,
+        0.8863066156080813,
+        0.8489370130727585,
+        0.9586689554998019,
+        0.8292618513138783,
+        0.8144724679783442,
+        0.8490690611382543,
+        0.9661956952330648,
+        0.796381883005414,
+        0.8449755711078832,
+        0.7866103261587217
+      ]
+    }
+  },
+  "suggestedState": {
+    "energy": 0.7601993355481718,
+    "valence": 0.17475083056478535,
+    "brightness": 0.3548504983388712,
+    "density": 0.6951495016611288,
+    "complexity": 0.6126245847176073,
+    "tension": 0.8665116279069753,
+    "instability": 0.5586217149921069,
+    "tempo": 128.25249169435216
+  },
+  "meta": {
+    "bucket": "tense",
+    "fileCount": 303,
+    "parsedCount": 301,
+    "sampleCount": 4418,
+    "dominantMode": "naturalMinor",
+    "keyPc": 2,
+    "tempoRange": [
+      120,
+      130
+    ],
+    "emotion": {
+      "valence": -0.6504983388704293,
+      "arousal": 0.6504983388704293
+    },
+    "cadenceResolutionRate": 0.4684385382059801
+  }
+}

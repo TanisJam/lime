@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+coverage/
+.vite/
+apps/demo/dist/
+*.local
+.env
+
+# Corpus data: downloaded datasets are NEVER committed (licensing).
+# Only derived StylePacks (in packages/corpus/generated/) belong in the repo.
+packages/corpus/data/
+
+# Local tooling metadata (not part of the project)
+.atl/
