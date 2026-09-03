@@ -20,6 +20,9 @@
         <h1>LIME</h1>
         <div class="header-actions">
           <button id="showcase-btn" class="toggle">Showcase: off</button>
+          <button id="pause-btn" class="toggle" title="Freeze controls; keep the music playing forward">Automation: live</button>
+          <button id="instr-btn" class="toggle" title="A/B: self-contained synth palette vs. high-quality sampled instruments">Instruments: synth</button>
+          <button id="export-btn" class="toggle" title="Capture the current composition and download a .mid">⬇ MIDI</button>
           <button id="stop-btn" class="toggle">Stop</button>
         </div>
       </header>
@@ -29,6 +32,9 @@
         <div class="style-row">
           <select id="style-select"></select>
           <button id="reseed-btn" class="toggle" title="Recompose with a new seed">⟳ seed</button>
+        </div>
+        <div class="style-row">
+          <select id="refseed-select" title="Recompose the current style with a fixed reference seed"></select>
         </div>
 
         <h2>Moods</h2>
@@ -47,6 +53,7 @@
           <div><span class="k">Key</span><span id="d-key" class="v">–</span></div>
           <div><span class="k">Chord</span><span id="d-chord" class="v">–</span></div>
           <div><span class="k">Phrase</span><span id="d-phrase" class="v">–</span></div>
+          <div><span class="k">Showcase</span><span id="d-showcase" class="v">off</span></div>
         </div>
 
         <h3>Upcoming harmony</h3>
@@ -59,12 +66,20 @@
           <span>horizon <b id="d-horizon">0</b> bars</span>
         </div>
 
+        <h3>Voices (mute / solo)</h3>
+        <div id="d-voices" class="voices"></div>
+
         <h3>Activity (last bars)</h3>
         <div id="d-activity" class="activity"></div>
 
         <h3>Current vs target</h3>
         <div id="d-state" class="statebars"></div>
       </section>
+
+      <footer class="credits">
+        Sampled instruments: Salamander Grand Piano (CC-BY 3.0); cello, violin &amp;
+        contrabass from tonejs-instruments (CC-BY 3.0).
+      </footer>
     </main>
 
     <script type="module" src="/src/main.ts"></script>

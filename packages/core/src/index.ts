@@ -40,3 +40,6 @@ export * from "./debug/DebugSnapshot.js";
 // Analysis
 export * from "./analysis/types.js";
 export * from "./analysis/analyze.js";
+
+// Reference / listening baseline
+export * from "./reference/showcase.js";

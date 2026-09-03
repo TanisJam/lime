@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r --filter \"./packages/**\" build",
-    "test": "pnpm --filter @lime/core test:run && pnpm --filter @lime/corpus test:run",
+    "test": "pnpm --filter @lime/core test:run && pnpm --filter @lime/corpus test:run && pnpm --filter @lime/midi test:run",
     "test:watch": "pnpm --filter @lime/core test",
     "analyze": "node tools/analyze.mjs",
     "corpus:build": "pnpm --filter @lime/corpus build && node packages/corpus/dist/cli/build.js",

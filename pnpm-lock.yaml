@@ -17,12 +17,18 @@ importers:
       '@lime/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@lime/midi':
+        specifier: workspace:*
+        version: link:../../packages/midi
       '@lime/renderer-tone':
         specifier: workspace:*
         version: link:../../packages/renderer-tone
       '@lime/styles':
         specifier: workspace:*
         version: link:../../packages/styles
+      tone:
+        specifier: ^15.0.4
+        version: 15.1.22
     devDependencies:
       typescript:
         specifier: ^5.5.4
@@ -58,6 +64,19 @@ importers:
       '@types/node':
         specifier: ^22.5.0
         version: 22.20.1
+      typescript:
+        specifier: ^5.5.4
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.5
+        version: 2.1.9(@types/node@22.20.1)
+
+  packages/midi:
+    dependencies:
+      '@lime/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
