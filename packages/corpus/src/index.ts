@@ -13,6 +13,8 @@ export * from "./analysis/harmonyStats.js";
 export * from "./analysis/melodyStats.js";
 export * from "./analysis/rhythmStats.js";
 export * from "./analysis/emotionEstimate.js";
+export * from "./analysis/instrumentation.js";
+export * from "./analysis/drumGroove.js";
 export * from "./analysis/segment.js";
 export * from "./build/genreMap.js";
 export * from "./build/labelLibrary.js";
