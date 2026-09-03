@@ -226,7 +226,7 @@ export class MelodyGenerator {
       cursor = Math.round(barLen / 4);
     }
 
-    const velBase = clamp01(0.4 + 0.35 * state.energy + 0.05 * state.valence);
+    const velBase = clamp01(0.4 + 0.35 * ctx.phrasePlan.dynamics + 0.05 * state.valence);
     const events: NoteEvent[] = [];
 
     for (let i = 0; i < pitches.length; i++) {

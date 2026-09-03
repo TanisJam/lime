@@ -106,6 +106,18 @@ describe("PhraseDirector", () => {
     expect(director.plan(tense, phrases.at(CADENCE_START_BAR)).shape).toBe("cadence");
   });
 
+  it("shapes a velocity contour per phrase: swell, ease, arch, gentle", () => {
+    const dyn = (bar0: number, s: MusicalState) =>
+      [0, 1, 2, 3].map((i) => director.plan(s, phrases.at(bar0 + i)).dynamics);
+    const dev = dyn(DEVELOPMENT_BAR, state({ energy: 0.5, tension: 0.3 }));
+    expect(dev[3]!).toBeGreaterThan(dev[0]!); // development swells
+    const cad = dyn(CADENCE_START_BAR, state({ energy: 0.5, tension: 0.3 }));
+    expect(cad[3]!).toBeLessThan(cad[0]!); // cadence eases off
+    const unease = dyn(STATEMENT_BAR, state({ energy: 0.5, tension: 0.7 }));
+    expect(unease[1]!).toBeGreaterThan(unease[0]!); // arch: up in the middle
+    expect(unease[3]!).toBeLessThan(unease[1]!); // and back down
+  });
+
   it("scales the arc down when there is little energy to build on", () => {
     const faint = director.plan(state({ energy: 0.06 }), phrases.at(DEVELOPMENT_BAR + 3));
     const full = director.plan(state({ energy: 0.5 }), phrases.at(DEVELOPMENT_BAR + 3));

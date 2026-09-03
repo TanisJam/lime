@@ -50,7 +50,7 @@ export class PadGenerator {
     else reattacks = state.complexity > 0.6 ? 4 : 2;
 
     const division = barLen / reattacks;
-    const velocityBase = clamp01(0.26 + 0.26 * state.energy + 0.1 * state.valence);
+    const velocityBase = clamp01(0.26 + 0.26 * ctx.phrasePlan.dynamics + 0.1 * state.valence);
 
     const events: NoteEvent[] = [];
     for (let i = 0; i < reattacks; i++) {

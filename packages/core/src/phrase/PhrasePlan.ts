@@ -65,6 +65,12 @@ export interface PhrasePlan {
   /** Energy/tension interpolated at this bar's position — the arc value to use. */
   readonly energy: number;
   readonly tension: number;
+  /**
+   * Loudness target (0..1) for this bar — the velocity contour across the
+   * phrase: a development swells, a cadence eases off, unease arches, a
+   * statement stays gently soft. Voices scale their velocity by this.
+   */
+  readonly dynamics: number;
 
   /** "falling" points toward the tonic / release, "rising" away from it. */
   readonly harmonicDirection: PhraseDirection;
@@ -150,12 +156,38 @@ export class PhraseDirector {
       tensionEnd,
       energy: lerp(energyStart, energyEnd, position),
       tension: lerp(tensionStart, tensionEnd, position),
+      dynamics: this.dynamicsAt(this.shapeOf(state, phrase), position, state.energy),
       harmonicDirection,
       melodicActivity: this.melodicActivity(state, phrase),
       melodicRegisterDirection: shape.register,
       rhythmicDensityDirection: directionOf(energyEnd - energyStart),
       cadenceIntent,
     };
+  }
+
+  /**
+   * The bar's loudness target — a velocity contour over the phrase. A statement
+   * stays gently soft, a development swells toward its end, a cadence eases off,
+   * and unease arches up in the middle. Centred on the passage's energy so it
+   * still tracks the overall intensity.
+   */
+  private dynamicsAt(shape: PhraseShape, position: number, energy: number): number {
+    let level = energy;
+    switch (shape) {
+      case "development":
+        level += 0.22 * position;
+        break;
+      case "cadence":
+        level -= 0.22 * position;
+        break;
+      case "unease":
+        level += 0.14 * Math.sin(Math.PI * position);
+        break;
+      case "statement":
+        level += 0.06 * Math.sin(Math.PI * position) - 0.03;
+        break;
+    }
+    return clamp01(level);
   }
 
   private shapeOf(state: MusicalState, phrase: PhraseInfo): PhraseShape {

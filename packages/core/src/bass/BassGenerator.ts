@@ -31,7 +31,7 @@ export class BassGenerator {
     const octave = root + 12;
     const nextRoot = nextChord ? chordRoot(nextChord, BASS_OCTAVE) : root;
 
-    const velBase = clamp01(0.42 + 0.3 * state.energy);
+    const velBase = clamp01(0.42 + 0.3 * phrasePlan.dynamics);
     const events: NoteEvent[] = [];
 
     const push = (time: number, duration: number, pitch: number) => {
