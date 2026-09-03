@@ -1,7 +1,9 @@
 import {
   SeededRandom,
+  type BassStyle,
   type ChordStyle,
   type GrooveStyle,
+  type MelodyScale,
   type Mode,
   type MusicalStatePatch,
   type StylePack,
@@ -41,8 +43,16 @@ const DEFAULT_GENRES: Genre[] = ["classical", "rock-pop", "screen", "hyperpop", 
  * not extracted note-statistics but well-established genre grammar (GENRES.md).
  * Keyed by the pack id (`genre-<genre>`); only genre packs receive it.
  */
-const GENRE_CHARACTER: Record<string, { chordStyle?: ChordStyle; groove?: GrooveStyle }> = {
-  "genre-rock-pop": { chordStyle: "power", groove: "backbeat" },
+const GENRE_CHARACTER: Record<
+  string,
+  { chordStyle?: ChordStyle; groove?: GrooveStyle; melodyScale?: MelodyScale; bassStyle?: BassStyle }
+> = {
+  "genre-rock-pop": {
+    chordStyle: "power",
+    groove: "backbeat",
+    melodyScale: "minor-pentatonic",
+    bassStyle: "root-drive",
+  },
 };
 
 export interface LibraryPackOptions {

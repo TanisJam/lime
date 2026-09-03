@@ -8,7 +8,7 @@ import { MelodyGenerator } from "../melody/MelodyGenerator.js";
 import { PercussionGenerator } from "../percussion/PercussionGenerator.js";
 import type { BarContext } from "./BarContext.js";
 import { ROLE_FOR_VOICE, type WiredVoice } from "./MusicalRole.js";
-import type { MelodyStyle, RhythmStyle, ChordStyle } from "../style/StylePack.js";
+import type { MelodyStyle, RhythmStyle, ChordStyle, BassStyle } from "../style/StylePack.js";
 
 /** BarContext without the per-voice RNG (filled in per voice by the orchestrator). */
 export type BarContextBase = Omit<BarContext, "rng">;
@@ -19,6 +19,8 @@ export interface OrchestratorHints {
   readonly rhythm?: RhythmStyle;
   /** How the pad realizes chords (triad vs power chords). */
   readonly chordStyle?: ChordStyle;
+  /** How the bass moves (default vs root-drive). */
+  readonly bassStyle?: BassStyle;
 }
 
 /**
@@ -32,7 +34,7 @@ export class Orchestrator {
   readonly memory: ComposerMemory;
 
   private readonly pad: PadGenerator;
-  private readonly bass = new BassGenerator();
+  private readonly bass: BassGenerator;
   private readonly melody: MelodyGenerator;
   private readonly percussion: PercussionGenerator;
 
@@ -48,6 +50,7 @@ export class Orchestrator {
     this.melodyRng = rng.derive("melodyBar");
     this.percRng = rng.derive("percussion");
     this.pad = new PadGenerator(hints?.chordStyle);
+    this.bass = new BassGenerator(hints?.bassStyle);
     this.melody = new MelodyGenerator(rng.derive("melodyMotif"), hints?.melody);
     this.percussion = new PercussionGenerator(hints?.rhythm);
   }

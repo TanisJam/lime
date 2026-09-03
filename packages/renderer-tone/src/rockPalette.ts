@@ -16,62 +16,87 @@ import { linToDb, type InstrumentFactory } from "./instruments.js";
 
 const midiNote = (pitch: number): string => Tone.Frequency(pitch, "midi").toNote();
 
-/** Lead / melody — a bright, driven electric-guitar-ish saw through distortion. */
-export const rockGuitarFactory: InstrumentFactory = (config) => {
-  const gain = config?.gain ?? 0.32;
+/**
+ * A distorted electric-guitar voice (shared by lead and rhythm). The chain
+ * follows what actually reads as "guitar" vs "buzzy synth" (researched):
+ * fat detuned saw → high-pass out the flub → waveshaping (Distortion with
+ * `oversample:"4x"` to kill aliasing fizz, plus a Chebyshev for tube-like odd
+ * harmonics) → amp-cabinet EQ (mid + presence peaks, high cut ~7 kHz). A short
+ * filtered-noise pick transient and a few ms of strum/humanize per note keep it
+ * from sounding static.
+ */
+function guitarVoice(opts: {
+  gain: number;
+  distortion: number;
+  chebyshev: number;
+  cabHz: number;
+  attack: number;
+  sustain: number;
+  release: number;
+}) {
   const synth = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: "sawtooth" },
-    envelope: { attack: 0.004, decay: 0.2, sustain: 0.65, release: 0.25 },
-    volume: linToDb(gain),
+    oscillator: { type: "fatsawtooth", spread: 16, count: 2 },
+    envelope: { attack: opts.attack, decay: 0.2, sustain: opts.sustain, release: opts.release },
+    volume: linToDb(opts.gain),
   });
-  const dist = new Tone.Distortion({ distortion: 0.55, wet: 0.9 });
-  const hp = new Tone.Filter({ frequency: 140, type: "highpass" });
-  const lp = new Tone.Filter({ frequency: 3600, type: "lowpass", rolloff: -24 });
+  const hp = new Tone.Filter({ frequency: 110, type: "highpass" });
+  const dist = new Tone.Distortion({ distortion: opts.distortion, oversample: "4x", wet: 0.95 });
+  const cheb = new Tone.Chebyshev({ order: opts.chebyshev, wet: 0.3 });
+  const mid = new Tone.Filter({ type: "peaking", frequency: 1000, Q: 1, gain: 5 });
+  const presence = new Tone.Filter({ type: "peaking", frequency: 2600, Q: 1.2, gain: 3 });
+  const cab = new Tone.Filter({ frequency: opts.cabHz, type: "lowpass", rolloff: -24 });
   const output = new Tone.Gain(1);
-  synth.chain(dist, hp, lp, output);
-  return {
-    output,
-    triggerNote(pitch, velocity, timeSec, durationSec) {
-      synth.triggerAttackRelease(midiNote(pitch), durationSec, timeSec, 0.5 + velocity * 0.5);
-    },
-    setBrightness(v) {
-      const c = Math.max(0, Math.min(1, v));
-      lp.frequency.rampTo(2000 + c * 3200, 0.3);
-    },
-    dispose() {
-      for (const n of [synth, dist, hp, lp, output]) n.dispose();
-    },
-  };
-};
+  synth.chain(hp, dist, cheb, mid, presence, cab, output);
 
-/** Harmonic bed — sustained overdriven rhythm guitar (power-chord body). */
-export const rockRhythmFactory: InstrumentFactory = (config) => {
-  const gain = config?.gain ?? 0.26;
-  const synth = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: "sawtooth" },
-    envelope: { attack: 0.01, decay: 0.3, sustain: 0.75, release: 0.5 },
-    volume: linToDb(gain),
+  // Pick transient: a tiny high-passed noise click on each note (the "attack").
+  const pick = new Tone.NoiseSynth({
+    noise: { type: "white" },
+    envelope: { attack: 0.001, decay: 0.02, sustain: 0 },
+    volume: linToDb(0.22),
   });
-  const dist = new Tone.Distortion({ distortion: 0.38, wet: 0.85 });
-  const hp = new Tone.Filter({ frequency: 150, type: "highpass" });
-  const lp = new Tone.Filter({ frequency: 3000, type: "lowpass", rolloff: -24 });
-  const chorus = new Tone.Chorus({ frequency: 0.6, delayTime: 4, depth: 0.3, wet: 0.2 }).start();
-  const output = new Tone.Gain(1);
-  synth.chain(dist, hp, lp, chorus, output);
+  const pickHp = new Tone.Filter({ frequency: 2500, type: "highpass" });
+  pick.chain(pickHp, output);
+
   return {
     output,
-    triggerNote(pitch, velocity, timeSec, durationSec) {
-      synth.triggerAttackRelease(midiNote(pitch), durationSec, timeSec, 0.4 + velocity * 0.5);
+    triggerNote(pitch: number, velocity: number, timeSec: number, durationSec: number) {
+      const t = timeSec + Math.random() * 0.01; // light strum / humanize
+      synth.triggerAttackRelease(midiNote(pitch), durationSec, t, 0.5 + velocity * 0.5);
+      pick.triggerAttackRelease(0.02, t, velocity * 0.6);
     },
-    setBrightness(v) {
+    setBrightness(v: number) {
       const c = Math.max(0, Math.min(1, v));
-      lp.frequency.rampTo(1800 + c * 2600, 0.3);
+      cab.frequency.rampTo(opts.cabHz - 1500 + c * 3000, 0.3);
     },
     dispose() {
-      for (const n of [synth, dist, hp, lp, chorus, output]) n.dispose();
+      for (const n of [synth, hp, dist, cheb, mid, presence, cab, pick, pickHp, output]) n.dispose();
     },
   };
-};
+}
+
+/** Lead / melody — a biting single-note lead guitar. */
+export const rockGuitarFactory: InstrumentFactory = (config) =>
+  guitarVoice({
+    gain: config?.gain ?? 0.3,
+    distortion: 0.72,
+    chebyshev: 6,
+    cabHz: 7000,
+    attack: 0.004,
+    sustain: 0.6,
+    release: 0.25,
+  });
+
+/** Harmonic bed — sustained rhythm guitar (power chords, a touch less gain). */
+export const rockRhythmFactory: InstrumentFactory = (config) =>
+  guitarVoice({
+    gain: config?.gain ?? 0.24,
+    distortion: 0.6,
+    chebyshev: 4,
+    cabHz: 6200,
+    attack: 0.008,
+    sustain: 0.75,
+    release: 0.5,
+  });
 
 /** Electric bass — picked saw with a touch of grit, tight and mid-forward. */
 export const rockBassFactory: InstrumentFactory = (config) => {

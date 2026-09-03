@@ -256,7 +256,8 @@
         "whole": 6822,
         "half": 10244,
         "dottedQuarter": 9345
-      }
+      },
+      "scale": "minor-pentatonic"
     },
     "rhythm": {
       "onsetProfile": [
@@ -279,7 +280,8 @@
       ],
       "groove": "backbeat"
     },
-    "chordStyle": "power"
+    "chordStyle": "power",
+    "bassStyle": "root-drive"
   },
   "suggestedState": {
     "energy": 0.6268761034802651,

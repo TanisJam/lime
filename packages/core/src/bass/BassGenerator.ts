@@ -4,6 +4,7 @@ import { chordRoot, type HarmonicEvent } from "../harmony/Chord.js";
 import { degreePitch } from "../harmony/Scale.js";
 import { clamp01 } from "../state/MusicalState.js";
 import type { BarContext } from "../orchestration/BarContext.js";
+import type { BassStyle } from "../style/StylePack.js";
 
 const BASS_OCTAVE = 2;
 
@@ -17,6 +18,8 @@ const BASS_OCTAVE = 2;
  * loudness the dynamics contour, and it steps aside when the melody leads.
  */
 export class BassGenerator {
+  constructor(private readonly bassStyle: BassStyle = "default") {}
+
   generateBar(ctx: BarContext): NoteEvent[] {
     const { chord, nextChord, state, phrasePlan, phrase, rng, meter, barStartTick } = ctx;
     const barLen = ticksPerBar(meter);
@@ -57,6 +60,24 @@ export class BassGenerator {
         voice: "bass",
       });
     };
+
+    // Rock: a driving straight-8th pulse doubling the chord root, locked with the
+    // kick — mostly root, an octave lift mid-beat, walking into the next root on
+    // the last eighth. Below arc 0.4 it relaxes to the calm grammar below (a rock
+    // ballad intro doesn't pound eighths).
+    if (this.bassStyle === "root-drive" && arc >= 0.4) {
+      const eighth = beat / 2;
+      const steps = meter.numerator * 2;
+      for (let i = 0; i < steps; i++) {
+        const isLast = i === steps - 1;
+        let pitch = root;
+        if (isLast && nextChord) pitch = approach;
+        else if (i % 4 === 2) pitch = octave;
+        if (!isLast && i % 2 === 1 && state.density < 0.45 && rng.bool(0.4)) continue;
+        push(Math.round(eighth * i), Math.round(eighth), pitch);
+      }
+      return events;
+    }
 
     if (arc < 0.3) {
       // Calm: a sustained root, but now and then lift to the fifth for the

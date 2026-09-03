@@ -8,7 +8,29 @@ import type { ComposerMemory } from "../memory/ComposerMemory.js";
 import type { Motif } from "../motif/Motif.js";
 import { MotifGenerator } from "../motif/MotifGenerator.js";
 import { augment, fragment, invert, transpose } from "../motif/MotifTransformer.js";
-import type { MelodyStyle } from "../style/StylePack.js";
+import type { MelodyStyle, MelodyScale } from "../style/StylePack.js";
+
+/** Pitch-class offsets (from the tonic) of the pentatonic scales. */
+const PENTATONIC: Record<Exclude<MelodyScale, "diatonic">, readonly number[]> = {
+  "minor-pentatonic": [0, 3, 5, 7, 10],
+  "major-pentatonic": [0, 2, 4, 7, 9],
+};
+
+/**
+ * Snap a pitch to the nearest tone of a pentatonic scale in the key. Preserves
+ * register (moves at most a whole step), so a diatonic contour becomes a
+ * pentatonic riff without losing its shape.
+ */
+function snapToScale(pitch: number, keyPc: number, scale: MelodyScale): number {
+  if (scale === "diatonic") return pitch;
+  const set = PENTATONIC[scale];
+  const pc = (((pitch - keyPc) % 12) + 12) % 12;
+  if (set.includes(pc)) return pitch;
+  for (const d of [-1, 1, -2, 2]) {
+    if (set.includes((((pc + d) % 12) + 12) % 12)) return pitch + d;
+  }
+  return pitch;
+}
 
 const MELODY_OCTAVE = 5;
 const TARGET_PITCH = 74;
@@ -29,12 +51,14 @@ const DEFAULT_LEAP_RESOLUTION = 0.7;
 export class MelodyGenerator {
   private readonly motifGen: MotifGenerator;
   private readonly leapResolution: number;
+  private readonly scale: MelodyScale;
   private activeMotif: Motif | undefined;
   private lastPitch: number | undefined;
 
   constructor(rng: SeededRandom, melody?: MelodyStyle) {
     this.motifGen = new MotifGenerator(rng.derive("motif"), melody);
     this.leapResolution = melody?.leapResolution ?? DEFAULT_LEAP_RESOLUTION;
+    this.scale = melody?.scale ?? "diatonic";
   }
 
   generateBar(ctx: BarContext, memory: ComposerMemory): NoteEvent[] {
@@ -77,9 +101,11 @@ export class MelodyGenerator {
       return degree;
     });
     this.resolveLeaps(degrees, ctx);
-    const pitches = degrees.map((degree) =>
-      degreePitch(degree, ctx.chord.keyPc, ctx.chord.mode, MELODY_OCTAVE),
-    );
+    const pitches = degrees.map((degree) => {
+      const p = degreePitch(degree, ctx.chord.keyPc, ctx.chord.mode, MELODY_OCTAVE);
+      // Rock/blues riffs live in the pentatonic; snap there when the style asks.
+      return snapToScale(p, ctx.chord.keyPc, this.scale);
+    });
 
     // 5. Schedule within the bar.
     return this.schedule(motif, pitches, ctx, memory);

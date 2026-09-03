@@ -1,7 +1,9 @@
 import type {
+  BassStyle,
   ChordStyle,
   GrooveStyle,
   InstrumentationConfig,
+  MelodyScale,
   Mode,
   MusicalStatePatch,
   StylePack,
@@ -42,6 +44,10 @@ export interface CompileStylePackOptions {
   readonly chordStyle?: ChordStyle;
   /** Genre-authored groove the percussion locks to (e.g. "backbeat"). */
   readonly groove?: GrooveStyle;
+  /** Genre-authored melodic scale (e.g. "minor-pentatonic" for rock). */
+  readonly melodyScale?: MelodyScale;
+  /** Genre-authored bass movement (e.g. "root-drive" for rock). */
+  readonly bassStyle?: BassStyle;
 }
 
 export interface CompiledStyle {
@@ -71,12 +77,18 @@ export function compileStylePack(
     tempoRange: [tempoRange[0], tempoRange[1]],
     instrumentation: options.instrumentation ?? DEFAULT_INSTRUMENTATION,
     harmony: { transitions },
-    melody: options.melodyModel
-      ? {
-          intervalWeights: options.melodyModel.intervalWeights,
-          durationWeights: options.melodyModel.durationWeights,
-        }
-      : undefined,
+    melody:
+      options.melodyModel || options.melodyScale
+        ? {
+            ...(options.melodyModel
+              ? {
+                  intervalWeights: options.melodyModel.intervalWeights,
+                  durationWeights: options.melodyModel.durationWeights,
+                }
+              : {}),
+            ...(options.melodyScale ? { scale: options.melodyScale } : {}),
+          }
+        : undefined,
     rhythm:
       options.rhythmModel || options.groove
         ? {
@@ -85,6 +97,7 @@ export function compileStylePack(
           }
         : undefined,
     chordStyle: options.chordStyle,
+    bassStyle: options.bassStyle,
   };
 
   const suggestedState = options.emotion

@@ -82,12 +82,17 @@ const corpusPacks: StyleEntry[] = Object.values(packModules)
   }))
   .sort((a, b) => a.id.localeCompare(b.id));
 
-// The genre dropdown: the built-in style plus the corpus genre packs. The
-// emotion packs are not styles here — they drive live state (see EMOTIONS).
-const STYLES: StyleEntry[] = [
-  { id: "ambient-minimal (built-in)", style: ambientMinimal, suggestedState: { ...MOODS.Calm } },
-  ...corpusPacks.filter((p) => p.id.startsWith("genre-")),
-];
+// Rock-focused test build: the genre dropdown is JUST Rock, with an energetic
+// default so the backbeat plays on entry. The full genre list returns once rock
+// is dialed in by ear. The emotion selector still drives live state.
+const ROCK_STATE: MusicalStatePatch = {
+  energy: 0.78, tension: 0.45, valence: 0.4, density: 0.62,
+  complexity: 0.4, instability: 0.3, brightness: 0.5, tempo: 126,
+};
+const rockPack = corpusPacks.find((p) => p.id === "genre-rock-pop");
+const STYLES: StyleEntry[] = rockPack
+  ? [{ id: rockPack.style.id, style: rockPack.style, suggestedState: ROCK_STATE }]
+  : [{ id: "ambient-minimal (built-in)", style: ambientMinimal, suggestedState: { ...MOODS.Calm } }];
 
 /** A quadrant emotion preset: a corpus-derived state the host transitions to. */
 interface EmotionPreset {
@@ -218,9 +223,12 @@ function buildStyleSelector(): void {
   STYLES.forEach((e, i) => {
     const o = document.createElement("option");
     o.value = String(i);
-    o.textContent = e.id.startsWith("genre-")
-      ? e.id.slice(6).replace(/(^|-)([a-z])/g, (_, s, c) => s + c.toUpperCase())
-      : e.id;
+    o.textContent =
+      e.id === "genre-rock-pop"
+        ? "Rock"
+        : e.id.startsWith("genre-")
+          ? e.id.slice(6).replace(/(^|-)([a-z])/g, (_, s, c) => s + c.toUpperCase())
+          : e.id;
     sel.appendChild(o);
   });
   sel.addEventListener("change", () => {

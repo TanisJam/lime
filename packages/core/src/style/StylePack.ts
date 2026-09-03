@@ -71,6 +71,9 @@ export interface HarmonyStyle {
   readonly transitions?: TransitionTable;
 }
 
+/** Scale the melody snaps to. `diatonic` is the default 7-note behaviour. */
+export type MelodyScale = "diatonic" | "minor-pentatonic" | "major-pentatonic";
+
 /** Optional corpus-derived melodic configuration. */
 export interface MelodyStyle {
   /** Diatonic step interval → weight, shaping generated motif contours. */
@@ -83,6 +86,11 @@ export interface MelodyStyle {
    * for a more angular, disjunct melodic character.
    */
   readonly leapResolution?: number;
+  /**
+   * Scale the realized melody snaps to. `minor-pentatonic` is the rock/blues
+   * riff sound (no 2nd/6th tension notes). Default `diatonic` (unchanged).
+   */
+  readonly scale?: MelodyScale;
 }
 
 /** A named groove feel the percussion generator can lock to. */
@@ -102,6 +110,9 @@ export interface RhythmStyle {
 
 /** How chords are realized into pitches. */
 export type ChordStyle = "triad" | "power";
+
+/** How the bass moves. `root-drive` = doubled chord root in straight 8ths (rock). */
+export type BassStyle = "default" | "root-drive";
 
 export interface StylePack {
   readonly id: string;
@@ -124,4 +135,9 @@ export interface StylePack {
    * power chords (rock/metal) instead of triads. Default `"triad"`.
    */
   readonly chordStyle?: ChordStyle;
+  /**
+   * How the bass moves. `"root-drive"` locks a driving straight-8th chord-root
+   * pulse (rock, with the kick). Default `"default"` (the musical bass grammar).
+   */
+  readonly bassStyle?: BassStyle;
 }
