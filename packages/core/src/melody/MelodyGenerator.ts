@@ -45,7 +45,11 @@ export class MelodyGenerator {
     //    doesn't play — the melody is allowed to sit out whole phrases — while
     //    even a `lead` line never plays every bar, so it keeps breathing.
     if (phrasePlan.melodicActivity === "tacet") return [];
-    if (!rng.bool(this.playProbability(ctx))) return [];
+    // Always state the theme at the top of a statement phrase (unless the whole
+    // phrase is tacet): that downbeat is the "here is the idea" moment, so it
+    // shouldn't be swallowed by a rest. Elsewhere the melody breathes as before.
+    const isThemeHead = ctx.phrase.isStart && ctx.phrase.role === "statement";
+    if (!isThemeHead && !rng.bool(this.playProbability(ctx))) return [];
 
     // 2. Choose the motif for this bar.
     const base = this.selectMotif(ctx, memory);
@@ -59,7 +63,12 @@ export class MelodyGenerator {
     //    scale tone (a suspension/appoggiatura against the chord), realized
     //    immediately from current state and kept diatonic (still in scale).
     const anchorDegree = this.chooseAnchor(ctx);
-    const dissonanceProb = ctx.state.tension * 0.45;
+    // Keep a statement of the theme clean so it stays recognizable; the theme's
+    // head is fully clean, and tension colours the developing and unsettled
+    // phrases instead.
+    const dissonanceProb = isThemeHead
+      ? 0
+      : ctx.state.tension * 0.45 * (ctx.phrasePlan.shape === "statement" ? 0.3 : 1);
     const degrees = motif.intervals.map((step, i) => {
       let degree = anchorDegree + step;
       if (i > 0 && ctx.rng.bool(dissonanceProb)) {
@@ -103,13 +112,9 @@ export class MelodyGenerator {
 
     if (phrase.isStart) {
       if (phrase.role === "statement") {
-        // Present the primary theme; occasionally mint a new one when unstable.
-        if (rng.bool(0.2 * state.instability)) {
-          const m = this.motifGen.create(state.complexity);
-          memory.addMotif(m);
-          this.activeMotif = m;
-          return m;
-        }
+        // The primary theme (the very first motif) returns on every statement.
+        // Presenting the same idea plainly, again and again, is what lets the
+        // ear recognize it — the recurrence that makes the piece feel composed.
         this.activeMotif = memory.motifs[0]!;
       } else if (rng.bool(0.3 * state.instability)) {
         // Bring back an older motif for recurrence.
@@ -133,8 +138,8 @@ export class MelodyGenerator {
 
     switch (phrase.role) {
       case "statement":
-        // Mostly as-is; occasional octave-neutral transpose.
-        if (rng.bool(0.2 * amount)) m = transpose(m, rng.pick([-1, 1, 2]));
+        // Present the theme plainly — no transformation — so each return is
+        // recognizably the same idea. Development is where it gets reshaped.
         break;
       case "variation":
         if (rng.bool(0.6)) m = transpose(m, rng.pick([-2, -1, 1, 2]));

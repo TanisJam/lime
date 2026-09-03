@@ -5,14 +5,16 @@ import type { StylePack } from "../src/style/StylePack.js";
 import type { MusicalStatePatch } from "../src/state/MusicalState.js";
 import type { NoteEvent } from "../src/events/MusicalEvent.js";
 
-// An active, low-complexity passage: plenty of melody, and resolution barely
-// eased, so the effect of `leapResolution` is clear.
+// An active, unsettled passage: plenty of melody, and high tension keeps the
+// dissonance (an "unease" shape) that throws wide leaps for the resolution to
+// answer. A calm statement of the theme is deliberately kept clean, so leaps to
+// resolve show up in the tense material, not the plain theme.
 const ACTIVE: MusicalStatePatch = {
   energy: 0.9,
-  tension: 0.4,
+  tension: 0.7,
   valence: 0.5,
   density: 0.7,
-  complexity: 0.3,
+  complexity: 0.4,
   instability: 0.3,
   tempo: 88,
 };
