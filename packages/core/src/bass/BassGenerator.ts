@@ -22,7 +22,14 @@ export class BassGenerator {
     // Phrase shape: the bass pattern follows the phrase's energy arc, so it
     // gathers motion through a build and settles into a cadence. Loudness stays
     // on raw state (that is the dynamics step).
-    const arc = phrasePlan.energy;
+    //
+    // Bass/melody relationship: coordinate through the plan so the two voices
+    // stay out of each other's way. When the melody is leading, the bass steps
+    // back a tier to leave it room; when the melody is tacet, the bass may fill
+    // the space a little. This keeps them from both being busy at once.
+    let arc = phrasePlan.energy;
+    if (phrasePlan.melodicActivity === "lead") arc *= 0.8;
+    else if (phrasePlan.melodicActivity === "tacet") arc = clamp01(arc * 1.12);
 
     const root = chordRoot(chord, BASS_OCTAVE);
     // Diatonic fifth (chord tone), not a blind perfect fifth — the vii° / ii°
