@@ -21,6 +21,21 @@ export interface SynthVoiceConfig {
   readonly filterCutoff?: number;
   /** Linear gain 0–1. */
   readonly gain: number;
+  /**
+   * Stereo pan -1 (hard left) .. 1 (hard right). Optional; a renderer supplies a
+   * sensible per-voice default when omitted. Plain data — renderer-agnostic.
+   */
+  readonly pan?: number;
+  /**
+   * Reverb send 0..1 for this voice, scaled by the global {@link InstrumentationConfig.reverbWet}.
+   * Optional; the renderer applies a tasteful per-voice default when omitted.
+   */
+  readonly reverbSend?: number;
+  /**
+   * Delay send 0..1 for this voice, scaled by the global {@link InstrumentationConfig.delayWet}.
+   * Optional; defaults to 0 for most voices (the renderer favours melody).
+   */
+  readonly delaySend?: number;
 }
 
 /** Instrumentation hints consumed by a renderer (never by core logic). */
@@ -33,6 +48,21 @@ export interface InstrumentationConfig {
   readonly melody: SynthVoiceConfig;
   /** Overall percussion gain 0–1. */
   readonly percussionGain: number;
+  /**
+   * Global stereo-width scale 0..1 applied to per-voice panning (1 = full width,
+   * 0 = mono). Optional; defaults to 1 so existing packs are unaffected.
+   */
+  readonly stereoWidth?: number;
+  /**
+   * Master output gain 0..1 applied before the final limiter. Optional; a
+   * renderer supplies a safe default (≈0.9) when omitted.
+   */
+  readonly masterGain?: number;
+  /**
+   * Reverb send 0..1 for the percussion bus, scaled by {@link reverbWet}.
+   * Optional; the renderer keeps percussion mostly dry by default.
+   */
+  readonly percussionReverbSend?: number;
 }
 
 /** Optional corpus-derived harmony configuration for a style. */
