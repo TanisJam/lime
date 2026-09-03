@@ -68,10 +68,43 @@ const corpusPacks: StyleEntry[] = Object.values(packModules)
   }))
   .sort((a, b) => a.id.localeCompare(b.id));
 
+// The genre dropdown: the built-in style plus the corpus genre packs. The
+// emotion packs are not styles here — they drive live state (see EMOTIONS).
 const STYLES: StyleEntry[] = [
   { id: "ambient-minimal (built-in)", style: ambientMinimal, suggestedState: { ...MOODS.Calm } },
-  ...corpusPacks,
+  ...corpusPacks.filter((p) => p.id.startsWith("genre-")),
 ];
+
+/** A quadrant emotion preset: a corpus-derived state the host transitions to. */
+interface EmotionPreset {
+  readonly quadrant: "Q1" | "Q2" | "Q3" | "Q4";
+  readonly label: string;
+  readonly state: MusicalStatePatch;
+}
+
+// The 2×2 emotion selector (valence × arousal). State comes from the corpus
+// feel-* packs' suggestedState where present, with a sensible fallback. Order is
+// the grid's reading order: intense row (tense | happy), then calm row (sad | calm).
+const FEEL_FALLBACK: Record<string, MusicalStatePatch> = {
+  "feel-tense": { energy: 0.7, valence: 0.2, tension: 0.82, brightness: 0.35, density: 0.65, complexity: 0.57, instability: 0.5, tempo: 118 },
+  "feel-happy": { energy: 0.6, valence: 0.8, tension: 0.25, brightness: 0.75, density: 0.55, complexity: 0.45, instability: 0.3, tempo: 112 },
+  "feel-sad": { energy: 0.3, valence: 0.2, tension: 0.3, brightness: 0.35, density: 0.3, complexity: 0.35, instability: 0.25, tempo: 72 },
+  "feel-calm": { energy: 0.35, valence: 0.85, tension: 0.2, brightness: 0.78, density: 0.35, complexity: 0.3, instability: 0.17, tempo: 80 },
+};
+const EMOTIONS: EmotionPreset[] = (
+  [
+    ["feel-tense", "Q2", "Tense"],
+    ["feel-happy", "Q1", "Happy"],
+    ["feel-sad", "Q3", "Sad"],
+    ["feel-calm", "Q4", "Calm"],
+  ] as const
+).map(([id, quadrant, label]) => ({
+  quadrant,
+  label,
+  state: corpusPacks.find((p) => p.id === id)?.suggestedState ?? FEEL_FALLBACK[id]!,
+}));
+
+let currentEmotion: EmotionPreset | null = null;
 
 let music: Lime | null = null;
 let renderer: ToneRenderer | null = null;
@@ -113,6 +146,7 @@ $("#enter-btn").addEventListener("click", async () => {
 
   buildStyleSelector();
   buildRefSeedSelector();
+  buildEmotions();
   buildMoods();
   buildSliders();
   buildVoices();
@@ -137,7 +171,10 @@ async function selectStyle(entry: StyleEntry, opts: { newSeed?: boolean } = {}):
   renderer?.dispose?.();
   stopShowcase();
 
-  const init: MusicalStatePatch = entry.suggestedState ?? { ...MOODS.Calm };
+  // Keep the chosen emotion across a genre switch: the genre supplies the
+  // grammar (StylePack), the emotion supplies the state we start from.
+  const init: MusicalStatePatch =
+    currentEmotion?.state ?? entry.suggestedState ?? { ...MOODS.Calm };
   renderer = createToneRenderer({
     instrumentation: entry.style.instrumentation,
     instruments: useSampled ? SAMPLED_INSTRUMENTS : undefined,
@@ -155,6 +192,7 @@ async function selectStyle(entry: StyleEntry, opts: { newSeed?: boolean } = {}):
   const sb = $("#showcase-btn");
   sb.textContent = "Showcase: off";
   sb.classList.remove("active");
+  if (currentEmotion) highlightEmotion(currentEmotion.quadrant);
 }
 
 function buildStyleSelector(): void {
@@ -163,7 +201,9 @@ function buildStyleSelector(): void {
   STYLES.forEach((e, i) => {
     const o = document.createElement("option");
     o.value = String(i);
-    o.textContent = e.id;
+    o.textContent = e.id.startsWith("genre-")
+      ? e.id.slice(6).replace(/(^|-)([a-z])/g, (_, s, c) => s + c.toUpperCase())
+      : e.id;
     sel.appendChild(o);
   });
   sel.addEventListener("change", () => {
@@ -282,6 +322,44 @@ function buildMoods(): void {
   }
 }
 
+/** The 2×2 emotion selector: each cell transitions live to a quadrant's state. */
+function buildEmotions(): void {
+  const host = $("#emotions");
+  host.innerHTML = "";
+  for (const preset of EMOTIONS) {
+    const btn = document.createElement("button");
+    btn.className = "emotion";
+    btn.textContent = preset.label;
+    btn.dataset.quadrant = preset.quadrant;
+    btn.addEventListener("click", () => applyEmotion(preset));
+    host.appendChild(btn);
+  }
+}
+
+/** Transition the live state toward an emotion quadrant (no restart). */
+function applyEmotion(preset: EmotionPreset): void {
+  currentEmotion = preset;
+  highlightEmotion(preset.quadrant);
+  if (!music || automationPaused) return;
+  music.transitionTo({ ...preset.state }, { duration: { bars: 8 }, quantize: "nextBar" });
+  if (preset.state.brightness !== undefined) renderer?.setBrightness(preset.state.brightness);
+  syncSliders(preset.state);
+  clearMoodHighlight();
+}
+
+function highlightEmotion(quadrant: string): void {
+  for (const b of document.querySelectorAll<HTMLElement>("#emotions .emotion")) {
+    b.classList.toggle("active", b.dataset.quadrant === quadrant);
+  }
+}
+
+function clearEmotionHighlight(): void {
+  currentEmotion = null;
+  for (const b of document.querySelectorAll<HTMLElement>("#emotions .emotion")) {
+    b.classList.remove("active");
+  }
+}
+
 function buildSliders(): void {
   const host = $("#sliders");
   host.innerHTML = "";
@@ -309,6 +387,7 @@ function makeSlider(key: string, label: string, min: number, max: number, step: 
     out.textContent = fmt(v, key === "tempo");
     onSlider(key, v);
     clearMoodHighlight();
+    clearEmotionHighlight();
   });
   row.appendChild(input);
   row.appendChild(out);
@@ -338,6 +417,7 @@ function applyMood(name: string, transition: boolean): void {
       if (out) out.textContent = fmt(v, k === "tempo");
     }
   }
+  clearEmotionHighlight();
   highlightMood(name);
 }
 
