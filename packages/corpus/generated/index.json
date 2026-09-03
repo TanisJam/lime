@@ -1,12 +1,52 @@
 [
   {
+    "id": "emopia-Q1",
+    "file": "emopia-Q1.json",
+    "bucket": "Q1",
+    "sampleCount": 2890,
+    "emotion": {
+      "valence": 0.5999999999999972,
+      "arousal": 0.5999999999999972
+    }
+  },
+  {
+    "id": "emopia-Q2",
+    "file": "emopia-Q2.json",
+    "bucket": "Q2",
+    "sampleCount": 2814,
+    "emotion": {
+      "valence": -0.599999999999997,
+      "arousal": 0.599999999999997
+    }
+  },
+  {
+    "id": "emopia-Q3",
+    "file": "emopia-Q3.json",
+    "bucket": "Q3",
+    "sampleCount": 2872,
+    "emotion": {
+      "valence": -0.5999999999999971,
+      "arousal": -0.5999999999999971
+    }
+  },
+  {
+    "id": "emopia-Q4",
+    "file": "emopia-Q4.json",
+    "bucket": "Q4",
+    "sampleCount": 3729,
+    "emotion": {
+      "valence": 0.5999999999999966,
+      "arousal": -0.5999999999999966
+    }
+  },
+  {
     "id": "emotion-calm",
     "file": "emotion-calm.json",
     "bucket": "calm",
-    "sampleCount": 5885,
+    "sampleCount": 5995,
     "emotion": {
-      "valence": 0.6672268907562998,
-      "arousal": -0.6672268907562998
+      "valence": 0.6653950953678446,
+      "arousal": -0.6653950953678446
     }
   },
   {
@@ -43,6 +83,46 @@
     "id": "lakh-all",
     "file": "lakh-all.json",
     "bucket": "all",
-    "sampleCount": 21845
+    "sampleCount": 35149
+  },
+  {
+    "id": "vgmidi-Q1",
+    "file": "vgmidi-Q1.json",
+    "bucket": "Q1",
+    "sampleCount": 2920,
+    "emotion": {
+      "valence": 1,
+      "arousal": 1
+    }
+  },
+  {
+    "id": "vgmidi-Q2",
+    "file": "vgmidi-Q2.json",
+    "bucket": "Q2",
+    "sampleCount": 1604,
+    "emotion": {
+      "valence": -1,
+      "arousal": 1
+    }
+  },
+  {
+    "id": "vgmidi-Q3",
+    "file": "vgmidi-Q3.json",
+    "bucket": "Q3",
+    "sampleCount": 847,
+    "emotion": {
+      "valence": -1,
+      "arousal": -1
+    }
+  },
+  {
+    "id": "vgmidi-Q4",
+    "file": "vgmidi-Q4.json",
+    "bucket": "Q4",
+    "sampleCount": 2266,
+    "emotion": {
+      "valence": 1,
+      "arousal": -1
+    }
   }
 ]
