@@ -12,9 +12,12 @@ import {
   DEFAULT_STATE,
   applyPatch,
   clampTempo,
+  clamp01,
 } from "../state/MusicalState.js";
 import { StateManager } from "../state/StateManager.js";
 import { PhrasePlanner } from "../phrase/PhrasePlanner.js";
+import { PhraseDirector } from "../phrase/PhrasePlan.js";
+import { FormDirector } from "../phrase/FormDirector.js";
 import { HarmonyPlanner } from "../harmony/HarmonyPlanner.js";
 import { pitchClassName } from "../harmony/Scale.js";
 import { chordLabel, chordRoman } from "../harmony/Chord.js";
@@ -66,6 +69,16 @@ export interface Lime {
 
 const RECENT_EVENT_BARS = 8;
 
+/** How strongly the form's arch swings the effective energy around the host's. */
+const FORM_SPREAD = 0.7;
+
+/**
+ * How strongly the form's arch swings harmonic tension — a smaller amount than
+ * the energy swing, so the harmony ventures out and comes home without ever
+ * losing the plot.
+ */
+const HARM_SPREAD = 0.35;
+
 /**
  * Portable timer access. Core must not assume DOM or Node lib types, but both
  * environments (and Web Workers) expose these on `globalThis`. Hosts that would
@@ -86,6 +99,8 @@ export class LimeEngine implements Lime {
 
   private readonly stateManager: StateManager;
   private readonly phrases: PhrasePlanner;
+  private readonly director: PhraseDirector;
+  private readonly form: FormDirector;
   private readonly harmony: HarmonyPlanner;
   private readonly orchestrator: Orchestrator;
   private readonly scheduler: CompositionScheduler;
@@ -123,6 +138,8 @@ export class LimeEngine implements Lime {
     this.phrases = new PhrasePlanner({
       phraseLengthBars: this.style.phraseLengthBars,
     });
+    this.director = new PhraseDirector();
+    this.form = new FormDirector();
     this.harmony = new HarmonyPlanner({
       rng: this.rng.derive("harmony"),
       phrasePlanner: this.phrases,
@@ -222,14 +239,22 @@ export class LimeEngine implements Lime {
    */
   composeBar(bar: number): NoteEvent[] {
     this.stateManager.advanceToBar(bar);
-    const state = this.stateManager.currentState;
+    const hostState = this.stateManager.currentState;
+    // The form's slow arch shapes the effective state the composer works from,
+    // so the piece builds and releases over minutes. Harmony stays on the host's
+    // emotional state — the form shapes intensity/structure, not the mood.
+    const formState = this.form.at(bar, this.phrases.phraseLengthBars);
+    const state = this.applyForm(hostState, formState.deviation);
     this.lastComposedState = state;
 
     // Ensure this bar and the next are planned (next is used for anticipation).
-    this.harmony.ensurePlannedThrough(bar + 1, state);
+    // The form gives harmony a journey too: chords venture away from the tonic
+    // through the development and climax, and settle home in the recap and coda.
+    this.harmony.ensurePlannedThrough(bar + 1, this.applyFormToHarmony(hostState, formState.deviation));
     const chord = this.harmony.chordAt(bar)!;
     const nextChord = this.harmony.chordAt(bar + 1);
     const phrase = this.phrases.at(bar);
+    const phrasePlan = this.director.plan(state, phrase);
 
     const events = this.orchestrator.composeBar({
       bar,
@@ -239,6 +264,7 @@ export class LimeEngine implements Lime {
       chord,
       nextChord,
       phrase,
+      phrasePlan,
     });
 
     this.orchestrator.memory.expireCommitments(bar);
@@ -270,6 +296,39 @@ export class LimeEngine implements Lime {
   };
 
   // --- internals -----------------------------------------------------------
+
+  /**
+   * Shape the host state by the form's intensity deviation. Gated by host energy
+   * so a deliberately near-silent passage is left untouched — the form only
+   * carves a journey once there's energy to work with — and applied to energy
+   * (and, more gently, density) so the arc drives the whole texture.
+   */
+  private applyForm(host: MusicalState, deviation: number): MusicalState {
+    const gate = clamp01((host.energy - 0.15) / 0.2);
+    const shift = deviation * FORM_SPREAD * gate;
+    if (shift === 0) return host;
+    return {
+      ...host,
+      energy: clamp01(host.energy + shift),
+      density: clamp01(host.density + shift * 0.6),
+    };
+  }
+
+  /**
+   * Shape harmonic adventurousness by the form: the development and climax lift
+   * tension (chords wander from the tonic), the recap and coda lower it (home).
+   * Gated by host energy so a deliberately calm passage keeps its simple harmony.
+   */
+  private applyFormToHarmony(host: MusicalState, deviation: number): MusicalState {
+    const gate = clamp01((host.energy - 0.15) / 0.2);
+    const shift = deviation * HARM_SPREAD * gate;
+    if (shift === 0) return host;
+    return {
+      ...host,
+      tension: clamp01(host.tension + shift),
+      instability: clamp01(host.instability + shift * 0.5),
+    };
+  }
 
   private playheadBar(): number {
     return this.renderer
@@ -323,6 +382,7 @@ export class LimeEngine implements Lime {
       (nowTick - bar * ticksPerBar(this.meter)) / ticksPerBeat(this.meter),
     );
     const state = this.stateManager.currentState;
+    const form = this.form.at(bar, this.phrases.phraseLengthBars);
 
     const chord = this.harmony.chordAt(bar);
     const upcoming = this.harmony.upcoming(bar, 8, state);
@@ -353,10 +413,14 @@ export class LimeEngine implements Lime {
       chordRoman: chord ? chordRoman(chord) : null,
       chordLabel: chord ? chordLabel(chord) : null,
       phrase: this.phrases.at(bar),
+      phrasePlan: this.director.plan(state, this.phrases.at(bar)),
+      activeVoices: [...this.orchestrator.arrangement.current],
       activeMotifId,
       motifCount: this.orchestrator.memory.motifs.length,
       currentState: state,
       targetState: this.stateManager.targetState,
+      formSection: form.section,
+      formIntensity: form.intensity,
       composedThroughBar: this.scheduler.composedThroughBar,
       upcomingHarmony,
       upcomingEvents,

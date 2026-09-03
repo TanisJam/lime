@@ -12,8 +12,10 @@
   },
   "dependencies": {
     "@lime/core": "workspace:*",
+    "@lime/midi": "workspace:*",
     "@lime/renderer-tone": "workspace:*",
-    "@lime/styles": "workspace:*"
+    "@lime/styles": "workspace:*",
+    "tone": "^15.0.4"
   },
   "devDependencies": {
     "typescript": "^5.5.4",

@@ -86,6 +86,14 @@ button.toggle, .mood {
 }
 button.toggle:hover, .mood:hover { border-color: var(--accent2); }
 button.toggle.active { background: var(--accent2); color: #08122e; border-color: var(--accent2); }
+button.toggle:disabled { opacity: 0.6; cursor: progress; }
+
+/* Attribution footer (CC-BY sample credits) */
+.credits {
+  grid-column: 1 / -1;
+  font-size: 0.72rem; color: var(--muted); text-align: center;
+  padding: 0.25rem 0.5rem 0; opacity: 0.75;
+}
 .style-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
 .style-row select {
   flex: 1; font-family: var(--font); font-size: 0.85rem; color: var(--text);
@@ -130,6 +138,20 @@ input[type="range"]::-moz-range-thumb {
 
 .motif-line { display: flex; gap: 1rem; font-size: 0.8rem; color: var(--muted); }
 .motif-line b { color: var(--accent2); font-family: var(--mono); }
+
+/* Voice mute / solo */
+.voices { display: flex; flex-direction: column; gap: 0.35rem; }
+.voice-row { display: grid; grid-template-columns: 70px 1fr 1fr; align-items: center; gap: 0.5rem; }
+.voice-row .vname { font-size: 0.72rem; color: var(--muted); }
+.voice-row button {
+  font-family: var(--font); font-size: 0.72rem; color: var(--text);
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 7px;
+  padding: 0.3rem 0.4rem; cursor: pointer; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.voice-row button:hover { border-color: var(--accent2); }
+.voice-row button.mute.active { background: var(--warn); color: #2a0f06; border-color: var(--warn); }
+.voice-row button.solo.active { background: var(--accent); color: #06231c; border-color: var(--accent); }
+.voice-row.muted .vname { opacity: 0.45; }
 
 .activity { display: flex; flex-direction: column; gap: 0.3rem; }
 .act-row { display: grid; grid-template-columns: 70px 1fr; align-items: center; gap: 0.5rem; }

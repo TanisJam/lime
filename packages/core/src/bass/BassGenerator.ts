@@ -1,6 +1,6 @@
 import type { NoteEvent } from "../events/MusicalEvent.js";
 import { ticksPerBar, ticksPerBeat } from "../time/MusicalTime.js";
-import { chordRoot } from "../harmony/Chord.js";
+import { chordRoot, type HarmonicEvent } from "../harmony/Chord.js";
 import { degreePitch } from "../harmony/Scale.js";
 import { clamp01 } from "../state/MusicalState.js";
 import type { BarContext } from "../orchestration/BarContext.js";
@@ -8,17 +8,30 @@ import type { BarContext } from "../orchestration/BarContext.js";
 const BASS_OCTAVE = 2;
 
 /**
- * Bass voice — derived from the chord root.
+ * Bass voice — grounded on the chord root, but not a metronome.
  *
- * Low energy: a single sustained root. Higher energy adds a pulse, the fifth,
- * octaves, and a passing note that leads into the next chord (when complexity is
- * high). Deliberately conservative.
+ * The bass anchors the harmony, yet it earns its keep musically: it breathes
+ * (letting the pad hold the harmony on some interior bars), it varies how it
+ * enters a bar (not always the root on beat one), and it moves melodically with
+ * diatonic approach notes into the next chord. Density follows the phrase arc,
+ * loudness the dynamics contour, and it steps aside when the melody leads.
  */
 export class BassGenerator {
   generateBar(ctx: BarContext): NoteEvent[] {
-    const { chord, nextChord, state, rng, meter, barStartTick } = ctx;
+    const { chord, nextChord, state, phrasePlan, phrase, rng, meter, barStartTick } = ctx;
     const barLen = ticksPerBar(meter);
     const beat = ticksPerBeat(meter);
+
+    // Bass/melody relationship: step back a tier while the melody leads, fill a
+    // little when it rests, so the two voices stay out of each other's way.
+    let arc = phrasePlan.energy;
+    if (phrasePlan.melodicActivity === "lead") arc *= 0.8;
+    else if (phrasePlan.melodicActivity === "tacet") arc = clamp01(arc * 1.12);
+
+    // Breathing: on interior bars the bass may drop out and let the pad hold the
+    // harmony, so it isn't a constant presence. Never on a phrase's first bar
+    // (the harmony wants grounding there), and rarer as energy climbs.
+    if (!phrase.isStart && rng.bool(clamp01(0.4 * (1 - arc)))) return [];
 
     const root = chordRoot(chord, BASS_OCTAVE);
     // Diatonic fifth (chord tone), not a blind perfect fifth — the vii° / ii°
@@ -26,8 +39,11 @@ export class BassGenerator {
     const fifth = degreePitch(chord.degree + 4, chord.keyPc, chord.mode, BASS_OCTAVE);
     const octave = root + 12;
     const nextRoot = nextChord ? chordRoot(nextChord, BASS_OCTAVE) : root;
+    // A diatonic step below the next root — a smooth approach that pulls the ear
+    // into the coming chord instead of just restating roots.
+    const approach = nextChord ? this.approachTone(nextChord) : fifth;
 
-    const velBase = clamp01(0.42 + 0.3 * state.energy);
+    const velBase = clamp01(0.42 + 0.3 * phrasePlan.dynamics);
     const events: NoteEvent[] = [];
 
     const push = (time: number, duration: number, pitch: number) => {
@@ -42,29 +58,48 @@ export class BassGenerator {
       });
     };
 
-    if (state.energy < 0.3) {
-      // One sustained root for the whole bar.
-      push(0, barLen, root);
-    } else if (state.energy < 0.55) {
-      // Root then fifth, half notes.
+    if (arc < 0.3) {
+      // Calm: a sustained root, but now and then lift to the fifth for the
+      // second half so a long quiet passage isn't one endlessly held pitch.
+      if (rng.bool(0.3)) {
+        push(0, beat * 2, root);
+        push(beat * 2, beat * 2, fifth);
+      } else {
+        push(0, barLen, root);
+      }
+    } else if (arc < 0.55) {
+      // Two half notes. The second is a fifth, an approach into the next chord,
+      // or the root — chosen so consecutive bars don't repeat the same shape.
       push(0, beat * 2, root);
-      push(beat * 2, beat * 2, state.instability > 0.4 ? fifth : root);
-    } else if (state.energy < 0.8) {
-      // Quarter pulse: root, fifth, root, then anticipate the next root.
-      const last = nextChord && state.complexity > 0.5 ? nextRoot : fifth;
+      const second =
+        nextChord && rng.bool(0.4) ? approach : state.instability > 0.4 ? fifth : root;
+      push(beat * 2, beat * 2, second);
+    } else if (arc < 0.8) {
+      // A quarter-note line. Occasionally rest beat one for a syncopated lift,
+      // and walk into the next root through the approach note.
+      const last = nextChord ? approach : fifth;
+      const syncopate = !phrase.isStart && rng.bool(0.25);
       const pitches = [root, fifth, root, last];
-      for (let i = 0; i < 4; i++) push(beat * i, beat, pitches[i]!);
+      for (let i = 0; i < 4; i++) {
+        if (syncopate && i === 0) continue; // let the downbeat breathe
+        push(beat * i, beat, pitches[i]!);
+      }
     } else {
-      // Eighth-ish movement with octaves; anticipate the next root on the last hit.
-      const seq = [root, root, fifth, root, octave, fifth, root, nextRoot];
+      // Driving eighths with octaves, walking into the next root on the last hit.
+      const seq = [root, root, fifth, root, octave, fifth, root, nextChord ? approach : nextRoot];
       const eighth = beat / 2;
       for (let i = 0; i < 8; i++) {
-        // Skip some eighths at lower density to keep it musical, not busy.
+        // Skip some off-beat eighths at lower density to keep it musical, not busy.
         if (state.density < 0.5 && i % 2 === 1 && rng.bool(0.4)) continue;
         push(Math.round(eighth * i), Math.round(eighth), seq[i]!);
       }
     }
 
     return events;
+  }
+
+  /** A diatonic scale tone a step below the next chord's root — an approach note. */
+  private approachTone(nextChord: HarmonicEvent): number {
+    return degreePitch(nextChord.degree - 1, nextChord.keyPc, nextChord.mode, BASS_OCTAVE);
   }
 }

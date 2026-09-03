@@ -7,6 +7,7 @@ import { BassGenerator } from "../bass/BassGenerator.js";
 import { MelodyGenerator } from "../melody/MelodyGenerator.js";
 import { PercussionGenerator } from "../percussion/PercussionGenerator.js";
 import type { BarContext } from "./BarContext.js";
+import { Arrangement } from "./Arrangement.js";
 import type { MelodyStyle, RhythmStyle } from "../style/StylePack.js";
 
 /** BarContext without the per-voice RNG (filled in per voice by the orchestrator). */
@@ -27,6 +28,7 @@ export interface OrchestratorHints {
  */
 export class Orchestrator {
   readonly memory: ComposerMemory;
+  readonly arrangement = new Arrangement();
 
   private readonly pad = new PadGenerator();
   private readonly bass = new BassGenerator();
@@ -53,17 +55,24 @@ export class Orchestrator {
     const key = String(base.bar);
     const events: NoteEvent[] = [];
 
-    events.push(...this.pad.generateBar({ ...base, rng: this.padRng.derive(key) }));
-    events.push(...this.bass.generateBar({ ...base, rng: this.bassRng.derive(key) }));
-    events.push(
-      ...this.melody.generateBar(
-        { ...base, rng: this.melodyRng.derive(key) },
-        this.memory,
-      ),
-    );
-    events.push(
-      ...this.percussion.generateBar({ ...base, rng: this.percRng.derive(key) }),
-    );
+    // Arrangement: energy decides which voices are present this bar, with
+    // hysteresis so they build up and drop out gradually instead of flickering.
+    const active = this.arrangement.update(base.state.energy);
+
+    if (active.has("pad")) {
+      events.push(...this.pad.generateBar({ ...base, rng: this.padRng.derive(key) }));
+    }
+    if (active.has("bass")) {
+      events.push(...this.bass.generateBar({ ...base, rng: this.bassRng.derive(key) }));
+    }
+    if (active.has("melody")) {
+      events.push(
+        ...this.melody.generateBar({ ...base, rng: this.melodyRng.derive(key) }, this.memory),
+      );
+    }
+    if (active.has("percussion")) {
+      events.push(...this.percussion.generateBar({ ...base, rng: this.percRng.derive(key) }));
+    }
 
     // Record the chord once, at its start bar, for memory/debug.
     if (base.bar === base.chord.bar) this.memory.recordChord(base.chord);

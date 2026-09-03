@@ -1,7 +1,21 @@
 import "./style.css";
-import { createLime, type Lime, type MusicalStatePatch, type StylePack } from "@lime/core";
+import {
+  createLime,
+  REFERENCE_SEEDS,
+  SHOWCASE_SEQUENCE,
+  expandShowcase,
+  type Lime,
+  type MusicalStatePatch,
+  type StylePack,
+  type NoteEvent,
+  type VoiceId,
+  type PhrasePlan,
+} from "@lime/core";
+import { eventsToStandardMidiFile } from "@lime/midi";
 import { createToneRenderer, type ToneRenderer } from "@lime/renderer-tone";
 import { ambientMinimal } from "@lime/styles";
+import * as Tone from "tone";
+import { SAMPLED_INSTRUMENTS } from "./sampledInstruments";
 
 /** A selectable style: the built-in one or a corpus-generated pack. */
 interface StyleEntry {
@@ -33,10 +47,10 @@ const MOODS: Record<string, MusicalStatePatch> = {
   Resolve: { energy: 0.4, tension: 0.15, valence: 0.78, density: 0.34, complexity: 0.3, instability: 0.2, brightness: 0.62, tempo: 74 },
 };
 
-const SHOWCASE_ORDER = ["Calm", "Explore", "Unease", "Danger", "Resolve", "Calm"];
-const SHOWCASE_INTERVAL_MS = 30_000;
-
 const initialState: MusicalStatePatch = { ...MOODS.Calm };
+
+// Deterministic, bar-driven showcase schedule (shared with the regression suite).
+const SHOWCASE = expandShowcase();
 
 // Corpus-generated StylePacks are pure JSON data (no corpus code in the bundle).
 const packModules = import.meta.glob("../../../packages/corpus/generated/*.json", {
@@ -59,10 +73,32 @@ const STYLES: StyleEntry[] = [
 
 let music: Lime | null = null;
 let renderer: ToneRenderer | null = null;
-let showcaseTimer: ReturnType<typeof setInterval> | undefined;
-let showcaseIndex = 0;
 let currentSeed = "demo-forest-1";
 let currentEntry: StyleEntry = STYLES[0]!;
+
+// Bar-driven showcase runner state.
+let showcaseActive = false;
+let showcaseStartBar = 0; // engine bar at which the journey began
+let showcaseNextIndex = 0; // next scheduled change to fire
+let showcaseStageName = "off";
+
+// Deliverable 4: when true, controls (moods/sliders/showcase) stop pushing state
+// into the engine; the engine keeps composing its current trajectory forward.
+let automationPaused = false;
+
+// Deliverable 3: per-voice mute + solo, computed here and pushed to the renderer.
+const muted: Record<VoiceId, boolean> = {
+  pad: false,
+  bass: false,
+  melody: false,
+  percussion: false,
+  texture: false,
+};
+let soloVoice: VoiceId | null = null;
+
+// A/B instrument palette: false = self-contained synth (default, no fetch),
+// true = high-quality sampled instruments plugged in via the renderer's API.
+let useSampled = false;
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) =>
   document.querySelector(sel) as T;
@@ -74,8 +110,10 @@ $("#enter-btn").addEventListener("click", async () => {
   $("#app").hidden = false;
 
   buildStyleSelector();
+  buildRefSeedSelector();
   buildMoods();
   buildSliders();
+  buildVoices();
   buildActivity();
   buildStateBars();
 
@@ -98,10 +136,17 @@ async function selectStyle(entry: StyleEntry, opts: { newSeed?: boolean } = {}):
   stopShowcase();
 
   const init: MusicalStatePatch = entry.suggestedState ?? { ...MOODS.Calm };
-  renderer = createToneRenderer({ instrumentation: entry.style.instrumentation });
+  renderer = createToneRenderer({
+    instrumentation: entry.style.instrumentation,
+    instruments: useSampled ? SAMPLED_INSTRUMENTS : undefined,
+  });
   music = createLime({ seed: currentSeed, style: entry.style, renderer, initialState: init, lookAheadBars: 4 });
   await music.start();
+  // Sampled mode: samplers load buffers asynchronously; wait so early notes are
+  // not dropped into silence. The synth path has nothing to fetch and skips this.
+  if (useSampled) await Tone.loaded();
   renderer.setBrightness(init.brightness ?? 0.5);
+  applyVoiceStates(); // re-push mute/solo onto the freshly built renderer
 
   syncSliders(init);
   clearMoodHighlight();
@@ -127,6 +172,32 @@ function buildStyleSelector(): void {
   });
 }
 
+/**
+ * Reference-seed selector: recompose the CURRENT style with one of the 10 fixed
+ * `REFERENCE_SEEDS`. Sets `currentSeed` to the chosen value and re-runs the
+ * normal `selectStyle` path (no `newSeed`, so nothing is randomized) — same seed
+ * + same style ⇒ identical music.
+ */
+function buildRefSeedSelector(): void {
+  const sel = $<HTMLSelectElement>("#refseed-select");
+  sel.innerHTML = "";
+  const head = document.createElement("option");
+  head.value = "";
+  head.textContent = "reference seed…";
+  sel.appendChild(head);
+  for (const seed of REFERENCE_SEEDS) {
+    const o = document.createElement("option");
+    o.value = seed;
+    o.textContent = seed;
+    sel.appendChild(o);
+  }
+  sel.addEventListener("change", () => {
+    if (!sel.value) return;
+    currentSeed = sel.value;
+    void selectStyle(currentEntry);
+  });
+}
+
 /** Reflect a state on the sliders (used when a pack sets its own initial state). */
 function syncSliders(state: MusicalStatePatch): void {
   for (const input of document.querySelectorAll<HTMLInputElement>('input[type="range"]')) {
@@ -142,11 +213,14 @@ function syncSliders(state: MusicalStatePatch): void {
 $("#stop-btn").addEventListener("click", () => {
   music?.stop();
   stopShowcase();
+  const sb = $("#showcase-btn");
+  sb.textContent = "Showcase: off";
+  sb.classList.remove("active");
 });
 
 $("#showcase-btn").addEventListener("click", () => {
   const btn = $("#showcase-btn");
-  if (showcaseTimer) {
+  if (showcaseActive) {
     stopShowcase();
     btn.textContent = "Showcase: off";
     btn.classList.remove("active");
@@ -155,6 +229,40 @@ $("#showcase-btn").addEventListener("click", () => {
     btn.textContent = "Showcase: on";
     btn.classList.add("active");
   }
+});
+
+// Deliverable 4: pause / resume state automation (music keeps playing).
+$("#pause-btn").addEventListener("click", () => {
+  automationPaused = !automationPaused;
+  const btn = $("#pause-btn");
+  btn.textContent = automationPaused ? "Automation: paused" : "Automation: live";
+  btn.classList.toggle("active", automationPaused);
+});
+
+// Deliverable 5: capture the current composition and download it as a .mid.
+$("#export-btn").addEventListener("click", () => exportMidi());
+
+// A/B instrument toggle: rebuild the renderer with the sampled palette (or back
+// to synth) through the same lifecycle selectStyle uses. Sampled mode fetches
+// buffers, so the button reports "loading…" and is disabled until ready.
+$("#instr-btn").addEventListener("click", async () => {
+  const btn = $<HTMLButtonElement>("#instr-btn");
+  if (btn.disabled) return;
+  useSampled = !useSampled;
+
+  if (useSampled) {
+    btn.textContent = "Instruments: loading…";
+    btn.disabled = true;
+    btn.classList.add("active");
+  }
+
+  // Rebuild the current style/seed with the chosen instrument set. selectStyle
+  // awaits Tone.loaded() when useSampled, so control returns once buffers exist.
+  await selectStyle(currentEntry);
+
+  btn.disabled = false;
+  btn.textContent = useSampled ? "Instruments: sampled" : "Instruments: synth";
+  btn.classList.toggle("active", useSampled);
 });
 
 // --- Controls --------------------------------------------------------------
@@ -206,13 +314,13 @@ function makeSlider(key: string, label: string, min: number, max: number, step: 
 }
 
 function onSlider(key: string, value: number): void {
-  if (!music) return;
+  if (!music || automationPaused) return;
   music.setState({ [key]: value } as MusicalStatePatch, { quantize: "nextBar" });
   if (key === "brightness") renderer?.setBrightness(value);
 }
 
 function applyMood(name: string, transition: boolean): void {
-  if (!music) return;
+  if (!music || automationPaused) return;
   const target = MOODS[name]!;
   if (transition) music.transitionTo({ ...target }, { duration: { bars: 8 }, quantize: "nextBar" });
   else music.setState({ ...target }, { quantize: "nextBar" });
@@ -240,17 +348,138 @@ function clearMoodHighlight(): void {
   for (const b of document.querySelectorAll<HTMLElement>(".mood")) b.classList.remove("active");
 }
 
+/**
+ * Deliverable 2: deterministic, bar-driven showcase. Start anchors the journey
+ * to the engine's current bar; the runner fires each scheduled change exactly
+ * once when the engine reaches its bar (see {@link tickShowcase}).
+ */
 function startShowcase(): void {
-  showcaseIndex = 0;
-  applyMood(SHOWCASE_ORDER[0]!, true);
-  showcaseTimer = setInterval(() => {
-    showcaseIndex = (showcaseIndex + 1) % SHOWCASE_ORDER.length;
-    applyMood(SHOWCASE_ORDER[showcaseIndex]!, true);
-  }, SHOWCASE_INTERVAL_MS);
+  if (!music) return;
+  showcaseActive = true;
+  showcaseStartBar = music.debug.snapshot().bar;
+  showcaseNextIndex = 0;
+  showcaseStageName = "starting";
 }
 function stopShowcase(): void {
-  if (showcaseTimer) clearInterval(showcaseTimer);
-  showcaseTimer = undefined;
+  showcaseActive = false;
+  showcaseNextIndex = 0;
+  showcaseStageName = "off";
+}
+
+/**
+ * Fire any showcase changes now due for the current bar. Called from the rAF
+ * `update()` loop. Paused automation freezes firing; the engine keeps composing.
+ * The journey loops deterministically, re-anchoring to the current bar.
+ */
+function tickShowcase(currentBar: number): void {
+  if (!showcaseActive || !music || automationPaused) return;
+  const rel = currentBar - showcaseStartBar;
+  while (
+    showcaseNextIndex < SHOWCASE.changes.length &&
+    rel >= SHOWCASE.changes[showcaseNextIndex]!.atBar
+  ) {
+    const change = SHOWCASE.changes[showcaseNextIndex]!;
+    music.transitionTo(change.patch, {
+      duration: { bars: change.transitionBars },
+      quantize: "nextBar",
+    });
+    if (change.patch.brightness !== undefined) renderer?.setBrightness(change.patch.brightness);
+    showcaseStageName = SHOWCASE_SEQUENCE[showcaseNextIndex]!.name;
+    syncSliders(change.patch);
+    showcaseNextIndex++;
+  }
+  // Loop the journey once its full bar budget has elapsed, re-anchored so the
+  // relative schedule (and thus the music) stays deterministic.
+  if (showcaseNextIndex >= SHOWCASE.changes.length && rel >= SHOWCASE.totalBars) {
+    showcaseStartBar = currentBar;
+    showcaseNextIndex = 0;
+  }
+}
+
+// --- Voice mute / solo (deliverable 3) -------------------------------------
+
+/** Effective mute for a voice: solo silences every OTHER voice. */
+function effectiveMuted(voice: VoiceId): boolean {
+  if (soloVoice !== null) return voice !== soloVoice || muted[voice];
+  return muted[voice];
+}
+
+/** Push the computed mute set to the renderer and reflect state in the UI. */
+function applyVoiceStates(): void {
+  for (const voice of VOICES) renderer?.setVoiceMuted(voice, effectiveMuted(voice));
+  for (const row of document.querySelectorAll<HTMLElement>(".voice-row")) {
+    const voice = row.dataset.voice as VoiceId;
+    const muteBtn = row.querySelector<HTMLElement>("button.mute");
+    const soloBtn = row.querySelector<HTMLElement>("button.solo");
+    muteBtn?.classList.toggle("active", muted[voice]);
+    soloBtn?.classList.toggle("active", soloVoice === voice);
+    row.classList.toggle("muted", effectiveMuted(voice));
+  }
+}
+
+function buildVoices(): void {
+  const host = $("#d-voices");
+  host.innerHTML = "";
+  for (const voice of VOICES) {
+    const row = document.createElement("div");
+    row.className = "voice-row";
+    row.dataset.voice = voice;
+    row.innerHTML = `<span class="vname">${voice}</span>`;
+
+    const muteBtn = document.createElement("button");
+    muteBtn.className = "mute";
+    muteBtn.textContent = "mute";
+    muteBtn.addEventListener("click", () => {
+      muted[voice] = !muted[voice];
+      applyVoiceStates();
+    });
+
+    const soloBtn = document.createElement("button");
+    soloBtn.className = "solo";
+    soloBtn.textContent = "solo";
+    soloBtn.addEventListener("click", () => {
+      soloVoice = soloVoice === voice ? null : voice;
+      applyVoiceStates();
+    });
+
+    row.appendChild(muteBtn);
+    row.appendChild(soloBtn);
+    host.appendChild(row);
+  }
+}
+
+// --- MIDI export (deliverable 5) -------------------------------------------
+
+/**
+ * Capture the current composition and download it as a Standard MIDI File.
+ * Uses the engine's current tempo as a single tempo value.
+ */
+function exportMidi(): void {
+  if (!music) return;
+  const bars = showcaseActive ? SHOWCASE.totalBars : 64;
+  const capture = music.captureComposition(bars);
+  const events: NoteEvent[] = capture.bars.flatMap((b) => b.events);
+  if (events.length === 0) return;
+
+  // Normalize event times so the file starts at tick 0 (the capture begins at
+  // the live composition frontier, not bar 0).
+  const minTime = events.reduce((min, e) => Math.min(min, e.time), Infinity);
+  const shifted: NoteEvent[] = events.map((e) => ({ ...e, time: e.time - minTime }));
+
+  // TODO: tempo map — the showcase changes tempo per stage; a tempoChanges[]
+  // built from the captured per-bar tempo would preserve those ramps.
+  const tempo = music.debug.snapshot().bpm;
+  const bytes = eventsToStandardMidiFile(shifted, { tempo, name: `LIME ${currentSeed}` });
+
+  const blob = new Blob([bytes as unknown as BlobPart], { type: "audio/midi" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `lime-${currentSeed}.mid`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 // --- Debug panel -----------------------------------------------------------
@@ -295,12 +524,19 @@ function update(): void {
   if (!music) return;
   const s = music.debug.snapshot();
 
+  // Deterministic showcase: fire any changes now due for this bar.
+  tickShowcase(s.bar);
+  $("#d-showcase").textContent = showcaseActive ? showcaseStageName : "off";
+
   $("#d-bar").textContent = String(s.bar);
   $("#d-beat").textContent = String(s.beat + 1);
   $("#d-bpm").textContent = s.bpm.toFixed(1);
   $("#d-key").textContent = `${s.keyName} ${s.mode}`;
   $("#d-chord").textContent = s.chordLabel ? `${s.chordLabel} (${s.chordRoman})` : "–";
   $("#d-phrase").textContent = s.phrase ? `${s.phrase.role} ${s.phrase.barInPhrase + 1}/${s.phrase.lengthBars}` : "–";
+  $("#d-plan").textContent = s.phrasePlan ? fmtPlan(s.phrasePlan) : "–";
+  $("#d-arr").textContent = s.activeVoices.length ? s.activeVoices.join(" + ") : "–";
+  $("#d-form").textContent = `${s.formSection} · ${(s.formIntensity * 100).toFixed(0)}%`;
 
   // Upcoming harmony chips.
   const harmony = $("#d-harmony");
@@ -341,4 +577,18 @@ function update(): void {
 
 function fmt(v: number, isTempo: boolean): string {
   return isTempo ? v.toFixed(0) : v.toFixed(2);
+}
+
+const ARROW: Record<string, string> = { rising: "↑", falling: "↓", steady: "→" };
+
+/** Compact one-line view of the phrase gesture for the debug panel. */
+function fmtPlan(p: PhrasePlan): string {
+  const cad = p.cadenceIntent === "none" ? "" : ` · cad:${p.cadenceIntent}`;
+  return (
+    `${p.shape} · ` +
+    `e ${p.energyStart.toFixed(2)}${ARROW[p.rhythmicDensityDirection]}${p.energyEnd.toFixed(2)}` +
+    ` · t ${p.tensionStart.toFixed(2)}→${p.tensionEnd.toFixed(2)}` +
+    ` · harm ${ARROW[p.harmonicDirection]} · reg ${ARROW[p.melodicRegisterDirection]}` +
+    ` · mel:${p.melodicActivity}${cad}`
+  );
 }
