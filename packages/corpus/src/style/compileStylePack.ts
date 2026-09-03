@@ -1,4 +1,6 @@
 import type {
+  ChordStyle,
+  GrooveStyle,
   InstrumentationConfig,
   Mode,
   MusicalStatePatch,
@@ -36,6 +38,10 @@ export interface CompileStylePackOptions {
   readonly melodyModel?: MelodyModel;
   /** Corpus rhythm model → StylePack.rhythm. */
   readonly rhythmModel?: RhythmModel;
+  /** Genre-authored chord realization (e.g. "power" for rock/metal). */
+  readonly chordStyle?: ChordStyle;
+  /** Genre-authored groove the percussion locks to (e.g. "backbeat"). */
+  readonly groove?: GrooveStyle;
 }
 
 export interface CompiledStyle {
@@ -71,7 +77,14 @@ export function compileStylePack(
           durationWeights: options.melodyModel.durationWeights,
         }
       : undefined,
-    rhythm: options.rhythmModel ? { onsetProfile: options.rhythmModel.onsetProfile } : undefined,
+    rhythm:
+      options.rhythmModel || options.groove
+        ? {
+            ...(options.rhythmModel ? { onsetProfile: options.rhythmModel.onsetProfile } : {}),
+            ...(options.groove ? { groove: options.groove } : {}),
+          }
+        : undefined,
+    chordStyle: options.chordStyle,
   };
 
   const suggestedState = options.emotion

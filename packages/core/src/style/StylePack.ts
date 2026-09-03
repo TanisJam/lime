@@ -85,11 +85,23 @@ export interface MelodyStyle {
   readonly leapResolution?: number;
 }
 
+/** A named groove feel the percussion generator can lock to. */
+export type GrooveStyle = "backbeat";
+
 /** Optional corpus-derived rhythmic configuration. */
 export interface RhythmStyle {
   /** Onset likelihood at each of 16 sixteenth positions per bar (0–1). */
   readonly onsetProfile?: number[];
+  /**
+   * A named groove the percussion locks to instead of the ambient grammar.
+   * `"backbeat"` = steady kick on 1 & 3, snare on 2 & 4, straight 8th hats
+   * (rock/pop). Omit for the default energy-driven grammar.
+   */
+  readonly groove?: GrooveStyle;
 }
+
+/** How chords are realized into pitches. */
+export type ChordStyle = "triad" | "power";
 
 export interface StylePack {
   readonly id: string;
@@ -107,4 +119,9 @@ export interface StylePack {
   readonly melody?: MelodyStyle;
   /** Optional corpus-derived rhythm overrides. */
   readonly rhythm?: RhythmStyle;
+  /**
+   * How the harmonic bed realizes chords. `"power"` voices root+fifth(+octave)
+   * power chords (rock/metal) instead of triads. Default `"triad"`.
+   */
+  readonly chordStyle?: ChordStyle;
 }

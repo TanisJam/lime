@@ -1,4 +1,11 @@
-import { SeededRandom, type Mode, type MusicalStatePatch, type StylePack } from "@lime/core";
+import {
+  SeededRandom,
+  type ChordStyle,
+  type GrooveStyle,
+  type Mode,
+  type MusicalStatePatch,
+  type StylePack,
+} from "@lime/core";
 import { parseScoreFile } from "../score/parseScore.js";
 import { detectKey } from "../analysis/keyDetection.js";
 import { chordify } from "../analysis/chordify.js";
@@ -28,6 +35,15 @@ const FEEL: Record<Quadrant, string> = { Q1: "happy", Q2: "tense", Q3: "sad", Q4
 
 /** Genres that make a meaningful pack (skip the anonymous `various` dump + tiny `pop`). */
 const DEFAULT_GENRES: Genre[] = ["classical", "rock-pop", "screen", "hyperpop", "arabic"];
+
+/**
+ * Genre-authored musical character — the parts a genre's *sound* needs that are
+ * not extracted note-statistics but well-established genre grammar (GENRES.md).
+ * Keyed by the pack id (`genre-<genre>`); only genre packs receive it.
+ */
+const GENRE_CHARACTER: Record<string, { chordStyle?: ChordStyle; groove?: GrooveStyle }> = {
+  "genre-rock-pop": { chordStyle: "power", groove: "backbeat" },
+};
 
 export interface LibraryPackOptions {
   /** Drop buckets with fewer than this many chord observations. Default 30. */
@@ -164,6 +180,7 @@ export function buildLibraryPacks(
       emotion,
       melodyModel: b.melody.build(),
       rhythmModel: b.rhythm.build(),
+      ...GENRE_CHARACTER[b.id],
     });
 
     results.push({

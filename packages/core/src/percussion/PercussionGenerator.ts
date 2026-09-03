@@ -6,7 +6,7 @@ import {
 import { ticksPerBeat, ticksPerBar } from "../time/MusicalTime.js";
 import { clamp01 } from "../state/MusicalState.js";
 import type { BarContext } from "../orchestration/BarContext.js";
-import type { RhythmStyle } from "../style/StylePack.js";
+import type { RhythmStyle, GrooveStyle } from "../style/StylePack.js";
 
 /**
  * Percussion voice — abstract kick/snare/hat from a small rhythmic grammar.
@@ -20,10 +20,12 @@ import type { RhythmStyle } from "../style/StylePack.js";
  */
 export class PercussionGenerator {
   private readonly onsetProfile: number[] | null;
+  private readonly groove: GrooveStyle | null;
 
   constructor(rhythm?: RhythmStyle) {
     this.onsetProfile =
       rhythm?.onsetProfile && rhythm.onsetProfile.length === 16 ? rhythm.onsetProfile : null;
+    this.groove = rhythm?.groove ?? null;
   }
 
   generateBar(ctx: BarContext): NoteEvent[] {
@@ -35,6 +37,10 @@ export class PercussionGenerator {
     const arc = phrasePlan.energy;
     // Loudness follows the phrase's velocity contour (the dynamics step).
     const dyn = phrasePlan.dynamics;
+
+    // A named groove (rock/pop backbeat) locks a steady pattern instead of the
+    // energy-driven ambient grammar.
+    if (this.groove === "backbeat") return this.backbeat(ctx, arc, dyn);
 
     // Below this energy, percussion is silent.
     if (arc < 0.22) return [];
@@ -106,6 +112,50 @@ export class PercussionGenerator {
     // just before the next downbeat, creating forward pull.
     if (rng.bool(state.tension * 0.6)) {
       hit(barLen - beat / 4, state.energy > 0.55 ? "snare" : "kick", 0.4 + 0.3 * state.tension);
+    }
+
+    return events;
+  }
+
+  /**
+   * A steady rock/pop backbeat: kick on 1 & 3, snare on 2 & 4, straight driving
+   * 8th hats. Deterministic and firm — no probabilistic syncopation — so the
+   * genre's pulse reads clearly. Loudness rides the phrase dynamics; energy adds
+   * only a little extra motion.
+   */
+  private backbeat(ctx: BarContext, arc: number, dyn: number): NoteEvent[] {
+    const { rng, meter, barStartTick } = ctx;
+    if (arc < 0.15) return [];
+    const beat = ticksPerBeat(meter);
+    const beats = meter.numerator;
+    const events: NoteEvent[] = [];
+    const hit = (time: number, sound: PercussionSound, velocity: number) => {
+      events.push({
+        type: "note",
+        time: barStartTick + Math.round(time),
+        duration: Math.round(beat / 4),
+        pitch: PERCUSSION_MIDI[sound],
+        velocity: clamp01(velocity + (rng.next() - 0.5) * 0.06),
+        voice: "percussion",
+        percussion: sound,
+      });
+    };
+
+    // Kick on 1 & 3 (plus an occasional push on the 'and' of 3 as it drives).
+    hit(0, "kick", 0.78 + 0.18 * dyn);
+    if (beats >= 4) hit(beat * 2, "kick", 0.72 + 0.18 * dyn);
+    if (arc > 0.6 && rng.bool(0.35)) hit(beat * 2 + beat / 2, "kick", 0.5);
+
+    // Snare backbeat on 2 & 4 — the defining hit, always present.
+    hit(beat, "snare", 0.72 + 0.15 * dyn);
+    if (beats >= 4) hit(beat * 3, "snare", 0.72 + 0.15 * dyn);
+
+    // Straight 8th hats, driving and even.
+    const step = beat / 2;
+    const steps = beats * 2;
+    const hatVel = 0.34 + 0.14 * dyn;
+    for (let i = 0; i < steps; i++) {
+      hit(step * i, "hat", i % 2 === 0 ? hatVel + 0.08 : hatVel * 0.82);
     }
 
     return events;

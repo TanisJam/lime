@@ -1,9 +1,10 @@
 import type { NoteEvent } from "../events/MusicalEvent.js";
 import { ticksPerBar } from "../time/MusicalTime.js";
-import { voiceLeadChord } from "../harmony/Voicing.js";
+import { voiceLeadChord, powerChordVoicing } from "../harmony/Voicing.js";
 import { ROLE_REGISTERS } from "../harmony/Registers.js";
 import { clamp01 } from "../state/MusicalState.js";
 import type { BarContext } from "../orchestration/BarContext.js";
+import type { ChordStyle } from "../style/StylePack.js";
 
 /**
  * Pad voice — the harmonic bed.
@@ -21,6 +22,8 @@ import type { BarContext } from "../orchestration/BarContext.js";
 export class PadGenerator {
   private previousVoicing: number[] | undefined;
 
+  constructor(private readonly chordStyle: ChordStyle = "triad") {}
+
   generateBar(ctx: BarContext): NoteEvent[] {
     const { chord, state, rng, meter, barStartTick, orchestration } = ctx;
     const barLen = ticksPerBar(meter);
@@ -37,22 +40,31 @@ export class PadGenerator {
     // Voice-lead the harmonic core (the triad), then remember it as the anchor
     // for the next bar — before any density thinning/doubling below, so the
     // voice leading always compares like triad with like triad.
-    let voicing = voiceLeadChord(chord, baseOctave, this.previousVoicing, targetTop);
-    this.previousVoicing = voicing;
+    let voicing: number[];
+    if (this.chordStyle === "power") {
+      // Power chords: root + fifth + octave, no third — the open rock/metal bed
+      // that sits cleanly under distortion. No triad thinning/doubling; the bare
+      // shape is the point.
+      voicing = powerChordVoicing(chord, baseOctave, this.previousVoicing, targetTop);
+      this.previousVoicing = voicing;
+    } else {
+      voicing = voiceLeadChord(chord, baseOctave, this.previousVoicing, targetTop);
+      this.previousVoicing = voicing;
 
-    // Note count: thin out at low density — but never thin the bed while it is
-    // the foreground of the phrase; it should stay full when it carries the music.
-    if (state.density < 0.25 && voicing.length > 2 && depth !== "foreground") {
-      voicing = [voicing[0]!, voicing[voicing.length - 1]!];
-    }
-    // Octave doubling when strong — and, when the bed leads, a touch more
-    // readily, so a bed-led swell has some bloom without needing high energy.
-    // Only while it stays in the pad's register, so it never climbs into the melody.
-    const doubleWhenStrong = state.energy > 0.6 && state.density > 0.5;
-    const doubleWhenLeading = isFocus && state.energy > 0.4;
-    if (doubleWhenStrong || doubleWhenLeading) {
-      const doubled = voicing[0]! + 12;
-      if (doubled <= ROLE_REGISTERS.pad.hi) voicing = [...voicing, doubled];
+      // Note count: thin out at low density — but never thin the bed while it is
+      // the foreground of the phrase; it should stay full when it carries the music.
+      if (state.density < 0.25 && voicing.length > 2 && depth !== "foreground") {
+        voicing = [voicing[0]!, voicing[voicing.length - 1]!];
+      }
+      // Octave doubling when strong — and, when the bed leads, a touch more
+      // readily, so a bed-led swell has some bloom without needing high energy.
+      // Only while it stays in the pad's register, so it never climbs into the melody.
+      const doubleWhenStrong = state.energy > 0.6 && state.density > 0.5;
+      const doubleWhenLeading = isFocus && state.energy > 0.4;
+      if (doubleWhenStrong || doubleWhenLeading) {
+        const doubled = voicing[0]! + 12;
+        if (doubled <= ROLE_REGISTERS.pad.hi) voicing = [...voicing, doubled];
+      }
     }
 
     // Re-attacks per bar: pads stay smooth; more motion only when energetic.

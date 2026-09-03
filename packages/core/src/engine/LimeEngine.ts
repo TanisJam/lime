@@ -156,6 +156,7 @@ export class LimeEngine implements Lime {
     this.orchestrator = new Orchestrator(this.rng.derive("orchestration"), undefined, {
       melody: this.style.melody,
       rhythm: this.style.rhythm,
+      chordStyle: this.style.chordStyle,
     });
 
     this.scheduler = new CompositionScheduler({

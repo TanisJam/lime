@@ -106,3 +106,36 @@ export function voiceLeadChord(
   }
   return (best ?? triad).slice().sort((a, b) => a - b);
 }
+
+/**
+ * Power-chord voicing — root + perfect fifth + octave, the open root-fifth sound
+ * of rock and metal (no third, so it sits under distortion without mud). Voice-
+ * led on the root: the octave placement is chosen to keep the root near the
+ * previous chord's while staying in the pad register.
+ */
+export function powerChordVoicing(
+  chord: HarmonicEvent,
+  baseOctave: number,
+  previousVoicing: number[] | undefined,
+  targetTop: number,
+): number[] {
+  const root = chordPitches(chord, baseOctave)[0]!;
+  let best: number[] | null = null;
+  let bestCost = Infinity;
+  for (const shift of [-12, 0, 12]) {
+    const r = root + shift;
+    const voicing = [r, r + 7, r + 12]; // root, fifth, octave
+    let cost = 0;
+    if (r < PAD_LOW) cost += (PAD_LOW - r) * 2;
+    if (r + 12 > PAD_HIGH) cost += (r + 12 - PAD_HIGH) * 2;
+    cost +=
+      previousVoicing && previousVoicing.length > 0
+        ? Math.abs(r - previousVoicing[0]!)
+        : Math.abs(r + 12 - targetTop);
+    if (cost < bestCost) {
+      bestCost = cost;
+      best = voicing;
+    }
+  }
+  return best!;
+}
