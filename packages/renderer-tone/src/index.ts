@@ -8,3 +8,10 @@ export {
   percussionFactory,
   linToDb,
 } from "./instruments.js";
+export {
+  ROCK_INSTRUMENTS,
+  rockGuitarFactory,
+  rockRhythmFactory,
+  rockBassFactory,
+  rockKitFactory,
+} from "./rockPalette.js";

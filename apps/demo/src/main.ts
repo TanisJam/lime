@@ -12,7 +12,21 @@ import {
   type PhrasePlan,
 } from "@lime/core";
 import { eventsToStandardMidiFile } from "@lime/midi";
-import { createToneRenderer, type ToneRenderer } from "@lime/renderer-tone";
+import {
+  createToneRenderer,
+  ROCK_INSTRUMENTS,
+  type ToneRenderer,
+  type InstrumentFactory,
+} from "@lime/renderer-tone";
+
+/**
+ * Genre → instrument palette. The StylePack gives a genre its grammar; the
+ * palette gives it its timbre. Rock is the first (GENRES.md §7); others fall back
+ * to the default/sampled palette until their palettes land.
+ */
+const GENRE_PALETTES: Record<string, Partial<Record<VoiceId, InstrumentFactory>>> = {
+  "genre-rock-pop": ROCK_INSTRUMENTS,
+};
 import { ambientMinimal } from "@lime/styles";
 import * as Tone from "tone";
 import { SAMPLED_INSTRUMENTS } from "./sampledInstruments";
@@ -175,9 +189,12 @@ async function selectStyle(entry: StyleEntry, opts: { newSeed?: boolean } = {}):
   // grammar (StylePack), the emotion supplies the state we start from.
   const init: MusicalStatePatch =
     currentEmotion?.state ?? entry.suggestedState ?? { ...MOODS.Calm };
+  // A genre palette (e.g. rock's distorted guitars + kit) wins over the default;
+  // sampled/synth is the fallback for genres without a palette yet.
+  const genrePalette = GENRE_PALETTES[entry.style.id];
   renderer = createToneRenderer({
     instrumentation: entry.style.instrumentation,
-    instruments: useSampled ? SAMPLED_INSTRUMENTS : undefined,
+    instruments: genrePalette ?? (useSampled ? SAMPLED_INSTRUMENTS : undefined),
   });
   music = createLime({ seed: currentSeed, style: entry.style, renderer, initialState: init, lookAheadBars: 4 });
   await music.start();
