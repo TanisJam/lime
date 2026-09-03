@@ -31,12 +31,14 @@ export class MelodyGenerator {
   }
 
   generateBar(ctx: BarContext, memory: ComposerMemory): NoteEvent[] {
-    const { state, phrase, rng } = ctx;
+    const { phrasePlan, rng } = ctx;
 
-    // 1. Play or rest? Silence is valid, especially at low energy.
-    const pPlay = clamp01(-0.05 + 0.85 * state.energy + 0.5 * state.density);
-    const boosted = phrase.role === "statement" ? pPlay + 0.15 : pPlay;
-    if (!rng.bool(clamp01(boosted))) return [];
+    // 1. Restraint: how present should the melody be this bar? The phrase plan
+    //    decides, so every voice agrees on the gesture. A `tacet` phrase simply
+    //    doesn't play — the melody is allowed to sit out whole phrases — while
+    //    even a `lead` line never plays every bar, so it keeps breathing.
+    if (phrasePlan.melodicActivity === "tacet") return [];
+    if (!rng.bool(this.playProbability(ctx))) return [];
 
     // 2. Choose the motif for this bar.
     const base = this.selectMotif(ctx, memory);
@@ -61,6 +63,21 @@ export class MelodyGenerator {
 
     // 5. Schedule within the bar.
     return this.schedule(motif, pitches, ctx, memory);
+  }
+
+  /**
+   * Chance the melody sounds at all this bar. Shaped off the phrase-arc energy
+   * (not raw state) so the line swells and settles with the phrase; sparse
+   * phrases thin out further, and the chance is capped below 1 so even at full
+   * energy some bars fall silent — the melody always has room to breathe.
+   */
+  private playProbability(ctx: BarContext): number {
+    const { state, phrase, phrasePlan } = ctx;
+    let p = -0.05 + 0.85 * phrasePlan.energy + 0.5 * state.density;
+    if (phrase.role === "statement") p += 0.15;
+    if (phrasePlan.melodicActivity === "sparse") p *= 0.55;
+    const ceiling = phrasePlan.melodicActivity === "lead" ? 0.9 : 0.7;
+    return Math.min(clamp01(p), ceiling);
   }
 
   private selectMotif(ctx: BarContext, memory: ComposerMemory): Motif {
@@ -155,9 +172,13 @@ export class MelodyGenerator {
     const { state, rng, meter, barStartTick } = ctx;
     const barLen = ticksPerBar(meter);
 
-    // Optional starting rest for breathing room (more likely when sparse).
+    // Optional starting rest for breathing room. Sparse phrases lead with
+    // silence more often, so the motif enters after a gap instead of on the
+    // downbeat every time.
     let cursor = 0;
-    if (state.density < 0.5 && rng.bool(0.35)) {
+    const restProb =
+      ctx.phrasePlan.melodicActivity === "sparse" ? 0.55 : state.density < 0.5 ? 0.35 : 0;
+    if (restProb > 0 && rng.bool(restProb)) {
       cursor = Math.round(barLen / 4);
     }
 
