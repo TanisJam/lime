@@ -71,8 +71,12 @@ describe("genreForPath", () => {
     ["MIDI_FILES/BEATLES/64.MID", "rock-pop"],
     ["MIDI_FILES/GROUPS/queen.mid", "rock-pop"],
     ["A#/A# I - IV [pop].mid", "pop"],
+    ["MIDI_FILES/MIDI/tv_moviemidis_zip/batman.mid", "screen"],
+    ["MIDI_FILES/GROUPS2_zip/all_along_the_watchtower.mid", "rock-pop"],
+    ["midi/x/Bob Dylan - Hurricane.mid", "rock-pop"],
     ["Black MIDI/6 million notes.mid", "exclude"],
     ["MIDI_FILES/MIDI_00/0.mid", "various"],
+    ["MIDI_FILES/MIDI/MIDI_10_zip/K283.MID", "various"],
   ];
   for (const [path, genre] of cases) {
     it(`${path} → ${genre}`, () => {

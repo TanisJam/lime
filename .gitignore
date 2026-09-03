@@ -12,5 +12,13 @@ apps/demo/dist/
 # Only derived StylePacks (in packages/corpus/generated/) belong in the repo.
 packages/corpus/data/
 
+# The local MIDI collection (source material, hundreds of MB) — never committed.
+/midi/
+
+# Large intermediate: the full per-file/per-section label manifest is a build
+# artifact (regenerate with `node packages/corpus/dist/cli/label.js`). Only the
+# StylePacks derived from it belong in the repo.
+packages/corpus/generated/library-labels.json
+
 # Local tooling metadata (not part of the project)
 .atl/
