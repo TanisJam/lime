@@ -69,7 +69,17 @@ export interface InstrumentationConfig {
 export interface HarmonyStyle {
   /** Weighted chord transitions extracted from a corpus (falls back to defaults). */
   readonly transitions?: TransitionTable;
+  /**
+   * How much the progression resists returning to the tonic, 0..1. Higher values
+   * down-weight the pull back to degree 1 from non-tonic chords, so the harmony
+   * travels further before resolving instead of circling home every chord.
+   * Cadence phrases still resolve to tonic. Default 0 (unchanged behaviour).
+   */
+  readonly harmonyMotion?: number;
 }
+
+/** Scale the melody snaps to. `diatonic` is the default 7-note behaviour. */
+export type MelodyScale = "diatonic" | "minor-pentatonic" | "major-pentatonic" | "blues";
 
 /** Optional corpus-derived melodic configuration. */
 export interface MelodyStyle {
@@ -83,13 +93,65 @@ export interface MelodyStyle {
    * for a more angular, disjunct melodic character.
    */
   readonly leapResolution?: number;
+  /**
+   * Scale the realized melody snaps to. `minor-pentatonic` is the rock/blues
+   * riff sound (no 2nd/6th tension notes). Default `diatonic` (unchanged).
+   */
+  readonly scale?: MelodyScale;
+  /**
+   * How much motifs are reshaped as they develop, 0..1. Higher values transform
+   * the theme more in variation/development/cadence phrases (transpose, invert,
+   * augment, fragment) and introduce new material more readily, so the melody
+   * evolves instead of restating the same shape. The theme's plain statements
+   * stay intact for recognizability. Default 0 (unchanged behaviour).
+   */
+  readonly motifDevelopment?: number;
 }
+
+/** A named groove feel the percussion generator can lock to. */
+export type GrooveStyle =
+  | "backbeat" // rock/pop/metal: kick 1&3, snare 2&4, straight 8th hats
+  | "four-on-floor" // dance: kick every beat, offbeat open hats
+  | "shuffle" // blues: swung 8ths, backbeat
+  | "swing" // jazz: swung ride pattern, brushes
+  | "boom-bap" // hip-hop: half-time-ish, swung, sampled feel
+  | "funk" // R&B/funk: syncopated 16ths, ghost notes
+  | "clave" // latin: son-clave organized
+  | "none"; // no drum kit (classical/folk/ambient)
 
 /** Optional corpus-derived rhythmic configuration. */
 export interface RhythmStyle {
   /** Onset likelihood at each of 16 sixteenth positions per bar (0–1). */
   readonly onsetProfile?: number[];
+  /**
+   * A named groove the percussion locks to instead of the ambient grammar.
+   * `"backbeat"` = steady kick on 1 & 3, snare on 2 & 4, straight 8th hats
+   * (rock/pop). Omit for the default energy-driven grammar.
+   */
+  readonly groove?: GrooveStyle;
+  /**
+   * How much the named groove varies bar to bar, 0..1. Higher values add ghost
+   * snares, extra kick syncopations, hat accents and phrase-end fills instead of
+   * repeating one identical loop. The core pulse (kick/snare placement) stays
+   * intact so the groove still reads. Default 0 (unchanged behaviour).
+   */
+  readonly grooveVariation?: number;
 }
+
+/** How chords are realized into pitches. */
+export type ChordStyle = "triad" | "power" | "seventh";
+
+/** The motion layer's pattern (arpeggio / ostinato / offbeat stabs). */
+export type MotionStyle = "arp" | "ostinato" | "stab";
+
+/** How the bass moves. */
+export type BassStyle =
+  | "default"
+  | "root-drive" // doubled chord root in straight 8ths (rock/pop)
+  | "walking" // quarter-note walking line through chord tones (jazz)
+  | "sub" // sparse sustained sub-bass on the root (hip-hop/electronic 808)
+  | "funk" // syncopated 16th root/octave with ghosts (funk/R&B)
+  | "montuno"; // anticipated tumbao (latin)
 
 export interface StylePack {
   readonly id: string;
@@ -107,4 +169,19 @@ export interface StylePack {
   readonly melody?: MelodyStyle;
   /** Optional corpus-derived rhythm overrides. */
   readonly rhythm?: RhythmStyle;
+  /**
+   * How the harmonic bed realizes chords. `"power"` voices root+fifth(+octave)
+   * power chords (rock/metal) instead of triads. Default `"triad"`.
+   */
+  readonly chordStyle?: ChordStyle;
+  /**
+   * How the bass moves. `"root-drive"` locks a driving straight-8th chord-root
+   * pulse (rock, with the kick). Default `"default"` (the musical bass grammar).
+   */
+  readonly bassStyle?: BassStyle;
+  /**
+   * An extra motion layer — arpeggios (electronic/pop), ostinato/montuno (latin),
+   * or offbeat comping stabs (funk/jazz). Omit for genres that don't want one.
+   */
+  readonly motion?: MotionStyle;
 }

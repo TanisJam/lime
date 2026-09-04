@@ -4,6 +4,7 @@ import { chordRoot, type HarmonicEvent } from "../harmony/Chord.js";
 import { degreePitch } from "../harmony/Scale.js";
 import { clamp01 } from "../state/MusicalState.js";
 import type { BarContext } from "../orchestration/BarContext.js";
+import type { BassStyle } from "../style/StylePack.js";
 
 const BASS_OCTAVE = 2;
 
@@ -17,6 +18,8 @@ const BASS_OCTAVE = 2;
  * loudness the dynamics contour, and it steps aside when the melody leads.
  */
 export class BassGenerator {
+  constructor(private readonly bassStyle: BassStyle = "default") {}
+
   generateBar(ctx: BarContext): NoteEvent[] {
     const { chord, nextChord, state, phrasePlan, phrase, rng, meter, barStartTick } = ctx;
     const barLen = ticksPerBar(meter);
@@ -57,6 +60,61 @@ export class BassGenerator {
         voice: "bass",
       });
     };
+
+    // Rock: a driving straight-8th pulse doubling the chord root, locked with the
+    // kick — mostly root, an octave lift mid-beat, walking into the next root on
+    // the last eighth. Below arc 0.4 it relaxes to the calm grammar below (a rock
+    // ballad intro doesn't pound eighths).
+    if (this.bassStyle === "root-drive" && arc >= 0.4) {
+      const eighth = beat / 2;
+      const steps = meter.numerator * 2;
+      for (let i = 0; i < steps; i++) {
+        const isLast = i === steps - 1;
+        let pitch = root;
+        if (isLast && nextChord) pitch = approach;
+        else if (i % 4 === 2) pitch = octave;
+        if (!isLast && i % 2 === 1 && state.density < 0.45 && rng.bool(0.4)) continue;
+        push(Math.round(eighth * i), Math.round(eighth), pitch);
+      }
+      return events;
+    }
+
+    // Jazz walking bass: a quarter-note line through chord tones into the next
+    // root — root, then stepping through fifth/third and an approach note.
+    if (this.bassStyle === "walking" && arc >= 0.3) {
+      const third = degreePitch(chord.degree + 2, chord.keyPc, chord.mode, BASS_OCTAVE);
+      const seq = [root, fifth, third, nextChord ? approach : fifth];
+      for (let i = 0; i < 4; i++) push(beat * i, beat, seq[i]!);
+      return events;
+    }
+
+    // Sub / 808: sparse sustained root, with an occasional syncopated push.
+    if (this.bassStyle === "sub") {
+      push(0, beat * 3, root);
+      if (arc >= 0.4 && rng.bool(0.5)) push(beat * 2 + beat / 2, beat, root);
+      return events;
+    }
+
+    // Funk: syncopated 16ths anchored on "the one", root with octave pops.
+    if (this.bassStyle === "funk" && arc >= 0.4) {
+      const s = beat / 4;
+      const pat = [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0];
+      for (let i = 0; i < 16; i++) {
+        if (!pat[i]) continue;
+        const pitch = i === 0 ? root : rng.bool(0.3) ? octave : root;
+        push(Math.round(s * i), Math.round(s), pitch);
+      }
+      return events;
+    }
+
+    // Latin tumbao: anticipated bass — off the "and of 2" and beat 4, pulling
+    // into the next chord ahead of the beat.
+    if (this.bassStyle === "montuno" && arc >= 0.4) {
+      push(beat + beat / 2, beat, root); // and of 2
+      push(beat * 3, beat / 2, fifth); // beat 4
+      push(beat * 3 + beat / 2, beat / 2, nextChord ? nextRoot : root); // anticipation
+      return events;
+    }
 
     if (arc < 0.3) {
       // Calm: a sustained root, but now and then lift to the fifth for the

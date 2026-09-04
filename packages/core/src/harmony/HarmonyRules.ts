@@ -86,6 +86,7 @@ export function harmonicCandidates(
   mode: Mode,
   ctx: CandidateContext = {},
   baseTable: TransitionTable = BASE_TRANSITIONS,
+  harmonyMotion = 0,
 ): DegreeWeight[] {
   const d = ((fromDegree - 1) % 7 + 7) % 7 + 1;
   const fromTable = baseTable[d];
@@ -107,6 +108,9 @@ export function harmonicCandidates(
     // Avoid the specific V→I / IV→I resolution when tension is high.
     if (degree === 1 && functionOfDegree(d) !== "tonic") {
       w *= Math.max(0.12, 1.2 - t);
+      // Harmony motion: further resist returning to tonic so the progression
+      // travels further before resolving (cadence resolution is forced elsewhere).
+      if (harmonyMotion > 0) w *= Math.max(0.08, 1 - 0.9 * harmonyMotion);
     }
 
     // Valence nudges toward matching chord color.
@@ -149,8 +153,9 @@ export function chooseNextDegree(
   rng: SeededRandom,
   ctx: CandidateContext = {},
   baseTable: TransitionTable = BASE_TRANSITIONS,
+  harmonyMotion = 0,
 ): number {
-  const candidates = harmonicCandidates(fromDegree, state, mode, ctx, baseTable);
+  const candidates = harmonicCandidates(fromDegree, state, mode, ctx, baseTable, harmonyMotion);
   if (candidates.length === 0) return 1;
   return rng.weighted(
     candidates.map((c) => c.degree),

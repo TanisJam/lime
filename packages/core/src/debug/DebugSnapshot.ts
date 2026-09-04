@@ -4,6 +4,8 @@ import type { NoteEvent } from "../events/MusicalEvent.js";
 import type { PhraseInfo } from "../phrase/PhrasePlanner.js";
 import type { PhrasePlan } from "../phrase/PhrasePlan.js";
 import type { ArrangementVoice } from "../orchestration/Arrangement.js";
+import type { OrchestrationPlan } from "../orchestration/OrchestrationPlan.js";
+import type { MusicalRole } from "../orchestration/MusicalRole.js";
 import type { FormSection } from "../phrase/FormDirector.js";
 
 /** One planned chord, in a form convenient for a debug UI. */
@@ -37,6 +39,16 @@ export interface DebugSnapshot {
   readonly phrasePlan: PhrasePlan | null;
   /** Voices currently in the arrangement (energy-driven, with hysteresis). */
   readonly activeVoices: readonly ArrangementVoice[];
+  /**
+   * The bar's orchestration intent (active roles, depth, focus, activity
+   * budget). `null` before the first bar is composed. Internal machinery
+   * surfaced read-only for the debug panel / perceptual harness.
+   */
+  readonly orchestrationPlan: OrchestrationPlan | null;
+  /** The role the ear should follow this bar, or `null` before first compose. */
+  readonly focus: MusicalRole | null;
+  /** Active roles this bar (the role-level view of `activeVoices`). */
+  readonly activeRoles: readonly MusicalRole[];
 
   readonly activeMotifId: string | null;
   readonly motifCount: number;

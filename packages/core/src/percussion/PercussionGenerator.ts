@@ -6,7 +6,7 @@ import {
 import { ticksPerBeat, ticksPerBar } from "../time/MusicalTime.js";
 import { clamp01 } from "../state/MusicalState.js";
 import type { BarContext } from "../orchestration/BarContext.js";
-import type { RhythmStyle } from "../style/StylePack.js";
+import type { RhythmStyle, GrooveStyle } from "../style/StylePack.js";
 
 /**
  * Percussion voice — abstract kick/snare/hat from a small rhythmic grammar.
@@ -20,10 +20,14 @@ import type { RhythmStyle } from "../style/StylePack.js";
  */
 export class PercussionGenerator {
   private readonly onsetProfile: number[] | null;
+  private readonly groove: GrooveStyle | null;
+  private readonly grooveVariation: number;
 
   constructor(rhythm?: RhythmStyle) {
     this.onsetProfile =
       rhythm?.onsetProfile && rhythm.onsetProfile.length === 16 ? rhythm.onsetProfile : null;
+    this.groove = rhythm?.groove ?? null;
+    this.grooveVariation = rhythm?.grooveVariation ?? 0;
   }
 
   generateBar(ctx: BarContext): NoteEvent[] {
@@ -35,6 +39,20 @@ export class PercussionGenerator {
     const arc = phrasePlan.energy;
     // Loudness follows the phrase's velocity contour (the dynamics step).
     const dyn = phrasePlan.dynamics;
+
+    // A named groove locks a genre pattern instead of the ambient grammar.
+    if (this.groove) {
+      switch (this.groove) {
+        case "none": return [];
+        case "backbeat": return this.backbeat(ctx, arc, dyn);
+        case "four-on-floor": return this.fourOnFloor(ctx, arc, dyn);
+        case "shuffle": return this.shuffle(ctx, arc, dyn);
+        case "swing": return this.swing(ctx, arc, dyn);
+        case "boom-bap": return this.boomBap(ctx, arc, dyn);
+        case "funk": return this.funk(ctx, arc, dyn);
+        case "clave": return this.clave(ctx, arc, dyn);
+      }
+    }
 
     // Below this energy, percussion is silent.
     if (arc < 0.22) return [];
@@ -109,5 +127,169 @@ export class PercussionGenerator {
     }
 
     return events;
+  }
+
+  /**
+   * A steady rock/pop backbeat: kick on 1 & 3, snare on 2 & 4, straight driving
+   * 8th hats. Deterministic and firm — no probabilistic syncopation — so the
+   * genre's pulse reads clearly. Loudness rides the phrase dynamics; energy adds
+   * only a little extra motion.
+   */
+  /** Shared drum-hit emitter (absolute time within the bar). */
+  private hit(
+    ev: NoteEvent[],
+    ctx: BarContext,
+    time: number,
+    sound: PercussionSound,
+    velocity: number,
+  ): void {
+    const beat = ticksPerBeat(ctx.meter);
+    ev.push({
+      type: "note",
+      time: ctx.barStartTick + Math.round(time),
+      duration: Math.round(beat / 4),
+      pitch: PERCUSSION_MIDI[sound],
+      velocity: clamp01(velocity + (ctx.rng.next() - 0.5) * 0.06),
+      voice: "percussion",
+      percussion: sound,
+    });
+  }
+
+  /** Rock/pop: kick 1 & 3, snare 2 & 4, straight driving 8th hats. */
+  private backbeat(ctx: BarContext, arc: number, dyn: number): NoteEvent[] {
+    if (arc < 0.15) return [];
+    const beat = ticksPerBeat(ctx.meter);
+    const beats = ctx.meter.numerator;
+    const ev: NoteEvent[] = [];
+    const gv = this.grooveVariation;
+    const s = beat / 4; // sixteenth
+    const lastBeat = beats - 1;
+    // grooveVariation: occasionally end a phrase with a tom/snare fill in the
+    // last beat instead of the plain backbeat. gv=0 short-circuits (no rng draw).
+    const fillBar = gv > 0 && ctx.phrase.isLastBar && ctx.rng.bool(0.4 + 0.45 * gv);
+
+    this.hit(ev, ctx, 0, "kick", 0.78 + 0.18 * dyn);
+    if (beats >= 4) this.hit(ev, ctx, beat * 2, "kick", 0.72 + 0.18 * dyn);
+    if (arc > 0.6 && ctx.rng.bool(0.35)) this.hit(ev, ctx, beat * 2 + beat / 2, "kick", 0.5);
+    // Extra kick syncopation on the "and" of 3 for a less rigid pulse.
+    if (gv > 0 && !fillBar && ctx.rng.bool(gv * 0.35)) this.hit(ev, ctx, beat * 2 + beat / 2, "kick", 0.5);
+
+    this.hit(ev, ctx, beat, "snare", 0.72 + 0.15 * dyn);
+    if (beats >= 4 && !fillBar) this.hit(ev, ctx, beat * 3, "snare", 0.72 + 0.15 * dyn);
+    // Ghost snares: light off-beat 16ths that add feel without changing the pulse.
+    if (gv > 0 && !fillBar) {
+      if (ctx.rng.bool(gv * 0.3)) this.hit(ev, ctx, beat * 2 + s * 3, "snare", 0.16);
+      if (ctx.rng.bool(gv * 0.25)) this.hit(ev, ctx, beat + s * 2, "snare", 0.14);
+    }
+
+    const step = beat / 2;
+    const hatVel = 0.34 + 0.14 * dyn;
+    // On a fill bar the last beat is the fill, so stop the hats before it.
+    const hatBeats = fillBar ? lastBeat : beats;
+    for (let i = 0; i < hatBeats * 2; i++) {
+      this.hit(ev, ctx, step * i, "hat", i % 2 === 0 ? hatVel + 0.08 : hatVel * 0.82);
+    }
+    // Open-hat accent on the "and" of the last beat (before the downbeat pull).
+    if (gv > 0 && !fillBar && ctx.rng.bool(gv * 0.4)) {
+      this.hit(ev, ctx, beat * lastBeat + beat / 2, "hat", hatVel + 0.2);
+    }
+
+    // The fill itself: a 16th tom/snare run through the last beat.
+    if (fillBar) {
+      const start = beat * lastBeat;
+      const run: PercussionSound[] = ["snare", "tom", "tom", "snare"];
+      for (let i = 0; i < 4; i++) this.hit(ev, ctx, start + s * i, run[i]!, 0.5 + 0.08 * i + 0.1 * dyn);
+    }
+    return ev;
+  }
+
+  /** Dance: kick on every beat, snare 2 & 4, offbeat open hats. */
+  private fourOnFloor(ctx: BarContext, arc: number, dyn: number): NoteEvent[] {
+    if (arc < 0.2) return [];
+    const beat = ticksPerBeat(ctx.meter);
+    const beats = ctx.meter.numerator;
+    const ev: NoteEvent[] = [];
+    for (let b = 0; b < beats; b++) this.hit(ev, ctx, beat * b, "kick", 0.78 + 0.15 * dyn);
+    this.hit(ev, ctx, beat, "snare", 0.55 + 0.15 * dyn);
+    if (beats >= 4) this.hit(ev, ctx, beat * 3, "snare", 0.55 + 0.15 * dyn);
+    for (let b = 0; b < beats; b++) this.hit(ev, ctx, beat * b + beat / 2, "hat", 0.4 + 0.12 * dyn);
+    return ev;
+  }
+
+  /** Blues: kick 1 & 3, snare 2 & 4, triplet-swung hats. */
+  private shuffle(ctx: BarContext, arc: number, dyn: number): NoteEvent[] {
+    if (arc < 0.2) return [];
+    const beat = ticksPerBeat(ctx.meter);
+    const beats = ctx.meter.numerator;
+    const ev: NoteEvent[] = [];
+    this.hit(ev, ctx, 0, "kick", 0.76 + 0.16 * dyn);
+    if (beats >= 4) this.hit(ev, ctx, beat * 2, "kick", 0.7 + 0.16 * dyn);
+    this.hit(ev, ctx, beat, "snare", 0.7 + 0.15 * dyn);
+    if (beats >= 4) this.hit(ev, ctx, beat * 3, "snare", 0.7 + 0.15 * dyn);
+    for (let b = 0; b < beats; b++) {
+      this.hit(ev, ctx, beat * b, "hat", 0.36 + 0.12 * dyn);
+      this.hit(ev, ctx, beat * b + Math.round((beat * 2) / 3), "hat", 0.28 + 0.1 * dyn);
+    }
+    return ev;
+  }
+
+  /** Jazz: swung ride pattern, soft kick, brushed snare on 2 & 4. */
+  private swing(ctx: BarContext, arc: number, dyn: number): NoteEvent[] {
+    if (arc < 0.15) return [];
+    const beat = ticksPerBeat(ctx.meter);
+    const beats = ctx.meter.numerator;
+    const ev: NoteEvent[] = [];
+    for (let b = 0; b < beats; b++) {
+      this.hit(ev, ctx, beat * b, "hat", 0.34 + 0.1 * dyn);
+      if (b % 2 === 1) this.hit(ev, ctx, beat * b + Math.round((beat * 2) / 3), "hat", 0.26 + 0.08 * dyn);
+    }
+    this.hit(ev, ctx, 0, "kick", 0.5 + 0.12 * dyn);
+    this.hit(ev, ctx, beat, "snare", 0.4 + 0.12 * dyn);
+    if (beats >= 4) this.hit(ev, ctx, beat * 3, "snare", 0.4 + 0.12 * dyn);
+    return ev;
+  }
+
+  /** Hip-hop: half-time — kick on 1 (+ syncopation), snare on 3, swung hats. */
+  private boomBap(ctx: BarContext, arc: number, dyn: number): NoteEvent[] {
+    if (arc < 0.15) return [];
+    const beat = ticksPerBeat(ctx.meter);
+    const beats = ctx.meter.numerator;
+    const ev: NoteEvent[] = [];
+    this.hit(ev, ctx, 0, "kick", 0.82 + 0.15 * dyn);
+    this.hit(ev, ctx, beat + beat / 2, "kick", 0.6);
+    if (beats >= 4) this.hit(ev, ctx, beat * 2, "snare", 0.75 + 0.15 * dyn);
+    for (let i = 0; i < beats * 2; i++) {
+      const t = i % 2 === 0 ? (beat / 2) * i : (beat / 2) * i + Math.round(beat * 0.08);
+      this.hit(ev, ctx, t, "hat", i % 2 === 0 ? 0.34 : 0.24);
+    }
+    return ev;
+  }
+
+  /** Funk: kick on the one + syncopation, snare 2 & 4, busy 16th hats. */
+  private funk(ctx: BarContext, arc: number, dyn: number): NoteEvent[] {
+    if (arc < 0.2) return [];
+    const beat = ticksPerBeat(ctx.meter);
+    const beats = ctx.meter.numerator;
+    const s = beat / 4;
+    const ev: NoteEvent[] = [];
+    this.hit(ev, ctx, 0, "kick", 0.82 + 0.15 * dyn);
+    this.hit(ev, ctx, Math.round(s * 6), "kick", 0.55);
+    this.hit(ev, ctx, beat, "snare", 0.7 + 0.15 * dyn);
+    if (beats >= 4) this.hit(ev, ctx, beat * 3, "snare", 0.7 + 0.15 * dyn);
+    for (let i = 0; i < beats * 4; i++) this.hit(ev, ctx, s * i, "hat", i % 2 === 0 ? 0.34 + 0.1 * dyn : 0.2);
+    return ev;
+  }
+
+  /** Latin: son clave (3-2) on the shaker, supporting kick, straight hats. */
+  private clave(ctx: BarContext, arc: number, dyn: number): NoteEvent[] {
+    if (arc < 0.2) return [];
+    const beat = ticksPerBeat(ctx.meter);
+    const cell = (beat * ctx.meter.numerator) / 16;
+    const ev: NoteEvent[] = [];
+    for (const step of [0, 3, 6, 10, 12]) this.hit(ev, ctx, cell * step, "shaker", 0.5 + 0.12 * dyn);
+    this.hit(ev, ctx, 0, "kick", 0.6 + 0.12 * dyn);
+    this.hit(ev, ctx, beat * 2, "kick", 0.55 + 0.12 * dyn);
+    for (let b = 0; b < ctx.meter.numerator; b++) this.hit(ev, ctx, beat * b, "hat", 0.3 + 0.1 * dyn);
+    return ev;
   }
 }

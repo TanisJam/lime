@@ -23,6 +23,9 @@ import { pitchClassName } from "../harmony/Scale.js";
 import { chordLabel, chordRoman } from "../harmony/Chord.js";
 import type { NoteEvent } from "../events/MusicalEvent.js";
 import { Orchestrator } from "../orchestration/Orchestrator.js";
+import { OrchestrationDirector } from "../orchestration/OrchestrationDirector.js";
+import type { OrchestrationPlan } from "../orchestration/OrchestrationPlan.js";
+import { ROLE_FOR_VOICE } from "../orchestration/MusicalRole.js";
 import { CompositionScheduler } from "../scheduler/CompositionScheduler.js";
 import type { StylePack } from "../style/StylePack.js";
 import type { MusicRenderer } from "./MusicRenderer.js";
@@ -102,6 +105,7 @@ export class LimeEngine implements Lime {
   private readonly director: PhraseDirector;
   private readonly form: FormDirector;
   private readonly harmony: HarmonyPlanner;
+  private readonly orchestrationDirector: OrchestrationDirector;
   private readonly orchestrator: Orchestrator;
   private readonly scheduler: CompositionScheduler;
 
@@ -113,6 +117,7 @@ export class LimeEngine implements Lime {
   private lastScheduledTempo: number;
   private lastComposedState: MusicalState;
   private lastCapture: BarCapture | undefined;
+  private lastOrchestrationPlan: OrchestrationPlan | undefined;
 
   constructor(config: LimeConfig) {
     this.rng = new SeededRandom(config.seed);
@@ -146,10 +151,15 @@ export class LimeEngine implements Lime {
       keyPc: config.keyPc ?? this.style.keyPc,
       mode: this.style.defaultMode,
       transitions: this.style.harmony?.transitions,
+      harmonyMotion: this.style.harmony?.harmonyMotion,
     });
+    this.orchestrationDirector = new OrchestrationDirector();
     this.orchestrator = new Orchestrator(this.rng.derive("orchestration"), undefined, {
       melody: this.style.melody,
       rhythm: this.style.rhythm,
+      chordStyle: this.style.chordStyle,
+      bassStyle: this.style.bassStyle,
+      motion: this.style.motion,
     });
 
     this.scheduler = new CompositionScheduler({
@@ -255,6 +265,11 @@ export class LimeEngine implements Lime {
     const nextChord = this.harmony.chordAt(bar + 1);
     const phrase = this.phrases.at(bar);
     const phrasePlan = this.director.plan(state, phrase);
+    // Orchestration intent for the bar: which roles are active, their depth and
+    // focus, and a shared activity budget. Mutates the director's hysteresis, so
+    // it must run once per bar in order — exactly as composeBar is called.
+    const orchestration = this.orchestrationDirector.plan(state, phrasePlan, formState);
+    this.lastOrchestrationPlan = orchestration;
 
     const events = this.orchestrator.composeBar({
       bar,
@@ -265,6 +280,7 @@ export class LimeEngine implements Lime {
       nextChord,
       phrase,
       phrasePlan,
+      orchestration,
     });
 
     this.orchestrator.memory.expireCommitments(bar);
@@ -414,7 +430,12 @@ export class LimeEngine implements Lime {
       chordLabel: chord ? chordLabel(chord) : null,
       phrase: this.phrases.at(bar),
       phrasePlan: this.director.plan(state, this.phrases.at(bar)),
-      activeVoices: [...this.orchestrator.arrangement.current],
+      activeVoices: [...this.orchestrationDirector.activeVoices],
+      orchestrationPlan: this.lastOrchestrationPlan ?? null,
+      focus: this.lastOrchestrationPlan?.focus ?? null,
+      activeRoles: this.lastOrchestrationPlan
+        ? [...this.lastOrchestrationPlan.activeRoles]
+        : [...this.orchestrationDirector.activeVoices].map((v) => ROLE_FOR_VOICE[v]),
       activeMotifId,
       motifCount: this.orchestrator.memory.motifs.length,
       currentState: state,

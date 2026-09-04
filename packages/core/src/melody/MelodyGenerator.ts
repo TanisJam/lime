@@ -8,7 +8,30 @@ import type { ComposerMemory } from "../memory/ComposerMemory.js";
 import type { Motif } from "../motif/Motif.js";
 import { MotifGenerator } from "../motif/MotifGenerator.js";
 import { augment, fragment, invert, transpose } from "../motif/MotifTransformer.js";
-import type { MelodyStyle } from "../style/StylePack.js";
+import type { MelodyStyle, MelodyScale } from "../style/StylePack.js";
+
+/** Pitch-class offsets (from the tonic) of the snap scales. */
+const SNAP_SCALES: Record<Exclude<MelodyScale, "diatonic">, readonly number[]> = {
+  "minor-pentatonic": [0, 3, 5, 7, 10],
+  "major-pentatonic": [0, 2, 4, 7, 9],
+  blues: [0, 3, 5, 6, 7, 10], // minor pentatonic + ♭5
+};
+
+/**
+ * Snap a pitch to the nearest tone of a scale in the key. Preserves register
+ * (moves at most a whole step), so a diatonic contour becomes a pentatonic/blues
+ * riff without losing its shape.
+ */
+function snapToScale(pitch: number, keyPc: number, scale: MelodyScale): number {
+  if (scale === "diatonic") return pitch;
+  const set = SNAP_SCALES[scale];
+  const pc = (((pitch - keyPc) % 12) + 12) % 12;
+  if (set.includes(pc)) return pitch;
+  for (const d of [-1, 1, -2, 2]) {
+    if (set.includes((((pc + d) % 12) + 12) % 12)) return pitch + d;
+  }
+  return pitch;
+}
 
 const MELODY_OCTAVE = 5;
 const TARGET_PITCH = 74;
@@ -29,12 +52,16 @@ const DEFAULT_LEAP_RESOLUTION = 0.7;
 export class MelodyGenerator {
   private readonly motifGen: MotifGenerator;
   private readonly leapResolution: number;
+  private readonly scale: MelodyScale;
+  private readonly motifDevelopment: number;
   private activeMotif: Motif | undefined;
   private lastPitch: number | undefined;
 
   constructor(rng: SeededRandom, melody?: MelodyStyle) {
     this.motifGen = new MotifGenerator(rng.derive("motif"), melody);
     this.leapResolution = melody?.leapResolution ?? DEFAULT_LEAP_RESOLUTION;
+    this.scale = melody?.scale ?? "diatonic";
+    this.motifDevelopment = melody?.motifDevelopment ?? 0;
   }
 
   generateBar(ctx: BarContext, memory: ComposerMemory): NoteEvent[] {
@@ -77,9 +104,11 @@ export class MelodyGenerator {
       return degree;
     });
     this.resolveLeaps(degrees, ctx);
-    const pitches = degrees.map((degree) =>
-      degreePitch(degree, ctx.chord.keyPc, ctx.chord.mode, MELODY_OCTAVE),
-    );
+    const pitches = degrees.map((degree) => {
+      const p = degreePitch(degree, ctx.chord.keyPc, ctx.chord.mode, MELODY_OCTAVE);
+      // Rock/blues riffs live in the pentatonic; snap there when the style asks.
+      return snapToScale(p, ctx.chord.keyPc, this.scale);
+    });
 
     // 5. Schedule within the bar.
     return this.schedule(motif, pitches, ctx, memory);
@@ -122,8 +151,9 @@ export class MelodyGenerator {
       }
     }
 
-    // Rarely introduce a brand-new motif mid-piece for future return.
-    if (rng.bool(0.05 * state.instability) && memory.motifs.length < 6) {
+    // Rarely introduce a brand-new motif mid-piece for future return; a higher
+    // motifDevelopment brings fresh material in more often (default 0 = as before).
+    if (rng.bool(0.05 * state.instability + 0.08 * this.motifDevelopment) && memory.motifs.length < 6) {
       const m = this.motifGen.create(state.complexity);
       memory.addMotif(m);
     }
@@ -135,6 +165,9 @@ export class MelodyGenerator {
     const { state, phrase, rng } = ctx;
     let m = base;
     const amount = 0.5 * state.complexity + 0.5 * state.instability;
+    // motifDevelopment (default 0) lifts the reshape odds so the theme evolves
+    // more as it develops. At 0 every probability below is byte-identical.
+    const dev = this.motifDevelopment;
 
     switch (phrase.role) {
       case "statement":
@@ -142,13 +175,13 @@ export class MelodyGenerator {
         // recognizably the same idea. Development is where it gets reshaped.
         break;
       case "variation":
-        if (rng.bool(0.6)) m = transpose(m, rng.pick([-2, -1, 1, 2]));
-        if (rng.bool(0.3 * amount)) m = augment(m, rng.pick([1.5, 2]));
+        if (rng.bool(0.6 + 0.35 * dev)) m = transpose(m, rng.pick([-2, -1, 1, 2]));
+        if (rng.bool(0.3 * amount + 0.4 * dev)) m = augment(m, rng.pick([1.5, 2]));
         break;
       case "development":
-        if (rng.bool(0.5)) m = invert(m);
-        if (rng.bool(0.5)) m = transpose(m, rng.pick([-3, -2, 2, 3]));
-        if (rng.bool(0.4 * amount) && m.intervals.length > 2) {
+        if (rng.bool(0.5 + 0.4 * dev)) m = invert(m);
+        if (rng.bool(0.5 + 0.35 * dev)) m = transpose(m, rng.pick([-3, -2, 2, 3]));
+        if (rng.bool(0.4 * amount + 0.4 * dev) && m.intervals.length > 2) {
           m = fragment(m, m.intervals.length - 1);
         }
         break;

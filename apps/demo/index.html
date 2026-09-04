@@ -21,14 +21,13 @@
         <div class="header-actions">
           <button id="showcase-btn" class="toggle">Showcase: off</button>
           <button id="pause-btn" class="toggle" title="Freeze controls; keep the music playing forward">Automation: live</button>
-          <button id="instr-btn" class="toggle" title="A/B: self-contained synth palette vs. high-quality sampled instruments">Instruments: synth</button>
           <button id="export-btn" class="toggle" title="Capture the current composition and download a .mid">⬇ MIDI</button>
           <button id="stop-btn" class="toggle">Stop</button>
         </div>
       </header>
 
       <section class="panel controls">
-        <h2>Style pack</h2>
+        <h2>Genre</h2>
         <div class="style-row">
           <select id="style-select"></select>
           <button id="reseed-btn" class="toggle" title="Recompose with a new seed">⟳ seed</button>
@@ -36,6 +35,10 @@
         <div class="style-row">
           <select id="refseed-select" title="Recompose the current style with a fixed reference seed"></select>
         </div>
+
+        <h2>Emotion</h2>
+        <div class="emotion-axes"><span>← dark</span><span>bright →</span></div>
+        <div id="emotions" class="emotions"></div>
 
         <h2>Moods</h2>
         <div id="moods" class="moods"></div>

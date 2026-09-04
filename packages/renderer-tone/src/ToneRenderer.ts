@@ -17,7 +17,7 @@ export type { LimeInstrument, InstrumentFactory } from "./instruments.js";
 
 /** Voices this renderer realizes (texture is not composed in v0.2). */
 type MixVoice = Exclude<VoiceId, "texture">;
-const MIX_VOICES: readonly MixVoice[] = ["pad", "bass", "melody", "percussion"];
+const MIX_VOICES: readonly MixVoice[] = ["pad", "bass", "melody", "motion", "percussion"];
 
 const DEFAULT_INSTRUMENTATION: InstrumentationConfig = {
   reverbWet: 0.4,
@@ -41,6 +41,7 @@ const MIX_DEFAULTS: Record<MixVoice, { pan: number; reverbSend: number; delaySen
   pad: { pan: 0, reverbSend: 0.9, delaySend: 0 },
   bass: { pan: 0, reverbSend: 0.15, delaySend: 0 },
   melody: { pan: 0.25, reverbSend: 0.6, delaySend: 0.5 },
+  motion: { pan: -0.25, reverbSend: 0.4, delaySend: 0.3 },
   percussion: { pan: 0, reverbSend: 0.2, delaySend: 0 },
 };
 
@@ -107,6 +108,7 @@ export class ToneRenderer implements MusicRenderer {
       pad: custom.pad ?? DEFAULT_INSTRUMENT_FACTORIES.pad,
       bass: custom.bass ?? DEFAULT_INSTRUMENT_FACTORIES.bass,
       melody: custom.melody ?? DEFAULT_INSTRUMENT_FACTORIES.melody,
+      motion: custom.motion ?? DEFAULT_INSTRUMENT_FACTORIES.motion,
       percussion: custom.percussion ?? DEFAULT_INSTRUMENT_FACTORIES.percussion,
     };
   }
@@ -128,7 +130,9 @@ export class ToneRenderer implements MusicRenderer {
     this.chains = {} as Record<MixVoice, VoiceChain>;
     for (const voice of MIX_VOICES) {
       const voiceCfg: SynthVoiceConfig | undefined =
-        voice === "percussion" ? undefined : (cfg[voice] as SynthVoiceConfig);
+        voice === "percussion" || voice === "motion"
+          ? undefined
+          : (cfg[voice] as SynthVoiceConfig);
       const instrument = this.factories[voice](voiceCfg);
 
       const mix = MIX_DEFAULTS[voice];

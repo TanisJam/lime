@@ -184,6 +184,41 @@ export const melodyFactory: InstrumentFactory = (config) => {
   };
 };
 
+/**
+ * motion — the arpeggio/ostinato/stab layer. A short bright pluck (triangle with
+ * a quick decay) so repeated notes stay articulate and sit between the pad and
+ * the melody without smearing.
+ */
+export const motionFactory: InstrumentFactory = (config) => {
+  const cfg = config ?? FALLBACK;
+  const synth = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: "triangle" },
+    envelope: { attack: 0.004, decay: 0.18, sustain: 0.15, release: 0.2 },
+    volume: linToDb(cfg.gain ?? 0.28),
+  });
+  const filter = new Tone.Filter({ frequency: 3000, type: "lowpass", Q: 0.4 });
+  const output = new Tone.Gain(1);
+  synth.connect(filter);
+  filter.connect(output);
+  return {
+    output,
+    triggerNote(pitch, velocity, timeSec, durationSec) {
+      synth.triggerAttackRelease(
+        Tone.Frequency(pitch, "midi").toNote(),
+        Math.min(durationSec, 0.4),
+        timeSec,
+        0.4 + velocity * 0.4,
+      );
+    },
+    setBrightness(v) {
+      filter.frequency.rampTo(1500 + Math.max(0, Math.min(1, v)) * 3000, 0.3);
+    },
+    dispose() {
+      for (const n of [synth, filter, output]) n.dispose();
+    },
+  };
+};
+
 /** Reverse map: MIDI drum number → abstract percussion sound. */
 const MIDI_TO_PERC = new Map<number, PercussionSound>(
   (Object.entries(PERCUSSION_MIDI) as [PercussionSound, number][]).map(([sound, midi]) => [midi, sound]),
@@ -259,5 +294,6 @@ export const DEFAULT_INSTRUMENT_FACTORIES: Record<
   pad: padFactory,
   bass: bassFactory,
   melody: melodyFactory,
+  motion: motionFactory,
   percussion: percussionFactory,
 };

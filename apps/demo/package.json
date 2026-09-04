@@ -15,6 +15,7 @@
     "@lime/midi": "workspace:*",
     "@lime/renderer-tone": "workspace:*",
     "@lime/styles": "workspace:*",
+    "js-synthesizer": "^1.13.0",
     "tone": "^15.0.4"
   },
   "devDependencies": {

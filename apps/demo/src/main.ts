@@ -7,13 +7,54 @@ import {
   type Lime,
   type MusicalStatePatch,
   type StylePack,
+  type HarmonyStyle,
+  type RhythmStyle,
   type NoteEvent,
   type VoiceId,
   type PhrasePlan,
 } from "@lime/core";
 import { eventsToStandardMidiFile } from "@lime/midi";
-import { createToneRenderer, type ToneRenderer } from "@lime/renderer-tone";
-import { ambientMinimal } from "@lime/styles";
+import {
+  createToneRenderer,
+  ROCK_INSTRUMENTS, METAL_INSTRUMENTS, POP_INSTRUMENTS, JAZZ_INSTRUMENTS,
+  BLUES_INSTRUMENTS, HIPHOP_INSTRUMENTS, ELECTRONIC_INSTRUMENTS, FOLK_INSTRUMENTS,
+  LATIN_INSTRUMENTS, FUNK_INSTRUMENTS, CLASSICAL_INSTRUMENTS,
+  type ToneRenderer,
+  type InstrumentFactory,
+} from "@lime/renderer-tone";
+import { GENRE_PALETTES_SAMPLED } from "./sampledGenre";
+import { FluidRenderer, GM_PROGRAMS } from "./fluidRenderer";
+
+/**
+ * Genre → instrument palette. The StylePack gives a genre its grammar; the
+ * palette gives it its timbre. Genres without a palette fall back to the
+ * default/sampled instruments (ambient).
+ */
+const GENRE_PALETTES: Record<string, Partial<Record<VoiceId, InstrumentFactory>>> = {
+  "genre-rock-pop": ROCK_INSTRUMENTS,
+  "genre-metal": METAL_INSTRUMENTS,
+  "genre-pop": POP_INSTRUMENTS,
+  "genre-jazz": JAZZ_INSTRUMENTS,
+  "genre-blues": BLUES_INSTRUMENTS,
+  "genre-hiphop": HIPHOP_INSTRUMENTS,
+  "genre-electronic": ELECTRONIC_INSTRUMENTS,
+  "genre-folk": FOLK_INSTRUMENTS,
+  "genre-latin": LATIN_INSTRUMENTS,
+  "genre-funk": FUNK_INSTRUMENTS,
+  "genre-classical": CLASSICAL_INSTRUMENTS,
+};
+
+/** Friendly dropdown labels per genre id. */
+const GENRE_LABELS: Record<string, string> = {
+  "genre-rock-pop": "Rock", "genre-metal": "Metal", "genre-pop": "Pop",
+  "genre-jazz": "Jazz", "genre-blues": "Blues", "genre-hiphop": "Hip-hop",
+  "genre-electronic": "Electrónica", "genre-folk": "Folk", "genre-latin": "Latina",
+  "genre-funk": "R&B / Funk", "genre-classical": "Clásica", "genre-ambient": "Ambient",
+};
+import {
+  classicalPack, popPack, hiphopPack, electronicPack, jazzPack, bluesPack,
+  folkPack, latinPack, funkPack, metalPack, ambientPack,
+} from "@lime/styles";
 import * as Tone from "tone";
 import { SAMPLED_INSTRUMENTS } from "./sampledInstruments";
 
@@ -36,7 +77,7 @@ const PARAMS = [
 ] as const;
 type ParamKey = (typeof PARAMS)[number];
 
-const VOICES = ["pad", "bass", "melody", "percussion"] as const;
+const VOICES = ["pad", "bass", "melody", "motion", "percussion"] as const;
 
 /** Semantic moods — demo-only sugar over continuous state (per handoff). */
 const MOODS: Record<string, MusicalStatePatch> = {
@@ -57,22 +98,126 @@ const packModules = import.meta.glob("../../../packages/corpus/generated/*.json"
   eager: true,
 }) as Record<string, { default: { style: StylePack; suggestedState?: MusicalStatePatch } }>;
 
-const corpusPacks: StyleEntry[] = Object.entries(packModules)
-  .filter(([path]) => !path.endsWith("index.json"))
-  .map(([, mod]) => ({
+const corpusPacks: StyleEntry[] = Object.values(packModules)
+  // Only entries that actually carry a StylePack — skips index.json and any
+  // other non-pack JSON that happens to live in generated/ (e.g. a manifest).
+  .filter((mod) => mod.default?.style?.id)
+  .map((mod) => ({
     id: mod.default.style.id,
     style: mod.default.style,
     suggestedState: mod.default.suggestedState,
   }))
   .sort((a, b) => a.id.localeCompare(b.id));
 
+// The 12-genre dropdown. Each genre carries an energetic default so its groove
+// plays on selection; the emotion selector then drives live state. Rock is the
+// corpus-derived pack; the rest are authored (GENRES.md).
+const GENRE_STATE: Record<string, MusicalStatePatch> = {
+  "genre-classical": { energy: 0.5, valence: 0.6, tension: 0.3, density: 0.45, complexity: 0.4, instability: 0.25, brightness: 0.55, tempo: 90 },
+  "genre-pop": { energy: 0.7, valence: 0.72, tension: 0.3, density: 0.55, complexity: 0.35, instability: 0.25, brightness: 0.6, tempo: 118 },
+  "genre-rock-pop": { energy: 0.8, valence: 0.25, tension: 0.6, density: 0.6, complexity: 0.55, instability: 0.42, brightness: 0.38, tempo: 126 },
+  "genre-hiphop": { energy: 0.8, valence: 0.4, tension: 0.35, density: 0.6, complexity: 0.35, instability: 0.3, brightness: 0.45, tempo: 88 },
+  "genre-electronic": { energy: 0.76, valence: 0.45, tension: 0.4, density: 0.65, complexity: 0.45, instability: 0.35, brightness: 0.55, tempo: 126 },
+  "genre-jazz": { energy: 0.55, valence: 0.5, tension: 0.35, density: 0.5, complexity: 0.55, instability: 0.4, brightness: 0.55, tempo: 130 },
+  "genre-blues": { energy: 0.55, valence: 0.3, tension: 0.4, density: 0.5, complexity: 0.3, instability: 0.15, brightness: 0.52, tempo: 95 },
+  "genre-folk": { energy: 0.45, valence: 0.55, tension: 0.25, density: 0.4, complexity: 0.3, instability: 0.2, brightness: 0.55, tempo: 100 },
+  "genre-latin": { energy: 0.72, valence: 0.65, tension: 0.35, density: 0.6, complexity: 0.45, instability: 0.35, brightness: 0.6, tempo: 105 },
+  "genre-funk": { energy: 0.72, valence: 0.55, tension: 0.35, density: 0.62, complexity: 0.45, instability: 0.35, brightness: 0.55, tempo: 108 },
+  "genre-metal": { energy: 0.9, valence: 0.28, tension: 0.62, density: 0.72, complexity: 0.5, instability: 0.4, brightness: 0.42, tempo: 160 },
+  "genre-ambient": { energy: 0.32, valence: 0.5, tension: 0.2, density: 0.3, complexity: 0.25, instability: 0.15, brightness: 0.5, tempo: 68 },
+};
+const rockPack = corpusPacks.find((p) => p.id === "genre-rock-pop");
+
+// Per-genre generation tweaks (judged by ear with the audio judge): move the
+// harmony so it stops circling the tonic, and vary the backbeat. Only the named
+// genres change; the rest stay exactly as authored. Deep-merged so each pack's
+// own harmony/rhythm data (transitions, groove) survives.
+const STYLE_TWEAKS: Record<string, Partial<StylePack>> = {
+  "genre-metal": { harmony: { harmonyMotion: 0.7 }, rhythm: { grooveVariation: 0.4 } },
+  "genre-latin": { harmony: { harmonyMotion: 0.5 } },
+  "genre-folk": { harmony: { harmonyMotion: 0.5 } },
+  // Blues: a minor (dorian) 12-bar blues reads darker/sadder than the pack's
+  // mixolydian, and force a I-IV-V progression (its corpus transitions wandered).
+  "genre-blues": {
+    defaultMode: "dorian",
+    harmony: { transitions: {
+      1: [{ degree: 4, weight: 3 }, { degree: 1, weight: 2.5 }, { degree: 5, weight: 1 }],
+      4: [{ degree: 1, weight: 3 }, { degree: 4, weight: 1.5 }, { degree: 5, weight: 1 }],
+      5: [{ degree: 4, weight: 2.5 }, { degree: 1, weight: 2.5 }],
+    } },
+  },
+};
+function tweak(style: StylePack): StylePack {
+  const t = STYLE_TWEAKS[style.id];
+  if (!t) return style;
+  return {
+    ...style,
+    ...t,
+    ...(t.harmony ? { harmony: { ...style.harmony, ...t.harmony } } : {}),
+    ...(t.rhythm ? { rhythm: { ...style.rhythm, ...t.rhythm } } : {}),
+  };
+}
+const entry = (style: StylePack): StyleEntry => ({
+  id: style.id,
+  style: tweak(style),
+  suggestedState: GENRE_STATE[style.id] ?? { ...MOODS.Calm },
+});
 const STYLES: StyleEntry[] = [
-  { id: "ambient-minimal (built-in)", style: ambientMinimal, suggestedState: { ...MOODS.Calm } },
-  ...corpusPacks,
+  entry(classicalPack),
+  entry(popPack),
+  // Rock's corpus pack came out in major, which reads emotionally "happy"; force
+  // natural minor so it lands dark/aggressive as the genre intends. Its corpus
+  // matrix circled back to the tonic every chord (repetitive), so give it
+  // harmonyMotion so the progression travels, and a touch of motifDevelopment so
+  // the melody evolves instead of restating one shape. All judged by ear with the
+  // audio judge. Merge harmony/melody so the corpus data survives.
+  ...(rockPack ? [{ id: rockPack.style.id, style: { ...rockPack.style, defaultMode: "naturalMinor" as const, bassStyle: "default" as const, harmony: { ...rockPack.style.harmony, harmonyMotion: 0.8 }, melody: { ...rockPack.style.melody, motifDevelopment: 0.3, durationWeights: { whole: 1, half: 7, dottedQuarter: 3, quarter: 9, dottedEighth: 0.2, eighth: 0.5, sixteenth: 0.1 } }, rhythm: { ...rockPack.style.rhythm, grooveVariation: 0.5 } }, suggestedState: GENRE_STATE["genre-rock-pop"]! }] : []),
+  entry(hiphopPack),
+  entry(electronicPack),
+  entry(jazzPack),
+  entry(bluesPack),
+  entry(folkPack),
+  entry(latinPack),
+  entry(funkPack),
+  entry(metalPack),
+  entry(ambientPack),
 ];
 
+/** A quadrant emotion preset: a corpus-derived state the host transitions to. */
+interface EmotionPreset {
+  readonly quadrant: "Q1" | "Q2" | "Q3" | "Q4";
+  readonly label: string;
+  readonly state: MusicalStatePatch;
+}
+
+// The 2×2 emotion selector (valence × arousal). State comes from the corpus
+// feel-* packs' suggestedState where present, with a sensible fallback. Order is
+// the grid's reading order: intense row (tense | happy), then calm row (sad | calm).
+const FEEL_FALLBACK: Record<string, MusicalStatePatch> = {
+  "feel-tense": { energy: 0.7, valence: 0.2, tension: 0.82, brightness: 0.35, density: 0.65, complexity: 0.57, instability: 0.5, tempo: 118 },
+  "feel-happy": { energy: 0.6, valence: 0.8, tension: 0.25, brightness: 0.75, density: 0.55, complexity: 0.45, instability: 0.3, tempo: 112 },
+  "feel-sad": { energy: 0.3, valence: 0.2, tension: 0.3, brightness: 0.35, density: 0.3, complexity: 0.35, instability: 0.25, tempo: 72 },
+  "feel-calm": { energy: 0.35, valence: 0.85, tension: 0.2, brightness: 0.78, density: 0.35, complexity: 0.3, instability: 0.17, tempo: 80 },
+};
+const EMOTIONS: EmotionPreset[] = (
+  [
+    ["feel-tense", "Q2", "Tense"],
+    ["feel-happy", "Q1", "Happy"],
+    ["feel-sad", "Q3", "Sad"],
+    ["feel-calm", "Q4", "Calm"],
+  ] as const
+).map(([id, quadrant, label]) => ({
+  quadrant,
+  label,
+  state: corpusPacks.find((p) => p.id === id)?.suggestedState ?? FEEL_FALLBACK[id]!,
+}));
+
+let currentEmotion: EmotionPreset | null = null;
+
 let music: Lime | null = null;
-let renderer: ToneRenderer | null = null;
+// Playback engine: FluidSynth-WASM + a GM SoundFont, persistent across genre
+// switches (the 30 MB SoundFont loads once).
+const renderer = new FluidRenderer();
 let currentSeed = "demo-forest-1";
 let currentEntry: StyleEntry = STYLES[0]!;
 
@@ -91,6 +236,7 @@ const muted: Record<VoiceId, boolean> = {
   pad: false,
   bass: false,
   melody: false,
+  motion: false,
   percussion: false,
   texture: false,
 };
@@ -98,7 +244,6 @@ let soloVoice: VoiceId | null = null;
 
 // A/B instrument palette: false = self-contained synth (default, no fetch),
 // true = high-quality sampled instruments plugged in via the renderer's API.
-let useSampled = false;
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) =>
   document.querySelector(sel) as T;
@@ -111,6 +256,7 @@ $("#enter-btn").addEventListener("click", async () => {
 
   buildStyleSelector();
   buildRefSeedSelector();
+  buildEmotions();
   buildMoods();
   buildSliders();
   buildVoices();
@@ -132,27 +278,25 @@ async function selectStyle(entry: StyleEntry, opts: { newSeed?: boolean } = {}):
   if (opts.newSeed) currentSeed = `demo-${Math.floor(Math.random() * 1e9)}`;
 
   music?.stop();
-  renderer?.dispose?.();
   stopShowcase();
 
-  const init: MusicalStatePatch = entry.suggestedState ?? { ...MOODS.Calm };
-  renderer = createToneRenderer({
-    instrumentation: entry.style.instrumentation,
-    instruments: useSampled ? SAMPLED_INSTRUMENTS : undefined,
-  });
+  // Keep the chosen emotion across a genre switch: the genre supplies the
+  // grammar (StylePack), the emotion supplies the state we start from.
+  const init: MusicalStatePatch =
+    currentEmotion?.state ?? entry.suggestedState ?? { ...MOODS.Calm };
+  // The genre's per-voice GM programs drive the FluidSynth SoundFont.
+  renderer.setGenrePrograms(GM_PROGRAMS[entry.style.id] ?? {});
   music = createLime({ seed: currentSeed, style: entry.style, renderer, initialState: init, lookAheadBars: 4 });
-  await music.start();
-  // Sampled mode: samplers load buffers asynchronously; wait so early notes are
-  // not dropped into silence. The synth path has nothing to fetch and skips this.
-  if (useSampled) await Tone.loaded();
+  await music.start(); // FluidRenderer loads the SoundFont on first start
   renderer.setBrightness(init.brightness ?? 0.5);
-  applyVoiceStates(); // re-push mute/solo onto the freshly built renderer
+  applyVoiceStates(); // re-push mute/solo onto the engine
 
   syncSliders(init);
   clearMoodHighlight();
   const sb = $("#showcase-btn");
   sb.textContent = "Showcase: off";
   sb.classList.remove("active");
+  if (currentEmotion) highlightEmotion(currentEmotion.quadrant);
 }
 
 function buildStyleSelector(): void {
@@ -161,7 +305,7 @@ function buildStyleSelector(): void {
   STYLES.forEach((e, i) => {
     const o = document.createElement("option");
     o.value = String(i);
-    o.textContent = e.id;
+    o.textContent = GENRE_LABELS[e.id] ?? e.id;
     sel.appendChild(o);
   });
   sel.addEventListener("change", () => {
@@ -242,29 +386,6 @@ $("#pause-btn").addEventListener("click", () => {
 // Deliverable 5: capture the current composition and download it as a .mid.
 $("#export-btn").addEventListener("click", () => exportMidi());
 
-// A/B instrument toggle: rebuild the renderer with the sampled palette (or back
-// to synth) through the same lifecycle selectStyle uses. Sampled mode fetches
-// buffers, so the button reports "loading…" and is disabled until ready.
-$("#instr-btn").addEventListener("click", async () => {
-  const btn = $<HTMLButtonElement>("#instr-btn");
-  if (btn.disabled) return;
-  useSampled = !useSampled;
-
-  if (useSampled) {
-    btn.textContent = "Instruments: loading…";
-    btn.disabled = true;
-    btn.classList.add("active");
-  }
-
-  // Rebuild the current style/seed with the chosen instrument set. selectStyle
-  // awaits Tone.loaded() when useSampled, so control returns once buffers exist.
-  await selectStyle(currentEntry);
-
-  btn.disabled = false;
-  btn.textContent = useSampled ? "Instruments: sampled" : "Instruments: synth";
-  btn.classList.toggle("active", useSampled);
-});
-
 // --- Controls --------------------------------------------------------------
 
 function buildMoods(): void {
@@ -277,6 +398,44 @@ function buildMoods(): void {
     btn.dataset.mood = name;
     btn.addEventListener("click", () => applyMood(name, true));
     host.appendChild(btn);
+  }
+}
+
+/** The 2×2 emotion selector: each cell transitions live to a quadrant's state. */
+function buildEmotions(): void {
+  const host = $("#emotions");
+  host.innerHTML = "";
+  for (const preset of EMOTIONS) {
+    const btn = document.createElement("button");
+    btn.className = "emotion";
+    btn.textContent = preset.label;
+    btn.dataset.quadrant = preset.quadrant;
+    btn.addEventListener("click", () => applyEmotion(preset));
+    host.appendChild(btn);
+  }
+}
+
+/** Transition the live state toward an emotion quadrant (no restart). */
+function applyEmotion(preset: EmotionPreset): void {
+  currentEmotion = preset;
+  highlightEmotion(preset.quadrant);
+  if (!music || automationPaused) return;
+  music.transitionTo({ ...preset.state }, { duration: { bars: 8 }, quantize: "nextBar" });
+  if (preset.state.brightness !== undefined) renderer?.setBrightness(preset.state.brightness);
+  syncSliders(preset.state);
+  clearMoodHighlight();
+}
+
+function highlightEmotion(quadrant: string): void {
+  for (const b of document.querySelectorAll<HTMLElement>("#emotions .emotion")) {
+    b.classList.toggle("active", b.dataset.quadrant === quadrant);
+  }
+}
+
+function clearEmotionHighlight(): void {
+  currentEmotion = null;
+  for (const b of document.querySelectorAll<HTMLElement>("#emotions .emotion")) {
+    b.classList.remove("active");
   }
 }
 
@@ -307,6 +466,7 @@ function makeSlider(key: string, label: string, min: number, max: number, step: 
     out.textContent = fmt(v, key === "tempo");
     onSlider(key, v);
     clearMoodHighlight();
+    clearEmotionHighlight();
   });
   row.appendChild(input);
   row.appendChild(out);
@@ -336,6 +496,7 @@ function applyMood(name: string, transition: boolean): void {
       if (out) out.textContent = fmt(v, k === "tempo");
     }
   }
+  clearEmotionHighlight();
   highlightMood(name);
 }
 
