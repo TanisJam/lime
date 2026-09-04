@@ -197,16 +197,16 @@ export class FluidRenderer implements MusicRenderer {
 
 /** Per-genre GM program map (voice → GM program). Drums are automatic on ch 9. */
 export const GM_PROGRAMS: Record<string, FluidPrograms> = {
-  "genre-classical": { melody: 40, pad: 48, bass: 43 },
-  "genre-pop": { melody: 0, pad: 4, bass: 33, motion: 0 },
+  "genre-classical": { melody: 40, pad: 48, bass: 43, melodyMax: 79 },
+  "genre-pop": { melody: 0, pad: 4, bass: 33, motion: 0, melodyMax: 76 },
   "genre-rock-pop": { melody: 29, pad: 29, bass: 33, melodyMax: 76, melodyCut: 66 },
-  "genre-hiphop": { melody: 4, pad: 89, bass: 38, motion: 4 },
+  "genre-hiphop": { melody: 4, pad: 89, bass: 38, motion: 4, melodyMax: 76 },
   "genre-jazz": { melody: 66, pad: 4, bass: 32, motion: 0 },
-  "genre-blues": { melody: 27, pad: 18, bass: 33 },
-  "genre-folk": { melody: 25, pad: 24, bass: 32 },
-  "genre-latin": { melody: 56, pad: 0, bass: 33, motion: 24 },
-  "genre-funk": { melody: 66, pad: 28, bass: 33, motion: 4 },
+  "genre-blues": { melody: 27, pad: 18, bass: 33, melodyMax: 76 },
+  "genre-folk": { melody: 25, pad: 24, bass: 32, melodyMax: 76 },
+  "genre-latin": { melody: 56, pad: 0, bass: 33, motion: 24, melodyMax: 78 },
+  "genre-funk": { melody: 66, pad: 28, bass: 33, motion: 4, melodyMax: 79 },
   "genre-metal": { melody: 29, pad: 30, bass: 33, melodyMax: 71, melodyCut: 62 },
-  "genre-electronic": { melody: 81, pad: 89, bass: 38, motion: 81 },
-  "genre-ambient": { melody: 73, pad: 89 },
+  "genre-electronic": { melody: 81, pad: 89, bass: 38, motion: 81, melodyMax: 76 },
+  "genre-ambient": { melody: 73, pad: 89, melodyMax: 79 },
 };

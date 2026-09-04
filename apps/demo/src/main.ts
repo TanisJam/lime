@@ -7,6 +7,8 @@ import {
   type Lime,
   type MusicalStatePatch,
   type StylePack,
+  type HarmonyStyle,
+  type RhythmStyle,
   type NoteEvent,
   type VoiceId,
   type PhrasePlan,
@@ -125,9 +127,29 @@ const GENRE_STATE: Record<string, MusicalStatePatch> = {
   "genre-ambient": { energy: 0.32, valence: 0.5, tension: 0.2, density: 0.3, complexity: 0.25, instability: 0.15, brightness: 0.5, tempo: 68 },
 };
 const rockPack = corpusPacks.find((p) => p.id === "genre-rock-pop");
+
+// Per-genre generation tweaks (judged by ear with the audio judge): move the
+// harmony so it stops circling the tonic, and vary the backbeat. Only the named
+// genres change; the rest stay exactly as authored. Deep-merged so each pack's
+// own harmony/rhythm data (transitions, groove) survives.
+const STYLE_TWEAKS: Record<string, { harmony?: HarmonyStyle; rhythm?: RhythmStyle }> = {
+  "genre-metal": { harmony: { harmonyMotion: 0.7 }, rhythm: { grooveVariation: 0.4 } },
+  "genre-latin": { harmony: { harmonyMotion: 0.5 } },
+  "genre-folk": { harmony: { harmonyMotion: 0.5 } },
+  "genre-blues": { harmony: { harmonyMotion: 0.45 } },
+};
+function tweak(style: StylePack): StylePack {
+  const t = STYLE_TWEAKS[style.id];
+  if (!t) return style;
+  return {
+    ...style,
+    ...(t.harmony ? { harmony: { ...style.harmony, ...t.harmony } } : {}),
+    ...(t.rhythm ? { rhythm: { ...style.rhythm, ...t.rhythm } } : {}),
+  };
+}
 const entry = (style: StylePack): StyleEntry => ({
   id: style.id,
-  style,
+  style: tweak(style),
   suggestedState: GENRE_STATE[style.id] ?? { ...MOODS.Calm },
 });
 const STYLES: StyleEntry[] = [
