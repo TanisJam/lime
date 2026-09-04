@@ -139,7 +139,7 @@ const STYLES: StyleEntry[] = [
   // harmonyMotion so the progression travels, and a touch of motifDevelopment so
   // the melody evolves instead of restating one shape. All judged by ear with the
   // audio judge. Merge harmony/melody so the corpus data survives.
-  ...(rockPack ? [{ id: rockPack.style.id, style: { ...rockPack.style, defaultMode: "naturalMinor" as const, bassStyle: "default" as const, harmony: { ...rockPack.style.harmony, harmonyMotion: 0.8 }, melody: { ...rockPack.style.melody, motifDevelopment: 0.3, durationWeights: { whole: 1, half: 7, dottedQuarter: 3, quarter: 9, dottedEighth: 0.2, eighth: 0.5, sixteenth: 0.1 } } }, suggestedState: GENRE_STATE["genre-rock-pop"]! }] : []),
+  ...(rockPack ? [{ id: rockPack.style.id, style: { ...rockPack.style, defaultMode: "naturalMinor" as const, bassStyle: "default" as const, harmony: { ...rockPack.style.harmony, harmonyMotion: 0.8 }, melody: { ...rockPack.style.melody, motifDevelopment: 0.3, durationWeights: { whole: 1, half: 7, dottedQuarter: 3, quarter: 9, dottedEighth: 0.2, eighth: 0.5, sixteenth: 0.1 } }, rhythm: { ...rockPack.style.rhythm, grooveVariation: 0.5 } }, suggestedState: GENRE_STATE["genre-rock-pop"]! }] : []),
   entry(hiphopPack),
   entry(electronicPack),
   entry(jazzPack),

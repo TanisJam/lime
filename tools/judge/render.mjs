@@ -100,6 +100,7 @@ const STYLE_OVERRIDE = {
       motifDevelopment: 0.3,
       durationWeights: { whole: 1, half: 7, dottedQuarter: 3, quarter: 9, dottedEighth: 0.2, eighth: 0.5, sixteenth: 0.1 },
     },
+    rhythm: { grooveVariation: 0.5 },
   },
 };
 function stylePack(id) {
@@ -115,6 +116,7 @@ function stylePack(id) {
   // Deep-merge nested config so corpus transitions / melody weights survive.
   if (ov.harmony) merged.harmony = { ...style.harmony, ...ov.harmony };
   if (ov.melody) merged.melody = { ...style.melody, ...ov.melody };
+  if (ov.rhythm) merged.rhythm = { ...style.rhythm, ...ov.rhythm }; // keep groove/onsetProfile
   return merged;
 }
 
