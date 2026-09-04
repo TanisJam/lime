@@ -63,42 +63,27 @@ KNOBS = (
 )
 
 
-def _current_settings(clip: dict) -> str:
-    c = clip.get("character") or {}
-    inst = c.get("instruments") or {}
-    present = ", ".join(f"{v}={inst[v]}" for v in ("pad", "bass", "melody", "motion") if inst.get(v))
-    mood = c.get("mood") or {}
-    mood_s = ", ".join(f"{k}={v}" for k, v in mood.items())
-    tr = c.get("tempoRange")
-    return (
-        "CURRENT SETTINGS for this clip:\n"
-        f"  - instruments: {present or 'n/a'}\n"
-        f"  - chordStyle={c.get('chordStyle')}, bassStyle={c.get('bassStyle')}, "
-        f"groove={c.get('groove')}, melodyScale={c.get('melodyScale')}, motion={c.get('motion')}\n"
-        f"  - tempo={clip.get('bpm')} bpm (range {tr[0]}-{tr[1]})" + (f", mood: {mood_s}" if mood_s else "") + "\n"
-    )
-
-
 def build_prompt(clip: dict) -> str:
     genre = clip.get("genreName") or clip["genre"]
     emotion = clip.get("emotion")
     intent = f"intended to sound like the genre **{genre}**"
     if emotion:
         intent += f" with a **{emotion}** emotional character"
+    # Deliberately do NOT reveal the clip's current knob values — judging by ear
+    # keeps the genre/emotion read honest and stops the model parroting settings.
     return (
         f"This clip is {intent}.\n\n"
-        f"{_current_settings(clip)}\n"
         f"{KNOBS}\n"
-        "Listen to the clip, then answer each point briefly:\n"
+        "Judge PURELY BY EAR (you are not told the current settings). Answer each point briefly:\n"
         "1. GENRE HEARD: which genre(s) does it actually sound like?\n"
         "2. EMOTION HEARD: valence (positive/negative) and arousal (high/low), in a few words.\n"
         f"3. GENRE MATCH: score 1-5 how well it matches '{genre}' (5 = unmistakably that genre).\n"
         "4. EMOTION MATCH: score 1-5 how well the emotion matches the intent above.\n"
-        "5. FIXES: the 2-3 highest-impact knob changes from the list above, each written as "
-        "'change <knob> from <current> to <new>' with a one-line reason. If the current "
-        "settings are already right for the genre, say which are correct and instead name "
-        "the real compositional weakness you hear (e.g. the lead phrasing, the harmonic "
-        "movement, the register balance between voices).\n"
+        "5. FIXES: the 2-3 highest-impact knob changes from the list above, each as "
+        "'set <knob> to <value>' with a one-line reason grounded in what you HEAR. Only "
+        "propose a change if you actually hear the problem; if the clip already sounds "
+        "right for the genre, say so and instead name the real compositional weakness "
+        "you hear (lead phrasing, harmonic movement, register balance between voices).\n"
     )
 
 
