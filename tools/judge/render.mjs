@@ -60,6 +60,17 @@ const STATE = {
   "genre-ambient": { energy: 0.32, valence: 0.5, tension: 0.2, density: 0.3, complexity: 0.25, instability: 0.15, brightness: 0.5, tempo: 68 },
 };
 
+// GM program number → human name, for the programs LIME actually uses.
+const GM_NAMES = {
+  0: "Acoustic Grand Piano", 4: "Electric Piano (Rhodes)", 18: "Rock Organ",
+  24: "Nylon Guitar", 25: "Steel Guitar", 27: "Clean Electric Guitar",
+  28: "Muted Electric Guitar", 29: "Overdriven Guitar", 30: "Distortion Guitar",
+  32: "Acoustic Bass", 33: "Finger Electric Bass", 38: "Synth Bass 1", 40: "Violin",
+  43: "Contrabass", 48: "String Ensemble", 56: "Trumpet", 66: "Tenor Sax",
+  73: "Flute", 81: "Saw Lead", 89: "Warm Pad",
+};
+const gmName = (n) => (n === undefined ? undefined : `${GM_NAMES[n] ?? "program"} (GM ${n})`);
+
 const NAMES = {
   "genre-classical": "Classical", "genre-pop": "Pop", "genre-rock-pop": "Rock",
   "genre-hiphop": "Hip-hop", "genre-electronic": "Electronic", "genre-jazz": "Jazz",
@@ -135,7 +146,20 @@ for (const genre of genres) {
     writeFileSync(midPath, bytes);
     execFileSync("fluidsynth", ["-ni", "-g", "0.8", "-r", "44100", "-F", wavPath, SF2, midPath], { stdio: "ignore" });
 
-    clips.push({ file: `${base}.wav`, genre, genreName: NAMES[genre], emotion: emotionLabel(state), seed, bpm, seconds });
+    const character = {
+      instruments: {
+        pad: gmName(cfg.pad), bass: gmName(cfg.bass),
+        melody: gmName(cfg.melody), motion: gmName(cfg.motion),
+      },
+      chordStyle: style.chordStyle ?? "triad",
+      bassStyle: style.bassStyle ?? "default",
+      groove: style.rhythm?.groove ?? "none",
+      melodyScale: style.melody?.scale ?? "diatonic",
+      motion: style.motion ?? "none",
+      tempoRange: style.tempoRange,
+      mood: { energy: state.energy, valence: state.valence, tension: state.tension, density: state.density, brightness: state.brightness },
+    };
+    clips.push({ file: `${base}.wav`, genre, genreName: NAMES[genre], emotion: emotionLabel(state), seed, bpm, seconds, character });
     console.log(`rendered ${base}.wav  (${bars} bars @ ${bpm}bpm, ${events.length} notes)`);
   }
 }

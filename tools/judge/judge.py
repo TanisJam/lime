@@ -28,13 +28,55 @@ from transformers import AutoProcessor, Qwen2AudioForConditionalGeneration
 MODEL_ID = "Qwen/Qwen2-Audio-7B-Instruct"
 
 SYSTEM = (
-    "You are a professional music producer with a critical ear, evaluating short "
-    "instrumental clips from a procedural music engine. The instruments are General "
+    "You are a professional music producer evaluating short clips from LIME, a "
+    "procedural music engine. Each clip is PURELY INSTRUMENTAL — there are NO vocals, "
+    "lyrics or singing, so never mention or suggest vocals. Instruments are General "
     "MIDI soundfont patches, so judge composition, arrangement, register, rhythm and "
-    "harmony — not recording fidelity. These clips are PURELY INSTRUMENTAL: there are "
-    "NO vocals, lyrics, or singing — never mention or suggest vocals. Be specific and "
+    "harmony, NOT recording fidelity or production polish.\n\n"
+    "LIME layers up to five voices:\n"
+    "  - PAD: the sustained harmony bed (chords).\n"
+    "  - BASS: the bass line.\n"
+    "  - MELODY: the lead line on top.\n"
+    "  - MOTION: an optional arpeggio / ostinato / offbeat-stab layer.\n"
+    "  - PERCUSSION: a General MIDI drum kit.\n\n"
+    "Your feedback must be ACTIONABLE through the engine's real knobs (given per clip). "
+    "Do NOT suggest things it cannot do (no vocals, no live-performer techniques, no "
+    "effects pedals, no mixing). If a knob is ALREADY set correctly for the genre, say "
+    "so rather than suggesting it — focus on what is actually wrong. Be specific and "
     "honest; do not flatter."
 )
+
+# The tunable knobs, described once so the model proposes real changes.
+KNOBS = (
+    "AVAILABLE KNOBS (what can be changed):\n"
+    "  - instrument per voice: any General MIDI program (e.g. swap the lead to a "
+    "different guitar/sax/synth).\n"
+    "  - chordStyle: triad | power (root+fifth, for rock/metal) | seventh (jazz/blues).\n"
+    "  - bassStyle: default | root-drive (driving straight-8th roots) | walking (jazz) | "
+    "sub (sparse 808) | funk (syncopated 16ths + ghosts) | montuno (latin tumbao).\n"
+    "  - groove: backbeat | four-on-floor | shuffle | swing | boom-bap | funk | clave | none.\n"
+    "  - melodyScale: diatonic | minor-pentatonic | major-pentatonic | blues.\n"
+    "  - motion layer: arp | ostinato | stab | none.\n"
+    "  - melody register: shift the lead up/down by octaves.\n"
+    "  - tempo (within the genre's range) and mood levels: energy, valence, tension, "
+    "density, brightness (each 0-1).\n"
+)
+
+
+def _current_settings(clip: dict) -> str:
+    c = clip.get("character") or {}
+    inst = c.get("instruments") or {}
+    present = ", ".join(f"{v}={inst[v]}" for v in ("pad", "bass", "melody", "motion") if inst.get(v))
+    mood = c.get("mood") or {}
+    mood_s = ", ".join(f"{k}={v}" for k, v in mood.items())
+    tr = c.get("tempoRange")
+    return (
+        "CURRENT SETTINGS for this clip:\n"
+        f"  - instruments: {present or 'n/a'}\n"
+        f"  - chordStyle={c.get('chordStyle')}, bassStyle={c.get('bassStyle')}, "
+        f"groove={c.get('groove')}, melodyScale={c.get('melodyScale')}, motion={c.get('motion')}\n"
+        f"  - tempo={clip.get('bpm')} bpm (range {tr[0]}-{tr[1]})" + (f", mood: {mood_s}" if mood_s else "") + "\n"
+    )
 
 
 def build_prompt(clip: dict) -> str:
@@ -45,15 +87,18 @@ def build_prompt(clip: dict) -> str:
         intent += f" with a **{emotion}** emotional character"
     return (
         f"This clip is {intent}.\n\n"
-        "Answer each point briefly and concretely:\n"
+        f"{_current_settings(clip)}\n"
+        f"{KNOBS}\n"
+        "Listen to the clip, then answer each point briefly:\n"
         "1. GENRE HEARD: which genre(s) does it actually sound like?\n"
         "2. EMOTION HEARD: valence (positive/negative) and arousal (high/low), in a few words.\n"
         f"3. GENRE MATCH: score 1-5 how well it matches '{genre}' (5 = unmistakably that genre).\n"
-        "4. EMOTION MATCH: score 1-5 how well the emotion matches the intent"
-        + (" above" if emotion else " it seems to aim for") + ".\n"
-        "5. FIXES: 2-3 concrete, actionable changes (instrument choice, octave/register, "
-        "rhythm/groove, harmony) that would make it sound more like the intended genre. "
-        "Name specifics (e.g. 'lead is an octave too high', 'needs a backbeat snare on 2 and 4').\n"
+        "4. EMOTION MATCH: score 1-5 how well the emotion matches the intent above.\n"
+        "5. FIXES: the 2-3 highest-impact knob changes from the list above, each written as "
+        "'change <knob> from <current> to <new>' with a one-line reason. If the current "
+        "settings are already right for the genre, say which are correct and instead name "
+        "the real compositional weakness you hear (e.g. the lead phrasing, the harmonic "
+        "movement, the register balance between voices).\n"
     )
 
 
