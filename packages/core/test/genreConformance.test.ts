@@ -93,17 +93,17 @@ describe("all twelve genres generate valid, distinct music", () => {
   const GENRES: Array<{
     id: string; mode: StylePack["defaultMode"]; keyPc: number; tempo: number;
     chordStyle?: StylePack["chordStyle"]; bassStyle?: StylePack["bassStyle"];
-    grooveName?: string; scaleName?: string;
+    grooveName?: string; scaleName?: string; motion?: string;
   }> = [
     { id: "classical", mode: "major", keyPc: 0, tempo: 90, chordStyle: "triad", grooveName: "none" },
-    { id: "pop", mode: "major", keyPc: 0, tempo: 118, chordStyle: "triad", bassStyle: "root-drive", grooveName: "backbeat" },
-    { id: "hiphop", mode: "naturalMinor", keyPc: 0, tempo: 88, chordStyle: "seventh", bassStyle: "sub", grooveName: "boom-bap", scaleName: "minor-pentatonic" },
-    { id: "electronic", mode: "naturalMinor", keyPc: 9, tempo: 126, chordStyle: "triad", bassStyle: "sub", grooveName: "four-on-floor", scaleName: "minor-pentatonic" },
-    { id: "jazz", mode: "major", keyPc: 0, tempo: 130, chordStyle: "seventh", bassStyle: "walking", grooveName: "swing" },
+    { id: "pop", mode: "major", keyPc: 0, tempo: 118, chordStyle: "triad", bassStyle: "root-drive", grooveName: "backbeat", motion: "arp" },
+    { id: "hiphop", mode: "naturalMinor", keyPc: 0, tempo: 88, chordStyle: "seventh", bassStyle: "sub", grooveName: "boom-bap", scaleName: "minor-pentatonic", motion: "arp" },
+    { id: "electronic", mode: "naturalMinor", keyPc: 9, tempo: 126, chordStyle: "triad", bassStyle: "sub", grooveName: "four-on-floor", scaleName: "minor-pentatonic", motion: "arp" },
+    { id: "jazz", mode: "major", keyPc: 0, tempo: 130, chordStyle: "seventh", bassStyle: "walking", grooveName: "swing", motion: "stab" },
     { id: "blues", mode: "mixolydian", keyPc: 4, tempo: 95, chordStyle: "seventh", bassStyle: "walking", grooveName: "shuffle", scaleName: "blues" },
     { id: "folk", mode: "dorian", keyPc: 7, tempo: 100, chordStyle: "triad", grooveName: "none" },
-    { id: "latin", mode: "major", keyPc: 2, tempo: 105, chordStyle: "seventh", bassStyle: "montuno", grooveName: "clave" },
-    { id: "funk", mode: "dorian", keyPc: 4, tempo: 108, chordStyle: "seventh", bassStyle: "funk", grooveName: "funk", scaleName: "minor-pentatonic" },
+    { id: "latin", mode: "major", keyPc: 2, tempo: 105, chordStyle: "seventh", bassStyle: "montuno", grooveName: "clave", motion: "ostinato" },
+    { id: "funk", mode: "dorian", keyPc: 4, tempo: 108, chordStyle: "seventh", bassStyle: "funk", grooveName: "funk", scaleName: "minor-pentatonic", motion: "stab" },
     { id: "metal", mode: "naturalMinor", keyPc: 4, tempo: 160, chordStyle: "power", bassStyle: "root-drive", grooveName: "backbeat", scaleName: "minor-pentatonic" },
     { id: "ambient", mode: "dorian", keyPc: 9, tempo: 68, chordStyle: "triad", grooveName: "none" },
   ];
@@ -112,7 +112,7 @@ describe("all twelve genres generate valid, distinct music", () => {
     it(`${g.id}: composes without error, groove ${g.grooveName}`, () => {
       const style = {
         ...testStyle, keyPc: g.keyPc, defaultMode: g.mode,
-        chordStyle: g.chordStyle, bassStyle: g.bassStyle,
+        chordStyle: g.chordStyle, bassStyle: g.bassStyle, motion: g.motion,
         rhythm: { ...(testStyle.rhythm ?? {}), groove: g.grooveName },
         melody: g.scaleName ? { ...(testStyle.melody ?? {}), scale: g.scaleName } : testStyle.melody,
         tempoRange: [Math.max(60, g.tempo - 20), Math.min(130, g.tempo + 20)],
@@ -120,17 +120,20 @@ describe("all twelve genres generate valid, distinct music", () => {
       const state: MusicalStatePatch = { energy: 0.7, valence: 0.5, tension: 0.35, density: 0.6, complexity: 0.4, instability: 0.3, brightness: 0.5, tempo: g.tempo };
       let total = 0;
       let perc = 0;
+      let mot = 0;
       for (const seed of ["a", "b"]) {
         const eng = new LimeEngine({ seed, style, initialState: state });
         for (let bar = 0; bar < 16; bar++) {
           const evs = eng.composeBar(bar);
           total += evs.length;
           perc += evs.filter((e) => e.voice === "percussion").length;
+          mot += evs.filter((e) => e.voice === "motion").length;
         }
       }
       expect(total).toBeGreaterThan(0); // it makes music
       if (g.grooveName === "none") expect(perc).toBe(0); // no drum kit
       else expect(perc).toBeGreaterThan(0); // the groove plays
+      if (g.motion) expect(mot).toBeGreaterThan(0); // the motion layer plays
     });
   }
 });

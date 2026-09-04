@@ -6,9 +6,10 @@ import { PadGenerator } from "../pad/PadGenerator.js";
 import { BassGenerator } from "../bass/BassGenerator.js";
 import { MelodyGenerator } from "../melody/MelodyGenerator.js";
 import { PercussionGenerator } from "../percussion/PercussionGenerator.js";
+import { MotionGenerator } from "../motion/MotionGenerator.js";
 import type { BarContext } from "./BarContext.js";
 import { ROLE_FOR_VOICE, type WiredVoice } from "./MusicalRole.js";
-import type { MelodyStyle, RhythmStyle, ChordStyle, BassStyle } from "../style/StylePack.js";
+import type { MelodyStyle, RhythmStyle, ChordStyle, BassStyle, MotionStyle } from "../style/StylePack.js";
 
 /** BarContext without the per-voice RNG (filled in per voice by the orchestrator). */
 export type BarContextBase = Omit<BarContext, "rng">;
@@ -21,6 +22,8 @@ export interface OrchestratorHints {
   readonly chordStyle?: ChordStyle;
   /** How the bass moves (default vs root-drive). */
   readonly bassStyle?: BassStyle;
+  /** Optional motion layer (arp / ostinato / stab). */
+  readonly motion?: MotionStyle;
 }
 
 /**
@@ -37,11 +40,13 @@ export class Orchestrator {
   private readonly bass: BassGenerator;
   private readonly melody: MelodyGenerator;
   private readonly percussion: PercussionGenerator;
+  private readonly motion: MotionGenerator | null;
 
   private readonly padRng: SeededRandom;
   private readonly bassRng: SeededRandom;
   private readonly melodyRng: SeededRandom;
   private readonly percRng: SeededRandom;
+  private readonly motionRng: SeededRandom;
 
   constructor(rng: SeededRandom, memory?: ComposerMemory, hints?: OrchestratorHints) {
     this.memory = memory ?? new ComposerMemory();
@@ -49,10 +54,12 @@ export class Orchestrator {
     this.bassRng = rng.derive("bass");
     this.melodyRng = rng.derive("melodyBar");
     this.percRng = rng.derive("percussion");
+    this.motionRng = rng.derive("motion");
     this.pad = new PadGenerator(hints?.chordStyle);
     this.bass = new BassGenerator(hints?.bassStyle);
     this.melody = new MelodyGenerator(rng.derive("melodyMotif"), hints?.melody);
     this.percussion = new PercussionGenerator(hints?.rhythm);
+    this.motion = hints?.motion ? new MotionGenerator(hints.motion) : null;
   }
 
   /** Compose all voices for one bar, returning time-ordered events. */
@@ -80,6 +87,11 @@ export class Orchestrator {
     }
     if (plays("percussion")) {
       events.push(...this.percussion.generateBar({ ...base, rng: this.percRng.derive(key) }));
+    }
+    // Motion layer (arp/ostinato/stab) — only when the style asks for one; it
+    // self-gates on the phrase arc.
+    if (this.motion) {
+      events.push(...this.motion.generateBar({ ...base, rng: this.motionRng.derive(key) }));
     }
 
     // Record the chord once, at its start bar, for memory/debug.

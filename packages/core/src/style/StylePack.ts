@@ -119,6 +119,9 @@ export interface RhythmStyle {
 /** How chords are realized into pitches. */
 export type ChordStyle = "triad" | "power" | "seventh";
 
+/** The motion layer's pattern (arpeggio / ostinato / offbeat stabs). */
+export type MotionStyle = "arp" | "ostinato" | "stab";
+
 /** How the bass moves. */
 export type BassStyle =
   | "default"
@@ -154,4 +157,9 @@ export interface StylePack {
    * pulse (rock, with the kick). Default `"default"` (the musical bass grammar).
    */
   readonly bassStyle?: BassStyle;
+  /**
+   * An extra motion layer — arpeggios (electronic/pop), ostinato/montuno (latin),
+   * or offbeat comping stabs (funk/jazz). Omit for genres that don't want one.
+   */
+  readonly motion?: MotionStyle;
 }

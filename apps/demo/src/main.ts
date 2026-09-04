@@ -92,7 +92,7 @@ const PARAMS = [
 ] as const;
 type ParamKey = (typeof PARAMS)[number];
 
-const VOICES = ["pad", "bass", "melody", "percussion"] as const;
+const VOICES = ["pad", "bass", "melody", "motion", "percussion"] as const;
 
 /** Semantic moods — demo-only sugar over continuous state (per handoff). */
 const MOODS: Record<string, MusicalStatePatch> = {
@@ -213,6 +213,7 @@ const muted: Record<VoiceId, boolean> = {
   pad: false,
   bass: false,
   melody: false,
+  motion: false,
   percussion: false,
   texture: false,
 };

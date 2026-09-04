@@ -30,6 +30,7 @@ export * from "./pad/PadGenerator.js";
 export * from "./bass/BassGenerator.js";
 export * from "./melody/MelodyGenerator.js";
 export * from "./percussion/PercussionGenerator.js";
+export * from "./motion/MotionGenerator.js";
 
 // Orchestration / scheduling / engine
 export * from "./orchestration/BarContext.js";

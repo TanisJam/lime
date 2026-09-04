@@ -158,6 +158,7 @@ export class LimeEngine implements Lime {
       rhythm: this.style.rhythm,
       chordStyle: this.style.chordStyle,
       bassStyle: this.style.bassStyle,
+      motion: this.style.motion,
     });
 
     this.scheduler = new CompositionScheduler({

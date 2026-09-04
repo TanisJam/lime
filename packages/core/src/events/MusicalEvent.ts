@@ -9,13 +9,17 @@ import type { Ticks, MusicalDuration } from "../time/MusicalTime.js";
  * file export later.
  */
 
-/** The musical roles v0.1 composes for. `texture` is optional/extra. */
-export type VoiceId = "pad" | "bass" | "melody" | "percussion" | "texture";
+/**
+ * The musical roles LIME composes for. `motion` is an arpeggio/ostinato/stab
+ * layer (added in the multi-genre work); `texture` is optional/extra.
+ */
+export type VoiceId = "pad" | "bass" | "melody" | "motion" | "percussion" | "texture";
 
 export const VOICES: readonly VoiceId[] = [
   "pad",
   "bass",
   "melody",
+  "motion",
   "percussion",
   "texture",
 ] as const;

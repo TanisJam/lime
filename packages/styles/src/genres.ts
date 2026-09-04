@@ -5,6 +5,7 @@ import type {
   BassStyle,
   GrooveStyle,
   MelodyScale,
+  MotionStyle,
   InstrumentationConfig,
 } from "@lime/core";
 
@@ -44,6 +45,7 @@ interface GenreSpec {
   readonly bassStyle?: BassStyle;
   readonly groove?: GrooveStyle;
   readonly melodyScale?: MelodyScale;
+  readonly motion?: MotionStyle;
   readonly phraseLengthBars?: 4 | 8;
 }
 
@@ -58,6 +60,7 @@ function genrePack(s: GenreSpec): StylePack {
     instrumentation: BASE_INSTRUMENTATION,
     chordStyle: s.chordStyle,
     bassStyle: s.bassStyle,
+    motion: s.motion,
     rhythm: s.groove ? { groove: s.groove } : undefined,
     melody: s.melodyScale ? { scale: s.melodyScale } : undefined,
   };
@@ -74,12 +77,14 @@ export const metalPack = genrePack({
 export const popPack = genrePack({
   id: "genre-pop", modes: ["major", "naturalMinor"], defaultMode: "major", keyPc: 0,
   tempoRange: [100, 128], chordStyle: "triad", bassStyle: "root-drive", groove: "backbeat",
+  motion: "arp",
 });
 
-/** Jazz — ii–V–I sevenths, swung ride, walking bass, modal melody. */
+/** Jazz — ii–V–I sevenths, swung ride, walking bass, comping stabs. */
 export const jazzPack = genrePack({
   id: "genre-jazz", modes: ["major", "dorian", "mixolydian"], defaultMode: "major", keyPc: 0,
   tempoRange: [90, 180], chordStyle: "seventh", bassStyle: "walking", groove: "swing",
+  motion: "stab",
 });
 
 /** Blues — dominant sevenths, shuffle, walking bass, blues scale. */
@@ -93,14 +98,14 @@ export const bluesPack = genrePack({
 export const hiphopPack = genrePack({
   id: "genre-hiphop", modes: ["naturalMinor", "dorian"], defaultMode: "naturalMinor", keyPc: 0,
   tempoRange: [82, 96], chordStyle: "seventh", bassStyle: "sub", groove: "boom-bap",
-  melodyScale: "minor-pentatonic", phraseLengthBars: 4,
+  melodyScale: "minor-pentatonic", motion: "arp", phraseLengthBars: 4,
 });
 
 /** Electrónica — minor riffs, four-on-the-floor, sub bass, arps. */
 export const electronicPack = genrePack({
   id: "genre-electronic", modes: ["naturalMinor", "dorian"], defaultMode: "naturalMinor", keyPc: 9,
   tempoRange: [120, 130], chordStyle: "triad", bassStyle: "sub", groove: "four-on-floor",
-  melodyScale: "minor-pentatonic",
+  melodyScale: "minor-pentatonic", motion: "arp",
 });
 
 /** Folk — modal, open chords, drones, no drum kit. */
@@ -113,13 +118,14 @@ export const folkPack = genrePack({
 export const latinPack = genrePack({
   id: "genre-latin", modes: ["major", "naturalMinor"], defaultMode: "major", keyPc: 2,
   tempoRange: [90, 120], chordStyle: "seventh", bassStyle: "montuno", groove: "clave",
+  motion: "ostinato",
 });
 
 /** R&B / soul / funk — extended chords, 16th funk groove, funk bass. */
 export const funkPack = genrePack({
   id: "genre-funk", modes: ["dorian", "mixolydian"], defaultMode: "dorian", keyPc: 4,
   tempoRange: [95, 120], chordStyle: "seventh", bassStyle: "funk", groove: "funk",
-  melodyScale: "minor-pentatonic",
+  melodyScale: "minor-pentatonic", motion: "stab",
 });
 
 /** Clásica — functional triads, expressive, no drum kit. */
