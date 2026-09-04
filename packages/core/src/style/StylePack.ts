@@ -129,6 +129,13 @@ export interface RhythmStyle {
    * (rock/pop). Omit for the default energy-driven grammar.
    */
   readonly groove?: GrooveStyle;
+  /**
+   * How much the named groove varies bar to bar, 0..1. Higher values add ghost
+   * snares, extra kick syncopations, hat accents and phrase-end fills instead of
+   * repeating one identical loop. The core pulse (kick/snare placement) stays
+   * intact so the groove still reads. Default 0 (unchanged behaviour).
+   */
+  readonly grooveVariation?: number;
 }
 
 /** How chords are realized into pitches. */

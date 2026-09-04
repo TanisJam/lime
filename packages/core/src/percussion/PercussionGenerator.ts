@@ -21,11 +21,13 @@ import type { RhythmStyle, GrooveStyle } from "../style/StylePack.js";
 export class PercussionGenerator {
   private readonly onsetProfile: number[] | null;
   private readonly groove: GrooveStyle | null;
+  private readonly grooveVariation: number;
 
   constructor(rhythm?: RhythmStyle) {
     this.onsetProfile =
       rhythm?.onsetProfile && rhythm.onsetProfile.length === 16 ? rhythm.onsetProfile : null;
     this.groove = rhythm?.groove ?? null;
+    this.grooveVariation = rhythm?.grooveVariation ?? 0;
   }
 
   generateBar(ctx: BarContext): NoteEvent[] {
@@ -159,15 +161,44 @@ export class PercussionGenerator {
     const beat = ticksPerBeat(ctx.meter);
     const beats = ctx.meter.numerator;
     const ev: NoteEvent[] = [];
+    const gv = this.grooveVariation;
+    const s = beat / 4; // sixteenth
+    const lastBeat = beats - 1;
+    // grooveVariation: occasionally end a phrase with a tom/snare fill in the
+    // last beat instead of the plain backbeat. gv=0 short-circuits (no rng draw).
+    const fillBar = gv > 0 && ctx.phrase.isLastBar && ctx.rng.bool(0.4 + 0.45 * gv);
+
     this.hit(ev, ctx, 0, "kick", 0.78 + 0.18 * dyn);
     if (beats >= 4) this.hit(ev, ctx, beat * 2, "kick", 0.72 + 0.18 * dyn);
     if (arc > 0.6 && ctx.rng.bool(0.35)) this.hit(ev, ctx, beat * 2 + beat / 2, "kick", 0.5);
+    // Extra kick syncopation on the "and" of 3 for a less rigid pulse.
+    if (gv > 0 && !fillBar && ctx.rng.bool(gv * 0.35)) this.hit(ev, ctx, beat * 2 + beat / 2, "kick", 0.5);
+
     this.hit(ev, ctx, beat, "snare", 0.72 + 0.15 * dyn);
-    if (beats >= 4) this.hit(ev, ctx, beat * 3, "snare", 0.72 + 0.15 * dyn);
+    if (beats >= 4 && !fillBar) this.hit(ev, ctx, beat * 3, "snare", 0.72 + 0.15 * dyn);
+    // Ghost snares: light off-beat 16ths that add feel without changing the pulse.
+    if (gv > 0 && !fillBar) {
+      if (ctx.rng.bool(gv * 0.3)) this.hit(ev, ctx, beat * 2 + s * 3, "snare", 0.16);
+      if (ctx.rng.bool(gv * 0.25)) this.hit(ev, ctx, beat + s * 2, "snare", 0.14);
+    }
+
     const step = beat / 2;
     const hatVel = 0.34 + 0.14 * dyn;
-    for (let i = 0; i < beats * 2; i++) {
+    // On a fill bar the last beat is the fill, so stop the hats before it.
+    const hatBeats = fillBar ? lastBeat : beats;
+    for (let i = 0; i < hatBeats * 2; i++) {
       this.hit(ev, ctx, step * i, "hat", i % 2 === 0 ? hatVel + 0.08 : hatVel * 0.82);
+    }
+    // Open-hat accent on the "and" of the last beat (before the downbeat pull).
+    if (gv > 0 && !fillBar && ctx.rng.bool(gv * 0.4)) {
+      this.hit(ev, ctx, beat * lastBeat + beat / 2, "hat", hatVel + 0.2);
+    }
+
+    // The fill itself: a 16th tom/snare run through the last beat.
+    if (fillBar) {
+      const start = beat * lastBeat;
+      const run: PercussionSound[] = ["snare", "tom", "tom", "snare"];
+      for (let i = 0; i < 4; i++) this.hit(ev, ctx, start + s * i, run[i]!, 0.5 + 0.08 * i + 0.1 * dyn);
     }
     return ev;
   }
