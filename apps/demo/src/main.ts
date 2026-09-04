@@ -203,7 +203,6 @@ let soloVoice: VoiceId | null = null;
 
 // A/B instrument palette: false = self-contained synth (default, no fetch),
 // true = high-quality sampled instruments plugged in via the renderer's API.
-let useSampled = true; // real sampled instruments by default (hosted locally)
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) =>
   document.querySelector(sel) as T;
@@ -245,20 +244,17 @@ async function selectStyle(entry: StyleEntry, opts: { newSeed?: boolean } = {}):
   // grammar (StylePack), the emotion supplies the state we start from.
   const init: MusicalStatePatch =
     currentEmotion?.state ?? entry.suggestedState ?? { ...MOODS.Calm };
-  // Genre palette: sampled (real instruments) when the toggle is on and one
-  // exists, else the genre's synth palette, else the generic sampled/synth set.
-  const genrePalette = useSampled
-    ? (GENRE_PALETTES_SAMPLED[entry.style.id] ?? GENRE_PALETTES[entry.style.id])
-    : GENRE_PALETTES[entry.style.id];
+  // Always real sampled instruments: the genre's sampled palette, else its synth
+  // palette (electronic/ambient are genre-correct as synths), else the generic set.
+  const genrePalette = GENRE_PALETTES_SAMPLED[entry.style.id] ?? GENRE_PALETTES[entry.style.id];
   renderer = createToneRenderer({
     instrumentation: entry.style.instrumentation,
-    instruments: genrePalette ?? (useSampled ? SAMPLED_INSTRUMENTS : undefined),
+    instruments: genrePalette ?? SAMPLED_INSTRUMENTS,
   });
   music = createLime({ seed: currentSeed, style: entry.style, renderer, initialState: init, lookAheadBars: 4 });
   await music.start();
-  // Sampled mode: samplers load buffers asynchronously; wait so early notes are
-  // not dropped into silence. The synth path has nothing to fetch and skips this.
-  if (useSampled) await Tone.loaded();
+  // Samplers load buffers asynchronously; wait so early notes aren't dropped.
+  await Tone.loaded();
   renderer.setBrightness(init.brightness ?? 0.5);
   applyVoiceStates(); // re-push mute/solo onto the freshly built renderer
 
@@ -356,29 +352,6 @@ $("#pause-btn").addEventListener("click", () => {
 
 // Deliverable 5: capture the current composition and download it as a .mid.
 $("#export-btn").addEventListener("click", () => exportMidi());
-
-// A/B instrument toggle: rebuild the renderer with the sampled palette (or back
-// to synth) through the same lifecycle selectStyle uses. Sampled mode fetches
-// buffers, so the button reports "loading…" and is disabled until ready.
-$("#instr-btn").addEventListener("click", async () => {
-  const btn = $<HTMLButtonElement>("#instr-btn");
-  if (btn.disabled) return;
-  useSampled = !useSampled;
-
-  if (useSampled) {
-    btn.textContent = "Instruments: loading…";
-    btn.disabled = true;
-    btn.classList.add("active");
-  }
-
-  // Rebuild the current style/seed with the chosen instrument set. selectStyle
-  // awaits Tone.loaded() when useSampled, so control returns once buffers exist.
-  await selectStyle(currentEntry);
-
-  btn.disabled = false;
-  btn.textContent = useSampled ? "Instruments: sampled" : "Instruments: synth";
-  btn.classList.toggle("active", useSampled);
-});
 
 // --- Controls --------------------------------------------------------------
 
