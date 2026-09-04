@@ -119,7 +119,7 @@ const GENRE_STATE: Record<string, MusicalStatePatch> = {
   "genre-hiphop": { energy: 0.8, valence: 0.4, tension: 0.35, density: 0.6, complexity: 0.35, instability: 0.3, brightness: 0.45, tempo: 88 },
   "genre-electronic": { energy: 0.76, valence: 0.45, tension: 0.4, density: 0.65, complexity: 0.45, instability: 0.35, brightness: 0.55, tempo: 126 },
   "genre-jazz": { energy: 0.55, valence: 0.5, tension: 0.35, density: 0.5, complexity: 0.55, instability: 0.4, brightness: 0.55, tempo: 130 },
-  "genre-blues": { energy: 0.55, valence: 0.4, tension: 0.35, density: 0.5, complexity: 0.3, instability: 0.15, brightness: 0.45, tempo: 95 },
+  "genre-blues": { energy: 0.55, valence: 0.42, tension: 0.35, density: 0.5, complexity: 0.3, instability: 0.15, brightness: 0.55, tempo: 95 },
   "genre-folk": { energy: 0.45, valence: 0.55, tension: 0.25, density: 0.4, complexity: 0.3, instability: 0.2, brightness: 0.55, tempo: 100 },
   "genre-latin": { energy: 0.72, valence: 0.65, tension: 0.35, density: 0.6, complexity: 0.45, instability: 0.35, brightness: 0.6, tempo: 105 },
   "genre-funk": { energy: 0.72, valence: 0.55, tension: 0.35, density: 0.62, complexity: 0.45, instability: 0.35, brightness: 0.55, tempo: 108 },

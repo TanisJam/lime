@@ -202,7 +202,7 @@ export const GM_PROGRAMS: Record<string, FluidPrograms> = {
   "genre-rock-pop": { melody: 29, pad: 29, bass: 33, melodyMax: 76, melodyCut: 66 },
   "genre-hiphop": { melody: 4, pad: 89, bass: 38, motion: 4, melodyMax: 76 },
   "genre-jazz": { melody: 66, pad: 4, bass: 32, motion: 0 },
-  "genre-blues": { melody: 27, pad: 18, bass: 33, melodyMax: 76 },
+  "genre-blues": { melody: 27, pad: 4, bass: 33, melodyMax: 76 },
   "genre-folk": { melody: 25, pad: 24, bass: 32, melodyMax: 76 },
   "genre-latin": { melody: 56, pad: 0, bass: 33, motion: 24, melodyMax: 78 },
   "genre-funk": { melody: 66, pad: 28, bass: 33, motion: 4, melodyMax: 79 },
