@@ -94,7 +94,12 @@ const STYLE_OVERRIDE = {
     defaultMode: "naturalMinor",
     bassStyle: "default",
     harmony: { harmonyMotion: 0.8 },
-    melody: { motifDevelopment: 0.3 },
+    // The corpus rock lead was ~75% sixteenth/eighth notes → a choppy, nervous
+    // melody. Rebalance toward sustained values so the lead sings on every seed.
+    melody: {
+      motifDevelopment: 0.3,
+      durationWeights: { whole: 1, half: 7, dottedQuarter: 3, quarter: 9, dottedEighth: 0.2, eighth: 0.5, sixteenth: 0.1 },
+    },
   },
 };
 function stylePack(id) {
