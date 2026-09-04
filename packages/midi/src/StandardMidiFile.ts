@@ -53,6 +53,13 @@ export interface MidiExportOptions {
   trackOrder?: VoiceId[];
   /** Sequence name meta (FF 03) written to the conductor track. */
   name?: string;
+  /**
+   * Optional per-voice General-MIDI program (0–127). When set for a voice, a
+   * Program Change is emitted at tick 0 on that voice's channel, so a bare SMF
+   * played by a GM synth (e.g. `fluidsynth`) uses the intended instrument
+   * instead of defaulting every channel to piano.
+   */
+  programs?: Partial<Record<VoiceId, number>>;
 }
 
 /**
@@ -198,12 +205,18 @@ function buildVoiceTrack(
   voice: VoiceId,
   channel: number,
   notes: readonly NoteEvent[],
+  program?: number,
 ): number[] {
   const events: AbsEvent[] = [];
   let seq = 0;
 
   // Track name meta at the start.
   events.push({ tick: 0, kind: 1, seq: seq++, bytes: metaTextEvent(0x03, voice) });
+
+  // Optional GM program change at tick 0 (before any note-on).
+  if (program !== undefined) {
+    events.push({ tick: 0, kind: 1, seq: seq++, bytes: [0xc0 | channel, program & 0x7f] });
+  }
 
   const noteOn = 0x90 | channel;
   const noteOff = 0x80 | channel;
@@ -278,7 +291,7 @@ export function eventsToStandardMidiFile(
   });
 
   const voiceTracks = presentVoices.map((voice) =>
-    buildVoiceTrack(voice, channelOf.get(voice)!, byVoice.get(voice)!),
+    buildVoiceTrack(voice, channelOf.get(voice)!, byVoice.get(voice)!, opts.programs?.[voice]),
   );
 
   const ntrks = 1 + voiceTracks.length;

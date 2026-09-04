@@ -366,3 +366,35 @@ describe("determinism", () => {
     expect(offIdx).toBeLessThan(onIdx);
   });
 });
+
+describe("program changes", () => {
+  // Find the byte offset of a 2-byte subsequence [status, data] in the file.
+  function hasSubsequence(b: Uint8Array, seq: number[]): boolean {
+    outer: for (let i = 0; i + seq.length <= b.length; i++) {
+      for (let j = 0; j < seq.length; j++) if (b[i + j] !== seq[j]) continue outer;
+      return true;
+    }
+    return false;
+  }
+
+  it("emits a Program Change at tick 0 on each voice's channel", () => {
+    const bytes = eventsToStandardMidiFile(sample, { programs: { pad: 40, melody: 29 } });
+    // Channels: pad -> 0, bass -> 1, melody -> 2 (percussion -> 9).
+    expect(hasSubsequence(bytes, [0xc0, 40])).toBe(true); // pad, ch 0
+    expect(hasSubsequence(bytes, [0xc2, 29])).toBe(true); // melody, ch 2
+  });
+
+  it("omits Program Change for voices without a program", () => {
+    const bytes = eventsToStandardMidiFile(sample, { programs: { pad: 40 } });
+    // No program-change status byte for bass (0xC1) or melody (0xC2).
+    expect(hasSubsequence(bytes, [0xc1])).toBe(false);
+    expect(hasSubsequence(bytes, [0xc2])).toBe(false);
+  });
+
+  it("adds no program bytes when programs is absent", () => {
+    const bytes = eventsToStandardMidiFile(sample);
+    for (const status of [0xc0, 0xc1, 0xc2, 0xc9]) {
+      expect(hasSubsequence(bytes, [status])).toBe(false);
+    }
+  });
+});
