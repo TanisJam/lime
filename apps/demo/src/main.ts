@@ -17,11 +17,10 @@ import {
   ROCK_INSTRUMENTS, METAL_INSTRUMENTS, POP_INSTRUMENTS, JAZZ_INSTRUMENTS,
   BLUES_INSTRUMENTS, HIPHOP_INSTRUMENTS, ELECTRONIC_INSTRUMENTS, FOLK_INSTRUMENTS,
   LATIN_INSTRUMENTS, FUNK_INSTRUMENTS, CLASSICAL_INSTRUMENTS,
-  ROCK_SAMPLED, METAL_SAMPLED, BLUES_SAMPLED, JAZZ_SAMPLED, POP_SAMPLED,
-  LATIN_SAMPLED, FUNK_SAMPLED, CLASSICAL_SAMPLED, FOLK_SAMPLED,
   type ToneRenderer,
   type InstrumentFactory,
 } from "@lime/renderer-tone";
+import { GENRE_PALETTES_SAMPLED } from "./sampledGenre";
 
 /**
  * Genre → instrument palette. The StylePack gives a genre its grammar; the
@@ -40,23 +39,6 @@ const GENRE_PALETTES: Record<string, Partial<Record<VoiceId, InstrumentFactory>>
   "genre-latin": LATIN_INSTRUMENTS,
   "genre-funk": FUNK_INSTRUMENTS,
   "genre-classical": CLASSICAL_INSTRUMENTS,
-};
-
-/**
- * Sampled genre palettes (real recorded instruments) — used when the Instruments
- * toggle is on. Real electric guitar through the amp chain, electric bass, piano,
- * acoustic guitar; genres without one fall back to their synth palette.
- */
-const GENRE_PALETTES_SAMPLED: Record<string, Partial<Record<VoiceId, InstrumentFactory>>> = {
-  "genre-rock-pop": ROCK_SAMPLED,
-  "genre-metal": METAL_SAMPLED,
-  "genre-blues": BLUES_SAMPLED,
-  "genre-jazz": JAZZ_SAMPLED,
-  "genre-pop": POP_SAMPLED,
-  "genre-latin": LATIN_SAMPLED,
-  "genre-funk": FUNK_SAMPLED,
-  "genre-classical": CLASSICAL_SAMPLED,
-  "genre-folk": FOLK_SAMPLED,
 };
 
 /** Friendly dropdown labels per genre id. */
@@ -221,7 +203,7 @@ let soloVoice: VoiceId | null = null;
 
 // A/B instrument palette: false = self-contained synth (default, no fetch),
 // true = high-quality sampled instruments plugged in via the renderer's API.
-let useSampled = false;
+let useSampled = true; // real sampled instruments by default (hosted locally)
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) =>
   document.querySelector(sel) as T;
