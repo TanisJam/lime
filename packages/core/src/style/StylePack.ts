@@ -98,6 +98,14 @@ export interface MelodyStyle {
    * riff sound (no 2nd/6th tension notes). Default `diatonic` (unchanged).
    */
   readonly scale?: MelodyScale;
+  /**
+   * How much motifs are reshaped as they develop, 0..1. Higher values transform
+   * the theme more in variation/development/cadence phrases (transpose, invert,
+   * augment, fragment) and introduce new material more readily, so the melody
+   * evolves instead of restating the same shape. The theme's plain statements
+   * stay intact for recognizability. Default 0 (unchanged behaviour).
+   */
+  readonly motifDevelopment?: number;
 }
 
 /** A named groove feel the percussion generator can lock to. */

@@ -53,6 +53,7 @@ export class MelodyGenerator {
   private readonly motifGen: MotifGenerator;
   private readonly leapResolution: number;
   private readonly scale: MelodyScale;
+  private readonly motifDevelopment: number;
   private activeMotif: Motif | undefined;
   private lastPitch: number | undefined;
 
@@ -60,6 +61,7 @@ export class MelodyGenerator {
     this.motifGen = new MotifGenerator(rng.derive("motif"), melody);
     this.leapResolution = melody?.leapResolution ?? DEFAULT_LEAP_RESOLUTION;
     this.scale = melody?.scale ?? "diatonic";
+    this.motifDevelopment = melody?.motifDevelopment ?? 0;
   }
 
   generateBar(ctx: BarContext, memory: ComposerMemory): NoteEvent[] {
@@ -149,8 +151,9 @@ export class MelodyGenerator {
       }
     }
 
-    // Rarely introduce a brand-new motif mid-piece for future return.
-    if (rng.bool(0.05 * state.instability) && memory.motifs.length < 6) {
+    // Rarely introduce a brand-new motif mid-piece for future return; a higher
+    // motifDevelopment brings fresh material in more often (default 0 = as before).
+    if (rng.bool(0.05 * state.instability + 0.08 * this.motifDevelopment) && memory.motifs.length < 6) {
       const m = this.motifGen.create(state.complexity);
       memory.addMotif(m);
     }
@@ -162,6 +165,9 @@ export class MelodyGenerator {
     const { state, phrase, rng } = ctx;
     let m = base;
     const amount = 0.5 * state.complexity + 0.5 * state.instability;
+    // motifDevelopment (default 0) lifts the reshape odds so the theme evolves
+    // more as it develops. At 0 every probability below is byte-identical.
+    const dev = this.motifDevelopment;
 
     switch (phrase.role) {
       case "statement":
@@ -169,13 +175,13 @@ export class MelodyGenerator {
         // recognizably the same idea. Development is where it gets reshaped.
         break;
       case "variation":
-        if (rng.bool(0.6)) m = transpose(m, rng.pick([-2, -1, 1, 2]));
-        if (rng.bool(0.3 * amount)) m = augment(m, rng.pick([1.5, 2]));
+        if (rng.bool(0.6 + 0.35 * dev)) m = transpose(m, rng.pick([-2, -1, 1, 2]));
+        if (rng.bool(0.3 * amount + 0.4 * dev)) m = augment(m, rng.pick([1.5, 2]));
         break;
       case "development":
-        if (rng.bool(0.5)) m = invert(m);
-        if (rng.bool(0.5)) m = transpose(m, rng.pick([-3, -2, 2, 3]));
-        if (rng.bool(0.4 * amount) && m.intervals.length > 2) {
+        if (rng.bool(0.5 + 0.4 * dev)) m = invert(m);
+        if (rng.bool(0.5 + 0.35 * dev)) m = transpose(m, rng.pick([-3, -2, 2, 3]));
+        if (rng.bool(0.4 * amount + 0.4 * dev) && m.intervals.length > 2) {
           m = fragment(m, m.intervals.length - 1);
         }
         break;
