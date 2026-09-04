@@ -1,4 +1,3 @@
-import * as Tone from "tone";
 import * as JSSynth from "js-synthesizer";
 import type { MusicRenderer, MusicalEvent, VoiceId } from "@lime/core";
 import { TICKS_PER_QUARTER } from "@lime/core";
@@ -51,7 +50,9 @@ export class FluidRenderer implements MusicRenderer {
   private readonly muted: Record<string, boolean> = {};
 
   constructor() {
-    this.ctx = Tone.getContext().rawContext as unknown as AudioContext;
+    // A native AudioContext (js-synthesizer's AudioWorkletNode needs a real
+    // BaseAudioContext, not Tone's standardized-audio-context wrapper).
+    this.ctx = new AudioContext();
   }
 
   private ticksPerSec(): number {
@@ -94,7 +95,7 @@ export class FluidRenderer implements MusicRenderer {
   }
 
   async start(): Promise<void> {
-    await Tone.start(); // resume the shared context from the user gesture
+    await this.ctx.resume(); // resume from the user gesture (ENTER click)
     await this.ensureLoaded();
     this.seq!.removeAllEvents();
     this.allNotesOff();
