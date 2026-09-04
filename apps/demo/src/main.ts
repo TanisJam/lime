@@ -113,7 +113,7 @@ const corpusPacks: StyleEntry[] = Object.values(packModules)
 const GENRE_STATE: Record<string, MusicalStatePatch> = {
   "genre-classical": { energy: 0.5, valence: 0.6, tension: 0.3, density: 0.45, complexity: 0.4, instability: 0.25, brightness: 0.55, tempo: 90 },
   "genre-pop": { energy: 0.7, valence: 0.72, tension: 0.3, density: 0.55, complexity: 0.35, instability: 0.25, brightness: 0.6, tempo: 118 },
-  "genre-rock-pop": { energy: 0.78, valence: 0.4, tension: 0.45, density: 0.62, complexity: 0.4, instability: 0.3, brightness: 0.5, tempo: 126 },
+  "genre-rock-pop": { energy: 0.8, valence: 0.25, tension: 0.55, density: 0.64, complexity: 0.4, instability: 0.34, brightness: 0.38, tempo: 126 },
   "genre-hiphop": { energy: 0.6, valence: 0.4, tension: 0.35, density: 0.5, complexity: 0.35, instability: 0.3, brightness: 0.45, tempo: 88 },
   "genre-electronic": { energy: 0.76, valence: 0.45, tension: 0.4, density: 0.65, complexity: 0.45, instability: 0.35, brightness: 0.55, tempo: 126 },
   "genre-jazz": { energy: 0.55, valence: 0.5, tension: 0.35, density: 0.5, complexity: 0.55, instability: 0.4, brightness: 0.55, tempo: 130 },
@@ -133,7 +133,10 @@ const entry = (style: StylePack): StyleEntry => ({
 const STYLES: StyleEntry[] = [
   entry(classicalPack),
   entry(popPack),
-  ...(rockPack ? [{ id: rockPack.style.id, style: rockPack.style, suggestedState: GENRE_STATE["genre-rock-pop"]! }] : []),
+  // Rock's corpus pack came out in major, which reads emotionally "happy"; force
+  // natural minor so it lands dark/aggressive as the genre intends (judged by ear
+  // with the audio judge — all seeds then read negative-valence, high-arousal).
+  ...(rockPack ? [{ id: rockPack.style.id, style: { ...rockPack.style, defaultMode: "naturalMinor" as const }, suggestedState: GENRE_STATE["genre-rock-pop"]! }] : []),
   entry(hiphopPack),
   entry(electronicPack),
   entry(jazzPack),
