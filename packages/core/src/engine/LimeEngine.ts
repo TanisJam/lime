@@ -151,6 +151,7 @@ export class LimeEngine implements Lime {
       keyPc: config.keyPc ?? this.style.keyPc,
       mode: this.style.defaultMode,
       transitions: this.style.harmony?.transitions,
+      harmonyMotion: this.style.harmony?.harmonyMotion,
     });
     this.orchestrationDirector = new OrchestrationDirector();
     this.orchestrator = new Orchestrator(this.rng.derive("orchestration"), undefined, {

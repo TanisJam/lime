@@ -17,6 +17,8 @@ export interface HarmonyPlannerOptions {
   mode?: Mode;
   /** Optional corpus-derived transition table; defaults to the built-in rules. */
   transitions?: TransitionTable;
+  /** How much to resist returning to tonic, 0..1. Default 0 (unchanged). */
+  harmonyMotion?: number;
 }
 
 /**
@@ -33,6 +35,7 @@ export class HarmonyPlanner {
   private readonly phrases: PhrasePlanner;
   private readonly planned: HarmonicEvent[] = [];
   private readonly transitions: TransitionTable;
+  private readonly harmonyMotion: number;
   /** Next bar that has not yet been planned (always phrase-aligned). */
   private plannedThroughBar = 0;
   private currentDegree = 1;
@@ -46,6 +49,7 @@ export class HarmonyPlanner {
     this.keyPc = options.keyPc ?? 0;
     this.mode = options.mode ?? "major";
     this.transitions = options.transitions ?? DEFAULT_TRANSITIONS;
+    this.harmonyMotion = options.harmonyMotion ?? 0;
   }
 
   /** Ensure chords are planned through (and including) `bar`. Idempotent. */
@@ -140,6 +144,7 @@ export class HarmonyPlanner {
         this.rng,
         { approachingCadence },
         this.transitions,
+        this.harmonyMotion,
       );
       // Reserve the final bar for resolution in cadence phrases.
       const maxDur = isCadence ? remaining - 1 : remaining;

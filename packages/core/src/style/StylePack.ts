@@ -69,6 +69,13 @@ export interface InstrumentationConfig {
 export interface HarmonyStyle {
   /** Weighted chord transitions extracted from a corpus (falls back to defaults). */
   readonly transitions?: TransitionTable;
+  /**
+   * How much the progression resists returning to the tonic, 0..1. Higher values
+   * down-weight the pull back to degree 1 from non-tonic chords, so the harmony
+   * travels further before resolving instead of circling home every chord.
+   * Cadence phrases still resolve to tonic. Default 0 (unchanged behaviour).
+   */
+  readonly harmonyMotion?: number;
 }
 
 /** Scale the melody snaps to. `diatonic` is the default 7-note behaviour. */
