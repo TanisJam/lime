@@ -49,10 +49,10 @@ const STATE = {
   "genre-classical": { energy: 0.5, valence: 0.6, tension: 0.3, density: 0.45, complexity: 0.4, instability: 0.25, brightness: 0.55, tempo: 90 },
   "genre-pop": { energy: 0.7, valence: 0.72, tension: 0.3, density: 0.55, complexity: 0.35, instability: 0.25, brightness: 0.6, tempo: 118 },
   "genre-rock-pop": { energy: 0.8, valence: 0.25, tension: 0.6, density: 0.6, complexity: 0.55, instability: 0.42, brightness: 0.38, tempo: 126 },
-  "genre-hiphop": { energy: 0.6, valence: 0.4, tension: 0.35, density: 0.5, complexity: 0.35, instability: 0.3, brightness: 0.45, tempo: 88 },
+  "genre-hiphop": { energy: 0.8, valence: 0.4, tension: 0.35, density: 0.6, complexity: 0.35, instability: 0.3, brightness: 0.45, tempo: 88 },
   "genre-electronic": { energy: 0.76, valence: 0.45, tension: 0.4, density: 0.65, complexity: 0.45, instability: 0.35, brightness: 0.55, tempo: 126 },
   "genre-jazz": { energy: 0.55, valence: 0.5, tension: 0.35, density: 0.5, complexity: 0.55, instability: 0.4, brightness: 0.55, tempo: 130 },
-  "genre-blues": { energy: 0.55, valence: 0.4, tension: 0.4, density: 0.5, complexity: 0.4, instability: 0.3, brightness: 0.45, tempo: 95 },
+  "genre-blues": { energy: 0.55, valence: 0.4, tension: 0.35, density: 0.5, complexity: 0.3, instability: 0.15, brightness: 0.45, tempo: 95 },
   "genre-folk": { energy: 0.45, valence: 0.55, tension: 0.25, density: 0.4, complexity: 0.3, instability: 0.2, brightness: 0.55, tempo: 100 },
   "genre-latin": { energy: 0.72, valence: 0.65, tension: 0.35, density: 0.6, complexity: 0.45, instability: 0.35, brightness: 0.6, tempo: 105 },
   "genre-funk": { energy: 0.72, valence: 0.55, tension: 0.35, density: 0.62, complexity: 0.45, instability: 0.35, brightness: 0.55, tempo: 108 },
@@ -108,7 +108,13 @@ const STYLE_OVERRIDE = {
   // Latin/Folk read harmonically static; a moderate push helps without de-genre.
   "genre-latin": { harmony: { harmonyMotion: 0.5 } },
   "genre-folk": { harmony: { harmonyMotion: 0.5 } },
-  "genre-blues": { harmony: { harmonyMotion: 0.45 } },
+  // Blues corpus transitions wandered (III/VI/VII); force a I-IV-V progression
+  // so it reads as a 12-bar blues. Dominant 7ths come from mixolydian+seventh.
+  "genre-blues": { harmony: { transitions: {
+    1: [{ degree: 4, weight: 3 }, { degree: 1, weight: 2.5 }, { degree: 5, weight: 1 }],
+    4: [{ degree: 1, weight: 3 }, { degree: 4, weight: 1.5 }, { degree: 5, weight: 1 }],
+    5: [{ degree: 4, weight: 2.5 }, { degree: 1, weight: 2.5 }],
+  } } },
 };
 function stylePack(id) {
   let style;
