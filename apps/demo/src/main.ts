@@ -17,6 +17,8 @@ import {
   ROCK_INSTRUMENTS, METAL_INSTRUMENTS, POP_INSTRUMENTS, JAZZ_INSTRUMENTS,
   BLUES_INSTRUMENTS, HIPHOP_INSTRUMENTS, ELECTRONIC_INSTRUMENTS, FOLK_INSTRUMENTS,
   LATIN_INSTRUMENTS, FUNK_INSTRUMENTS, CLASSICAL_INSTRUMENTS,
+  ROCK_SAMPLED, METAL_SAMPLED, BLUES_SAMPLED, JAZZ_SAMPLED, POP_SAMPLED,
+  LATIN_SAMPLED, FUNK_SAMPLED, CLASSICAL_SAMPLED, FOLK_SAMPLED,
   type ToneRenderer,
   type InstrumentFactory,
 } from "@lime/renderer-tone";
@@ -38,6 +40,23 @@ const GENRE_PALETTES: Record<string, Partial<Record<VoiceId, InstrumentFactory>>
   "genre-latin": LATIN_INSTRUMENTS,
   "genre-funk": FUNK_INSTRUMENTS,
   "genre-classical": CLASSICAL_INSTRUMENTS,
+};
+
+/**
+ * Sampled genre palettes (real recorded instruments) — used when the Instruments
+ * toggle is on. Real electric guitar through the amp chain, electric bass, piano,
+ * acoustic guitar; genres without one fall back to their synth palette.
+ */
+const GENRE_PALETTES_SAMPLED: Record<string, Partial<Record<VoiceId, InstrumentFactory>>> = {
+  "genre-rock-pop": ROCK_SAMPLED,
+  "genre-metal": METAL_SAMPLED,
+  "genre-blues": BLUES_SAMPLED,
+  "genre-jazz": JAZZ_SAMPLED,
+  "genre-pop": POP_SAMPLED,
+  "genre-latin": LATIN_SAMPLED,
+  "genre-funk": FUNK_SAMPLED,
+  "genre-classical": CLASSICAL_SAMPLED,
+  "genre-folk": FOLK_SAMPLED,
 };
 
 /** Friendly dropdown labels per genre id. */
@@ -243,9 +262,11 @@ async function selectStyle(entry: StyleEntry, opts: { newSeed?: boolean } = {}):
   // grammar (StylePack), the emotion supplies the state we start from.
   const init: MusicalStatePatch =
     currentEmotion?.state ?? entry.suggestedState ?? { ...MOODS.Calm };
-  // A genre palette (e.g. rock's distorted guitars + kit) wins over the default;
-  // sampled/synth is the fallback for genres without a palette yet.
-  const genrePalette = GENRE_PALETTES[entry.style.id];
+  // Genre palette: sampled (real instruments) when the toggle is on and one
+  // exists, else the genre's synth palette, else the generic sampled/synth set.
+  const genrePalette = useSampled
+    ? (GENRE_PALETTES_SAMPLED[entry.style.id] ?? GENRE_PALETTES[entry.style.id])
+    : GENRE_PALETTES[entry.style.id];
   renderer = createToneRenderer({
     instrumentation: entry.style.instrumentation,
     instruments: genrePalette ?? (useSampled ? SAMPLED_INSTRUMENTS : undefined),

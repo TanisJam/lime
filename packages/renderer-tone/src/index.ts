@@ -34,3 +34,18 @@ export {
   popPadFactory,
   popBassFactory,
 } from "./genrePalettes.js";
+export {
+  ROCK_SAMPLED,
+  METAL_SAMPLED,
+  BLUES_SAMPLED,
+  JAZZ_SAMPLED,
+  POP_SAMPLED,
+  LATIN_SAMPLED,
+  FUNK_SAMPLED,
+  CLASSICAL_SAMPLED,
+  FOLK_SAMPLED,
+  sampledRockGuitarFactory,
+  sampledElectricBassFactory,
+  sampledPianoFactory,
+  sampledAcousticGuitarFactory,
+} from "./sampledPalettes.js";
