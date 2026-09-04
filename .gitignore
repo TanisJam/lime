@@ -27,3 +27,6 @@ packages/corpus/labels/
 
 # Local tooling metadata (not part of the project)
 .atl/
+
+# Judge pipeline output (rendered clips + reports)
+tools/judge/out/

@@ -1,0 +1,7 @@
+# LIME audio judge — Qwen2-Audio-7B-Instruct (local, GPU).
+# Install into a venv:  uv venv tools/judge/.venv && uv pip install --python tools/judge/.venv -r tools/judge/requirements.txt
+torch
+transformers>=4.48
+accelerate
+librosa
+soundfile
