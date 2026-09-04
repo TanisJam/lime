@@ -134,9 +134,11 @@ const STYLES: StyleEntry[] = [
   entry(classicalPack),
   entry(popPack),
   // Rock's corpus pack came out in major, which reads emotionally "happy"; force
-  // natural minor so it lands dark/aggressive as the genre intends (judged by ear
-  // with the audio judge — all seeds then read negative-valence, high-arousal).
-  ...(rockPack ? [{ id: rockPack.style.id, style: { ...rockPack.style, defaultMode: "naturalMinor" as const, bassStyle: "default" as const }, suggestedState: GENRE_STATE["genre-rock-pop"]! }] : []),
+  // natural minor so it lands dark/aggressive as the genre intends. Its corpus
+  // matrix circled back to the tonic every chord (repetitive), so give it
+  // harmonyMotion so the progression travels. Both judged by ear with the audio
+  // judge. Merge harmony so the corpus transitions survive.
+  ...(rockPack ? [{ id: rockPack.style.id, style: { ...rockPack.style, defaultMode: "naturalMinor" as const, bassStyle: "default" as const, harmony: { ...rockPack.style.harmony, harmonyMotion: 0.8 } }, suggestedState: GENRE_STATE["genre-rock-pop"]! }] : []),
   entry(hiphopPack),
   entry(electronicPack),
   entry(jazzPack),

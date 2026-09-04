@@ -90,7 +90,7 @@ const AUTHORED = {
 // Per-genre style overrides applied at load (kept out of the corpus JSON so a
 // corpus rebuild can't clobber them). Mirror any keeper into main.ts.
 const STYLE_OVERRIDE = {
-  "genre-rock-pop": { defaultMode: "naturalMinor", bassStyle: "default" },
+  "genre-rock-pop": { defaultMode: "naturalMinor", bassStyle: "default", harmony: { harmonyMotion: 0.8 } },
 };
 function stylePack(id) {
   let style;
@@ -99,7 +99,11 @@ function stylePack(id) {
   } else {
     style = AUTHORED[id];
   }
-  return STYLE_OVERRIDE[id] ? { ...style, ...STYLE_OVERRIDE[id] } : style;
+  const ov = STYLE_OVERRIDE[id];
+  if (!ov) return style;
+  const merged = { ...style, ...ov };
+  if (ov.harmony) merged.harmony = { ...style.harmony, ...ov.harmony }; // keep corpus transitions
+  return merged;
 }
 
 function foldMelody(pitch, cfg) {
