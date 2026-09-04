@@ -79,11 +79,15 @@ def build_prompt(clip: dict) -> str:
         "2. EMOTION HEARD: valence (positive/negative) and arousal (high/low), in a few words.\n"
         f"3. GENRE MATCH: score 1-5 how well it matches '{genre}' (5 = unmistakably that genre).\n"
         "4. EMOTION MATCH: score 1-5 how well the emotion matches the intent above.\n"
-        "5. FIXES: the 2-3 highest-impact knob changes from the list above, each as "
+        "5. HARMONY: the chords and progression — do they move well and fit the genre, or "
+        "feel static / repetitive / wrong? Rate 1-5.\n"
+        "6. RHYTHM: the groove — drums and bass pocket, feel, tempo. Does it lock in and "
+        "drive, or feel stiff / cluttered / weak? Rate 1-5.\n"
+        "7. MELODY: the lead line — phrasing, contour, memorability, register. Is it "
+        "expressive and genre-appropriate, or aimless / too high / dull? Rate 1-5.\n"
+        "8. FIXES: the 2-3 highest-impact knob changes from the list above, each as "
         "'set <knob> to <value>' with a one-line reason grounded in what you HEAR. Only "
-        "propose a change if you actually hear the problem; if the clip already sounds "
-        "right for the genre, say so and instead name the real compositional weakness "
-        "you hear (lead phrasing, harmonic movement, register balance between voices).\n"
+        "propose a change if you actually hear the problem.\n"
     )
 
 
@@ -120,7 +124,7 @@ def main() -> int:
         inputs = processor(text=text, audios=[audio], return_tensors="pt", padding=True)
         inputs = inputs.to(model.device)
         with torch.no_grad():
-            gen = model.generate(**inputs, max_new_tokens=400)
+            gen = model.generate(**inputs, max_new_tokens=550)
         gen = gen[:, inputs.input_ids.size(1):]
         answer = processor.batch_decode(gen, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0].strip()
 
