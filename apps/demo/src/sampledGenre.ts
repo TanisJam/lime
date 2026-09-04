@@ -4,45 +4,42 @@ import type { VoiceId, PercussionSound } from "@lime/core";
 import { PERCUSSION_MIDI } from "@lime/core";
 
 /**
- * Sampled genre palettes — real recorded instruments, hosted LOCALLY in the repo
- * (apps/demo/public/samples), so quality is consistent and it works offline.
- * Each genre maps to the instruments it actually uses (guitar/bass/piano/organ/
- * sax/brass/strings + a real acoustic kit); the electric guitar runs through an
- * amp chain so it reads as a real distorted guitar.
+ * Sampled genre palettes — real General-MIDI soundfont instruments (MusyngKite),
+ * hosted locally (apps/demo/public/samples/sf) so quality is consistent and it
+ * works offline. These are proper recorded patches — the distorted/overdriven
+ * guitars are recorded WITH the amp tone (no software distortion of a clean
+ * sample, which sounded bad), plus a real Rhodes, organ, sax, brass, strings.
  *
- * Samples: nbrosowsky/tonejs-instruments + Salamander piano + Tone.js drum kit,
- * all CC-BY 3.0. Samplers load async; the demo gates on Tone.loaded().
+ * Soundfonts: gleitz/midi-js-soundfonts (MusyngKite), freely redistributable.
+ * Drum kit: Tone.js acoustic-kit (CC-BY). Samplers load async; the demo gates on
+ * Tone.loaded(). See public/samples/CREDITS.md.
  */
 
-const BASE = "/samples";
+const BASE = "/samples/sf";
 const midiNote = (p: number): string => Tone.Frequency(p, "midi").toNote();
-/** "As1.mp3" → "A#1", "C4.mp3" → "C4". */
-const toNote = (file: string): string => file.replace(/\.mp3$/, "").replace(/^([A-G])s/, "$1#");
-const urls = (stems: string[]): Record<string, string> =>
-  Object.fromEntries(stems.map((s) => [toNote(s), s]));
-
-// Downloaded note sets (filenames under public/samples/<inst>/).
-const NOTES: Record<string, string[]> = {
-  "guitar-electric": ["A2", "A3", "A4", "A5", "C3", "C4", "C5", "C6", "Cs2", "Ds3", "Ds4", "Ds5", "E2", "Fs2", "Fs3", "Fs4", "Fs5"].map((n) => n + ".mp3"),
-  "bass-electric": ["As1", "As2", "As3", "As4", "Cs1", "Cs2", "Cs3", "Cs4", "Cs5", "E1", "E2", "E3", "E4", "G1", "G2", "G3", "G4"].map((n) => n + ".mp3"),
-  "guitar-acoustic": ["A2", "As2", "B2", "C3", "Cs3", "D2", "D5", "Ds4", "E4", "F4", "Fs4", "G4"].map((n) => n + ".mp3"),
-  "guitar-nylon": ["A2", "A5", "B3", "Cs4", "D5", "E4", "Fs3", "G5"].map((n) => n + ".mp3"),
-  organ: ["A1", "A3", "C1", "C3", "C6", "Ds3", "Ds5", "Fs3"].map((n) => n + ".mp3"),
-  saxophone: ["A4", "B3", "Cs3", "D4", "Ds5", "F3", "Fs4", "G5"].map((n) => n + ".mp3"),
-  trumpet: ["A3", "A5", "C4", "D5", "F3", "F5"].map((n) => n + ".mp3"),
-  contrabass: ["A2", "As1", "B3", "C2", "Cs3", "D2", "E2", "E3", "Fs1", "Fs2", "G1", "Gs2", "Gs3"].map((n) => n + ".mp3"),
-  cello: ["A2", "As3", "C3", "Cs4", "Ds3", "E4", "Fs3", "G3"].map((n) => n + ".mp3"),
-  violin: ["A3", "A4", "A6", "C5", "C7", "E5", "G3", "G5"].map((n) => n + ".mp3"),
-  flute: ["A4", "A5", "C4", "C6", "C7", "E5"].map((n) => n + ".mp3"),
-  piano: ["A1", "C2", "Ds2", "Fs2", "A2", "C3", "Ds3", "Fs3", "A3", "C4", "Ds4", "Fs4", "A4", "C5", "Ds5", "Fs5", "A5", "C6"].map((n) => n + ".mp3"),
-};
-
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
-/** A plain sampled pitched instrument with an optional lowpass. */
-function sampled(inst: string, gain: number, cutoff?: number, release = 0.8): InstrumentFactory {
+// The notes downloaded per instrument (filenames use flats). Keys map to sharps
+// (enharmonic) for reliable Tone parsing while pointing at the flat filenames.
+const NOTE_STEMS = ["C1", "Eb1", "Gb1", "A1", "C2", "Eb2", "Gb2", "A2", "C3", "Eb3", "Gb3", "A3", "C4", "Eb4", "Gb4", "A4", "C5", "Eb5", "Gb5", "A5", "C6", "Eb6", "A6"];
+const FLAT_TO_SHARP: Record<string, string> = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#" };
+const toKey = (stem: string): string => {
+  const m = stem.match(/^([A-G]b?)(\d+)$/);
+  if (!m) return stem;
+  return (FLAT_TO_SHARP[m[1]!] ?? m[1]!) + m[2]!;
+};
+const urls = (): Record<string, string> =>
+  Object.fromEntries(NOTE_STEMS.map((s) => [toKey(s), `${s}.mp3`]));
+
+/** A soundfont instrument factory (optional lowpass for taming brightness). */
+function sf(inst: string, gain: number, cutoff?: number, release = 0.6): InstrumentFactory {
   return (config): LimeInstrument => {
-    const sampler = new Tone.Sampler({ baseUrl: `${BASE}/${inst}/`, urls: urls(NOTES[inst]!), release, volume: 20 * Math.log10(Math.max(0.0001, config?.gain ?? gain)) });
+    const sampler = new Tone.Sampler({
+      baseUrl: `${BASE}/${inst}/`,
+      urls: urls(),
+      release,
+      volume: 20 * Math.log10(Math.max(0.0001, config?.gain ?? gain)),
+    });
     const output = new Tone.Gain(1);
     const filter = cutoff ? new Tone.Filter({ frequency: cutoff, type: "lowpass", Q: 0.4 }) : null;
     if (filter) sampler.chain(filter, output);
@@ -50,31 +47,16 @@ function sampled(inst: string, gain: number, cutoff?: number, release = 0.8): In
     return {
       output,
       triggerNote(pitch, velocity, timeSec, durationSec) {
-        sampler.triggerAttackRelease(midiNote(pitch), durationSec, timeSec, 0.4 + velocity * 0.5);
+        sampler.triggerAttackRelease(midiNote(pitch), durationSec, timeSec, 0.35 + velocity * 0.55);
       },
-      setBrightness(v) { filter?.frequency.rampTo((cutoff ?? 3000) * (0.6 + clamp01(v) * 0.8), 0.2); },
-      dispose() { sampler.dispose(); filter?.dispose(); output.dispose(); },
-    };
-  };
-}
-
-/** Real electric guitar through the amp/cabinet chain (distorted). */
-function sampledGuitar(gain: number, distortion: number, cabHz: number): InstrumentFactory {
-  return (config): LimeInstrument => {
-    const sampler = new Tone.Sampler({ baseUrl: `${BASE}/guitar-electric/`, urls: urls(NOTES["guitar-electric"]!), release: 0.5, volume: 20 * Math.log10(Math.max(0.0001, config?.gain ?? gain)) });
-    const hp = new Tone.Filter({ frequency: 110, type: "highpass" });
-    const dist = new Tone.Distortion({ distortion, oversample: "4x", wet: 0.92 });
-    const mid = new Tone.Filter({ type: "peaking", frequency: 1000, Q: 1, gain: 4 });
-    const cab = new Tone.Filter({ frequency: cabHz, type: "lowpass", rolloff: -24 });
-    const output = new Tone.Gain(1);
-    sampler.chain(hp, dist, mid, cab, output);
-    return {
-      output,
-      triggerNote(pitch, velocity, timeSec, durationSec) {
-        sampler.triggerAttackRelease(midiNote(pitch), durationSec, timeSec + Math.random() * 0.008, 0.5 + velocity * 0.5);
+      setBrightness(v) {
+        filter?.frequency.rampTo((cutoff ?? 3000) * (0.6 + clamp01(v) * 0.8), 0.2);
       },
-      setBrightness(v) { cab.frequency.rampTo(cabHz - 1500 + clamp01(v) * 3000, 0.3); },
-      dispose() { for (const n of [sampler, hp, dist, mid, cab, output]) n.dispose(); },
+      dispose() {
+        sampler.dispose();
+        filter?.dispose();
+        output.dispose();
+      },
     };
   };
 }
@@ -86,7 +68,8 @@ const MIDI_TO_PERC = new Map<number, PercussionSound>(
 /** Real acoustic drum kit (local samples), polyphonic per drum. */
 export const drumKitFactory: InstrumentFactory = (): LimeInstrument => {
   const output = new Tone.Gain(1);
-  const one = (file: string, gain: number) => new Tone.Sampler({ baseUrl: `${BASE}/drums/`, urls: { C2: file }, volume: 20 * Math.log10(gain) }).connect(output);
+  const one = (file: string, gain: number) =>
+    new Tone.Sampler({ baseUrl: "/samples/drums/", urls: { C2: file }, volume: 20 * Math.log10(gain) }).connect(output);
   const kick = one("kick.mp3", 1.0);
   const snare = one("snare.mp3", 0.85);
   const hat = one("hihat.mp3", 0.5);
@@ -98,39 +81,55 @@ export const drumKitFactory: InstrumentFactory = (): LimeInstrument => {
       const smp = s === "kick" ? kick : s === "snare" ? snare : s === "tom" ? tom : hat;
       smp.triggerAttackRelease("C2", Math.min(durationSec, 0.6), timeSec, s === "hat" ? velocity * 0.8 : velocity);
     },
-    dispose() { for (const s of [kick, snare, hat, tom]) s.dispose(); output.dispose(); },
+    dispose() {
+      for (const s of [kick, snare, hat, tom]) s.dispose();
+      output.dispose();
+    },
   };
 };
 
-// Instrument factories.
-const elecGuitarRock = sampledGuitar(0.34, 0.62, 7000);
-const elecGuitarMetal = sampledGuitar(0.32, 0.85, 6000);
-const elecGuitarBlues = sampledGuitar(0.34, 0.26, 5400);
-const elecBass = sampled("bass-electric", 0.5, 2200, 0.4);
-const acoustic = sampled("guitar-acoustic", 0.36, undefined, 1.0);
-const nylon = sampled("guitar-nylon", 0.36, undefined, 1.0);
-const piano = sampled("piano", 0.42, undefined, 1.2);
-const organ = sampled("organ", 0.3, 3000, 1.4);
-const sax = sampled("saxophone", 0.34, undefined, 0.6);
-const trumpet = sampled("trumpet", 0.32, undefined, 0.5);
-const cello = sampled("cello", 0.3, 2400, 2.0);
-const violin = sampled("violin", 0.26, 3000, 2.0);
-const contrabass = sampled("contrabass", 0.4, 900, 1.2);
-const flute = sampled("flute", 0.3, undefined, 0.8);
+// Instrument factories (GM soundfont patches).
+const overdrive = sf("overdriven_guitar", 0.5);
+const distortion = sf("distortion_guitar", 0.5);
+const cleanGtr = sf("electric_guitar_clean", 0.6);
+const jazzGtr = sf("electric_guitar_jazz", 0.6);
+const mutedGtr = sf("electric_guitar_muted", 0.6);
+const rhodes = sf("electric_piano_1", 0.6);
+const rockOrgan = sf("rock_organ", 0.45);
+const organ = sf("drawbar_organ", 0.45);
+const piano = sf("acoustic_grand_piano", 0.55);
+const eBass = sf("electric_bass_finger", 0.7);
+const upright = sf("acoustic_bass", 0.7);
+const synthBass = sf("synth_bass_1", 0.7);
+const sax = sf("tenor_sax", 0.5);
+const trumpet = sf("trumpet", 0.45);
+const nylon = sf("acoustic_guitar_nylon", 0.6);
+const steel = sf("acoustic_guitar_steel", 0.6);
+const strings = sf("string_ensemble_1", 0.4, 3200);
+const cello = sf("cello", 0.5, 2600);
+const violin = sf("violin", 0.42, 3400);
+const flute = sf("flute", 0.45);
+const saw = sf("lead_2_sawtooth", 0.42, 4200);
+const warmPad = sf("pad_2_warm", 0.4);
 
 type Palette = Partial<Record<VoiceId, InstrumentFactory>>;
 
-/** Genre → sampled palette (real instruments, local). Electronic/ambient keep synth. */
+/** Genre → sampled palette (real GM instruments, local). */
 export const GENRE_PALETTES_SAMPLED: Record<string, Palette> = {
-  "genre-classical": { melody: violin, pad: cello, bass: contrabass },
-  "genre-pop": { melody: piano, pad: piano, bass: elecBass, percussion: drumKitFactory, motion: piano },
-  "genre-rock-pop": { melody: elecGuitarRock, pad: elecGuitarRock, bass: elecBass, percussion: drumKitFactory },
-  "genre-hiphop": { melody: piano, pad: organ, bass: elecBass, percussion: drumKitFactory, motion: piano },
-  "genre-jazz": { melody: sax, pad: piano, bass: contrabass, percussion: drumKitFactory, motion: piano },
-  "genre-blues": { melody: elecGuitarBlues, pad: organ, bass: elecBass, percussion: drumKitFactory },
-  "genre-folk": { melody: acoustic, pad: acoustic, bass: contrabass },
-  "genre-latin": { melody: trumpet, pad: piano, bass: elecBass, percussion: drumKitFactory, motion: nylon },
-  "genre-funk": { melody: sax, pad: organ, bass: elecBass, percussion: drumKitFactory, motion: organ },
-  "genre-metal": { melody: elecGuitarMetal, pad: elecGuitarMetal, bass: elecBass, percussion: drumKitFactory },
-  "genre-ambient": { melody: flute, pad: cello },
+  "genre-classical": { melody: violin, pad: strings, bass: upright },
+  "genre-pop": { melody: piano, pad: rhodes, bass: eBass, percussion: drumKitFactory, motion: piano },
+  "genre-rock-pop": { melody: overdrive, pad: overdrive, bass: eBass, percussion: drumKitFactory },
+  "genre-hiphop": { melody: rhodes, pad: warmPad, bass: synthBass, percussion: drumKitFactory, motion: rhodes },
+  "genre-jazz": { melody: sax, pad: rhodes, bass: upright, percussion: drumKitFactory, motion: piano },
+  "genre-blues": { melody: cleanGtr, pad: rockOrgan, bass: eBass, percussion: drumKitFactory },
+  "genre-folk": { melody: steel, pad: steel, bass: upright },
+  "genre-latin": { melody: trumpet, pad: piano, bass: eBass, percussion: drumKitFactory, motion: nylon },
+  "genre-funk": { melody: sax, pad: mutedGtr, bass: eBass, percussion: drumKitFactory, motion: rhodes },
+  "genre-metal": { melody: distortion, pad: distortion, bass: eBass, percussion: drumKitFactory },
+  "genre-electronic": { melody: saw, pad: warmPad, bass: synthBass, percussion: drumKitFactory, motion: saw },
+  "genre-ambient": { melody: flute, pad: warmPad },
 };
+
+// Retire the unused synth-only genres from lint: jazzGtr/organ kept for future use.
+void jazzGtr;
+void organ;

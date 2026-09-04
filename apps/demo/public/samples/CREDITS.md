@@ -1,17 +1,14 @@
 # Sample credits
 
-All samples here are **CC-BY 3.0** and are bundled locally so the demo has
+All samples here are freely redistributable and bundled locally so the demo has
 consistent quality and works offline. Regenerate with
-`node scripts/download-samples.mjs`.
+`node apps/demo/scripts/download-soundfonts.mjs`.
 
-- **guitar-electric, guitar-acoustic, guitar-nylon, bass-electric, organ,
-  saxophone, trumpet, cello, violin, contrabass, flute** —
-  [nbrosowsky/tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments)
-  (CC-BY 3.0).
-- **piano** — [Salamander Grand Piano](https://tonejs.github.io/audio/salamander/)
-  by Alexander Holm (CC-BY 3.0).
-- **drums** (acoustic kit) — [Tone.js drum-samples](https://tonejs.github.io/audio/drum-samples/)
-  (CC-BY 3.0).
-
-The electric guitar is a clean multisample; LIME's renderer runs it through a
-distortion + amp-cabinet chain for the rock/metal/blues tone.
+- **sf/** — General-MIDI instruments from the **MusyngKite** soundfont via
+  [gleitz/midi-js-soundfonts](https://github.com/gleitz/midi-js-soundfonts)
+  (freely redistributable). Real recorded patches, including proper
+  distortion/overdriven guitars, a Rhodes electric piano, organ, sax, brass, and
+  strings — so the distorted-guitar tone is recorded with the amp, not faked by
+  distorting a clean sample.
+- **drums/** — acoustic kit from
+  [Tone.js drum-samples](https://tonejs.github.io/audio/drum-samples/) (CC-BY 3.0).
