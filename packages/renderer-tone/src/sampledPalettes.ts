@@ -1,7 +1,7 @@
 import * as Tone from "tone";
-import type { VoiceId } from "@lime/core";
+import type { VoiceId, PercussionSound } from "@lime/core";
+import { PERCUSSION_MIDI } from "@lime/core";
 import { linToDb, type InstrumentFactory } from "./instruments.js";
-import { rockKitFactory } from "./rockPalette.js";
 
 /**
  * Sampled genre palettes — real recorded instruments (CC-BY, tonejs-instruments
@@ -117,13 +117,41 @@ export const sampledPianoFactory: InstrumentFactory = (config) => {
   };
 };
 
-// --- Sampled palettes per genre (drums stay synth) ---------------------------
-export const ROCK_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledRockRhythmFactory, melody: sampledRockGuitarFactory, bass: sampledElectricBassFactory, percussion: rockKitFactory };
-export const METAL_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledMetalGuitarFactory, melody: sampledMetalGuitarFactory, bass: sampledElectricBassFactory, percussion: rockKitFactory };
-export const BLUES_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledBluesGuitarFactory, melody: sampledBluesGuitarFactory, bass: sampledElectricBassFactory, percussion: rockKitFactory };
-export const JAZZ_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledPianoFactory, melody: sampledPianoFactory, bass: sampledElectricBassFactory, percussion: rockKitFactory };
-export const POP_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledPianoFactory, melody: sampledPianoFactory, bass: sampledElectricBassFactory, percussion: rockKitFactory };
-export const LATIN_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledPianoFactory, melody: sampledPianoFactory, bass: sampledElectricBassFactory, percussion: rockKitFactory };
-export const FUNK_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledPianoFactory, melody: sampledPianoFactory, bass: sampledElectricBassFactory, percussion: rockKitFactory };
+const MIDI_TO_PERC = new Map<number, PercussionSound>(
+  (Object.entries(PERCUSSION_MIDI) as [PercussionSound, number][]).map(([s, m]) => [m, s]),
+);
+
+/** Real acoustic drum kit (Tone.js drum-samples, CC-BY). Polyphonic per drum. */
+export const sampledKitFactory: InstrumentFactory = () => {
+  const output = new Tone.Gain(1);
+  const base = "https://tonejs.github.io/audio/drum-samples/acoustic-kit/";
+  const mk = (file: string, gain: number) =>
+    new Tone.Sampler({ baseUrl: base, urls: { C2: file }, volume: linToDb(gain) }).connect(output);
+  const kick = mk("kick.mp3", 1.0);
+  const snare = mk("snare.mp3", 0.8);
+  const hat = mk("hihat.mp3", 0.5);
+  const tom = mk("tom1.mp3", 0.7);
+  return {
+    output,
+    triggerNote(pitch, velocity, timeSec, durationSec) {
+      const sound = MIDI_TO_PERC.get(pitch) ?? "hat";
+      const s = sound === "kick" ? kick : sound === "snare" ? snare : sound === "tom" ? tom : hat;
+      s.triggerAttackRelease("C2", Math.min(durationSec, 0.6), timeSec, sound === "hat" ? velocity * 0.8 : velocity);
+    },
+    dispose() {
+      for (const s of [kick, snare, hat, tom]) s.dispose();
+      output.dispose();
+    },
+  };
+};
+
+// --- Sampled palettes per genre (real acoustic drum kit) ---------------------
+export const ROCK_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledRockRhythmFactory, melody: sampledRockGuitarFactory, bass: sampledElectricBassFactory, percussion: sampledKitFactory };
+export const METAL_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledMetalGuitarFactory, melody: sampledMetalGuitarFactory, bass: sampledElectricBassFactory, percussion: sampledKitFactory };
+export const BLUES_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledBluesGuitarFactory, melody: sampledBluesGuitarFactory, bass: sampledElectricBassFactory, percussion: sampledKitFactory };
+export const JAZZ_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledPianoFactory, melody: sampledPianoFactory, bass: sampledElectricBassFactory, percussion: sampledKitFactory };
+export const POP_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledPianoFactory, melody: sampledPianoFactory, bass: sampledElectricBassFactory, percussion: sampledKitFactory };
+export const LATIN_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledPianoFactory, melody: sampledPianoFactory, bass: sampledElectricBassFactory, percussion: sampledKitFactory };
+export const FUNK_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { pad: sampledPianoFactory, melody: sampledPianoFactory, bass: sampledElectricBassFactory, percussion: sampledKitFactory };
 export const CLASSICAL_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { melody: sampledPianoFactory, pad: sampledPianoFactory, bass: sampledElectricBassFactory };
 export const FOLK_SAMPLED: Partial<Record<VoiceId, InstrumentFactory>> = { melody: sampledAcousticGuitarFactory, pad: sampledAcousticGuitarFactory, bass: sampledElectricBassFactory };
