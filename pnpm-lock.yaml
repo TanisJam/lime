@@ -26,6 +26,9 @@ importers:
       '@lime/styles':
         specifier: workspace:*
         version: link:../../packages/styles
+      js-synthesizer:
+        specifier: ^1.13.0
+        version: 1.13.0
       tone:
         specifier: ^15.0.4
         version: 15.1.22
@@ -480,6 +483,10 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
+  js-synthesizer@1.13.0:
+    resolution: {integrity: sha512-KXhyJcY90mUvJwbfF1aBNurodm16w8R/wrZYRRc+SSlm58EtL88bspbs7ixtAmoV9QQvf/2EuPAwxj2ExdZSmQ==}
+    engines: {node: '>=22', npm: '>=11'}
+
   loupe@3.2.1:
     resolution: {integrity: sha512-CdzqowRJCeLU72bHvWqwRBBlLcMEtIvGrlvef74kMnV2AolS9Y8xUv1I0U/MNAWMhBlKIoyuEgoJ0t/bbwHbLQ==}
 
@@ -899,6 +906,8 @@ snapshots:
 
   fsevents@2.3.3:
     optional: true
+
+  js-synthesizer@1.13.0: {}
 
   loupe@3.2.1: {}
 

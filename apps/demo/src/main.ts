@@ -21,6 +21,7 @@ import {
   type InstrumentFactory,
 } from "@lime/renderer-tone";
 import { GENRE_PALETTES_SAMPLED } from "./sampledGenre";
+import { FluidRenderer, GM_PROGRAMS } from "./fluidRenderer";
 
 /**
  * Genre → instrument palette. The StylePack gives a genre its grammar; the
@@ -176,7 +177,9 @@ const EMOTIONS: EmotionPreset[] = (
 let currentEmotion: EmotionPreset | null = null;
 
 let music: Lime | null = null;
-let renderer: ToneRenderer | null = null;
+// Playback engine: FluidSynth-WASM + a GM SoundFont, persistent across genre
+// switches (the 30 MB SoundFont loads once).
+const renderer = new FluidRenderer();
 let currentSeed = "demo-forest-1";
 let currentEntry: StyleEntry = STYLES[0]!;
 
@@ -237,26 +240,18 @@ async function selectStyle(entry: StyleEntry, opts: { newSeed?: boolean } = {}):
   if (opts.newSeed) currentSeed = `demo-${Math.floor(Math.random() * 1e9)}`;
 
   music?.stop();
-  renderer?.dispose?.();
   stopShowcase();
 
   // Keep the chosen emotion across a genre switch: the genre supplies the
   // grammar (StylePack), the emotion supplies the state we start from.
   const init: MusicalStatePatch =
     currentEmotion?.state ?? entry.suggestedState ?? { ...MOODS.Calm };
-  // Always real sampled instruments: the genre's sampled palette, else its synth
-  // palette (electronic/ambient are genre-correct as synths), else the generic set.
-  const genrePalette = GENRE_PALETTES_SAMPLED[entry.style.id] ?? GENRE_PALETTES[entry.style.id];
-  renderer = createToneRenderer({
-    instrumentation: entry.style.instrumentation,
-    instruments: genrePalette ?? SAMPLED_INSTRUMENTS,
-  });
+  // The genre's per-voice GM programs drive the FluidSynth SoundFont.
+  renderer.setGenrePrograms(GM_PROGRAMS[entry.style.id] ?? {});
   music = createLime({ seed: currentSeed, style: entry.style, renderer, initialState: init, lookAheadBars: 4 });
-  await music.start();
-  // Samplers load buffers asynchronously; wait so early notes aren't dropped.
-  await Tone.loaded();
+  await music.start(); // FluidRenderer loads the SoundFont on first start
   renderer.setBrightness(init.brightness ?? 0.5);
-  applyVoiceStates(); // re-push mute/solo onto the freshly built renderer
+  applyVoiceStates(); // re-push mute/solo onto the engine
 
   syncSliders(init);
   clearMoodHighlight();
