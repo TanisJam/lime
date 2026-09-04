@@ -2,6 +2,8 @@
 
 **Live Interactive Music Engine** — a continuous adaptive music engine for the web.
 
+**▶ [Live demo](https://dist-pi-indol-64.vercel.app)** — enter, then drive the mood in real time.
+
 LIME generates continuous, adaptive music in real time. You don't tell it which
 notes to play — you tell it how the music should *feel*, and it composes a few
 bars into the future, remembering and developing material as the intent changes.
@@ -42,10 +44,15 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for the design.
 
 ```bash
 pnpm install
+node apps/demo/scripts/setup-fluidsynth.mjs   # fetch the FluidSynth-WASM + SoundFont assets (gitignored, ~31 MB)
 pnpm build          # build core, styles, renderer (required before the demo)
 pnpm test           # run the core test suite
 pnpm demo           # start the Vite demo at http://localhost:5173
 ```
+
+> The demo's high-fidelity playback path uses FluidSynth-WASM and a SoundFont that
+> are gitignored (large and regenerable). Run the `setup-fluidsynth.mjs` script
+> once after `pnpm install`, or the demo audio will not load.
 
 > The demo consumes the `@lime/*` packages from their built `dist`, so run
 > `pnpm build` again after changing `core`, `styles`, or `renderer-tone`.
@@ -67,6 +74,7 @@ new seed.
 
 ## Status
 
-v0.1 — proof of concept. Determinism, continuous composition, musical inertia,
-motif memory, and adaptive state are implemented and tested. See ARCHITECTURE.md
-for what is intentionally out of scope.
+v0.3 — **Orchestration & Multi-Genre**. Determinism, continuous composition,
+musical inertia, motif memory, and adaptive state are implemented and tested,
+now with per-genre orchestration (ambient, blues, hip-hop, jazz, rock/pop). See
+ARCHITECTURE.md for what is intentionally out of scope.
