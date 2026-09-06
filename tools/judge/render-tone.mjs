@@ -103,26 +103,41 @@ mkdirSync(OUT, { recursive: true });
 const server = await serve(DIST);
 const port = server.address().port;
 const browser = await chromium.launch();
-const page = await browser.newPage();
 
-// A silent failure is the exact hazard here: an offline render that produced
-// nothing still returns a buffer full of zeros. Surface everything the page says.
-page.on("pageerror", (e) => console.error(`  page error: ${e.message}`));
-page.on("console", (m) => {
-  if (m.type() === "error") console.error(`  console: ${m.text()}`);
-});
-
-await page.goto(`http://127.0.0.1:${port}/render.html`);
-await page.waitForFunction(() => typeof window.limeRenderClip === "function", null, { timeout: 30_000 });
+/**
+ * A fresh page per clip, closed straight after.
+ *
+ * One long-lived page accumulates a decoded sample library and a whole
+ * OfflineAudioContext per render, and the sampled palettes hold twelve Samplers
+ * at once — enough for the OS to kill the run partway through a batch. Reload
+ * cost is a second; a killed batch costs the batch.
+ */
+async function withPage(fn) {
+  const page = await browser.newPage();
+  // A silent failure is the hazard here: a render that produced nothing still
+  // returns a buffer full of zeros. Surface everything the page says.
+  page.on("pageerror", (e) => console.error(`  page error: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error") console.error(`  console: ${m.text()}`);
+  });
+  try {
+    await page.goto(`http://127.0.0.1:${port}/render.html`);
+    await page.waitForFunction(() => typeof window.limeRenderClip === "function", null, {
+      timeout: 30_000,
+    });
+    return await fn(page);
+  } finally {
+    await page.close();
+  }
+}
 
 const clips = [];
 for (const genre of genres) {
   for (const seed of seeds) {
     const base = `${genre}_seed${seed}`;
     try {
-      const result = await page.evaluate(
-        (opts) => window.limeRenderClip(opts),
-        { genre, seed, seconds, palette },
+      const result = await withPage((page) =>
+        page.evaluate((opts) => window.limeRenderClip(opts), { genre, seed, seconds, palette }),
       );
       const wav = Buffer.from(result.wav);
       writeFileSync(join(OUT, `${base}.wav`), wav);
