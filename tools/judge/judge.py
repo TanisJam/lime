@@ -121,7 +121,7 @@ def main() -> int:
             ]},
         ]
         text = processor.apply_chat_template(conversation, add_generation_prompt=True, tokenize=False)
-        inputs = processor(text=text, audios=[audio], return_tensors="pt", padding=True)
+        inputs = processor(text=text, audio=[audio], sampling_rate=sr, return_tensors="pt", padding=True)
         inputs = inputs.to(model.device)
         with torch.no_grad():
             gen = model.generate(**inputs, max_new_tokens=550)
