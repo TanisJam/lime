@@ -64,6 +64,23 @@ function meanGapBeats(evs) {
   return sum / (t.length - 1) / BEAT;
 }
 
+/**
+ * Distinct chord roots per bar — harmonic rhythm.
+ *
+ * The strongest separator between genres that share a chord vocabulary: jazz
+ * moves harmonically all the time, funk vamps on one chord for bars. Two
+ * genres both built on sevenths will still sound nothing alike if one moves
+ * and the other does not.
+ */
+function chordChangesPerBar(pad, bars) {
+  const roots = [...new Map(
+    pad.sort((a, b) => a.time - b.time).map((e) => [e.time, e]),
+  ).entries()].map(([time]) => Math.min(...pad.filter((e) => e.time === time).map((e) => e.pitch)) % 12);
+  let changes = 0;
+  for (let i = 1; i < roots.length; i++) if (roots[i] !== roots[i - 1]) changes++;
+  return changes / bars;
+}
+
 /** Mean simultaneous notes per onset — chord thickness. */
 function chordSize(evs) {
   const byTime = new Map();
@@ -92,6 +109,7 @@ function featuresFor(genre, seed) {
     melodyOffBeat: offBeatRatio(melody),
     melodyRange: melody.length ? Math.max(...melody.map((e) => e.pitch)) - Math.min(...melody.map((e) => e.pitch)) : 0,
     padChordSize: chordSize(pad),
+    chordChanges: chordChangesPerBar(pad, bars),
     motionPerBar: by("motion").length / bars,
   };
 }
@@ -108,7 +126,7 @@ function averaged(genre) {
 const KEYS = [
   ["bpm", 0], ["notesPerBar", 1], ["bassPerBar", 1], ["bassOffBeat", 2],
   ["bass16ths", 2], ["bassGap", 2], ["percPerBar", 1], ["percOffBeat", 2],
-  ["melodyOffBeat", 2], ["melodyRange", 0], ["padChordSize", 2], ["motionPerBar", 1],
+  ["melodyOffBeat", 2], ["melodyRange", 0], ["padChordSize", 2], ["chordChanges", 2], ["motionPerBar", 1],
 ];
 
 console.log(`Seeds ${seeds.join(",")} · ${seconds}s\n`);

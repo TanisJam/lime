@@ -47,6 +47,19 @@ def main() -> int:
         manifest.get("candidates")
         or {c.get("genreName") or c["genre"] for c in clips}
     )
+    # A single candidate makes argmax return it every time, so the run reports
+    # 100% no matter what the audio contains. Rendering one genre and judging it
+    # alone produces exactly that, and it looks like a passing result. Refuse.
+    if len(candidates) < 2:
+        print(
+            f"ERROR: only {len(candidates)} candidate label ({candidates}).\n"
+            "Every clip would score as a match by construction. Judge against the\n"
+            "full candidate set — render all genres, or declare `candidates` in the\n"
+            "manifest.",
+            file=sys.stderr,
+        )
+        return 2
+
     print(f"{len(clips)} clip(s), {len(candidates)} candidates, chance = {1/len(candidates):.0%}")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
