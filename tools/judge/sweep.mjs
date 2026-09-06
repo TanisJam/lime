@@ -37,11 +37,34 @@ const arg = (n, d) => process.argv.find((a) => a.startsWith(`--${n}=`))?.split("
 const genre = arg("genre");
 const voice = arg("voice", "melody");
 const programs = (arg("programs") ?? "").split(",").filter(Boolean).map(Number);
+// Composition knobs live in the StylePack, not the GM table. Sweeping those
+// answers a different question than sweeping timbre: whether the genre is
+// being COMPOSED wrong, once the sound has been ruled out.
+const knob = arg("knob");
+const values = (arg("values") ?? "").split(",").filter(Boolean);
+
+/** Where each knob sits inside a StylePack. */
+const KNOB_PATH = {
+  groove: (style, v) => ({ ...style, rhythm: { ...style.rhythm, groove: v } }),
+  bassStyle: (style, v) => ({ ...style, bassStyle: v }),
+  chordStyle: (style, v) => ({ ...style, chordStyle: v }),
+  melodyScale: (style, v) => ({ ...style, melody: { ...style.melody, scale: v } }),
+  motion: (style, v) => ({ ...style, motion: v }),
+  defaultMode: (style, v) => ({ ...style, defaultMode: v }),
+};
 const seeds = arg("seeds", "1,2,3,4").split(",").map(Number);
 const seconds = Number(arg("seconds", "22"));
 
-if (!genre || !programs.length) {
-  console.error("Usage: --genre=genre-funk --voice=melody --programs=7,27,28");
+if (!genre || (!programs.length && !(knob && values.length))) {
+  console.error(
+    "Usage:\n" +
+    "  --genre=genre-funk --voice=melody --programs=7,27,28\n" +
+    "  --genre=genre-funk --knob=groove --values=funk,backbeat,boom-bap",
+  );
+  process.exit(2);
+}
+if (knob && !KNOB_PATH[knob]) {
+  console.error(`Unknown knob "${knob}". Known: ${Object.keys(KNOB_PATH).join(", ")}`);
   process.exit(2);
 }
 
@@ -50,10 +73,14 @@ const CANDIDATES = Object.values(NAMES).sort();
 
 mkdirSync(OUT, { recursive: true });
 
-function renderVariant(program) {
-  const style = stylePack(genre);
+function renderVariant(program, knobValue) {
+  const base = stylePack(genre);
+  const style = knobValue !== undefined ? KNOB_PATH[knob](base, knobValue) : base;
   const state = STATE[genre];
-  const cfg = { ...GM[genre], [voice]: program };
+  // Only override the program when sweeping programs. Writing `undefined` here
+  // would drop the voice's GM program entirely and fall back to piano, so a
+  // knob sweep would quietly be changing the timbre as well as the knob.
+  const cfg = program !== undefined ? { ...GM[genre], [voice]: program } : { ...GM[genre] };
   const bpm = state.tempo;
   const bars = Math.ceil(seconds / (240 / bpm));
   const clips = [];
@@ -69,7 +96,8 @@ function renderVariant(program) {
     const programs_ = {};
     for (const v of ["pad", "bass", "melody", "motion"]) if (cfg[v] !== undefined) programs_[v] = cfg[v];
 
-    const base = `${genre}_p${program}_seed${seed}`;
+    const tag = knobValue !== undefined ? String(knobValue).replace(/[^a-z0-9-]/gi, "") : `p${program}`;
+    const base = `${genre}_${tag}_seed${seed}`;
     const mid = join(OUT, `${base}.mid`);
     const wav = join(OUT, `${base}.wav`);
     writeFileSync(mid, eventsToStandardMidiFile(events, {
@@ -99,23 +127,29 @@ function judge() {
   return { hits, total: rows.length, heard };
 }
 
-console.log(`Sweeping ${NAMES[genre]} · ${voice} · ${programs.length} program(s) · seeds ${seeds.join(",")}`);
-console.log(`Baseline ${voice}: ${GM[genre][voice]} (${gmName(GM[genre][voice])})`);
+const sweepList = knob ? values : programs;
+console.log(
+  knob
+    ? `Sweeping ${NAMES[genre]} · knob ${knob} · ${values.length} value(s) · seeds ${seeds.join(",")}`
+    : `Sweeping ${NAMES[genre]} · ${voice} · ${programs.length} program(s) · seeds ${seeds.join(",")}`,
+);
+if (!knob) console.log(`Baseline ${voice}: ${GM[genre][voice]} (${gmName(GM[genre][voice])})`);
 console.log(`Judged against ${CANDIDATES.length} candidates — chance ${(100 / CANDIDATES.length).toFixed(0)}%\n`);
 
 const results = [];
-for (const p of programs) {
-  renderVariant(p);
+for (const item of sweepList) {
+  renderVariant(knob ? undefined : item, knob ? item : undefined);
   const { hits, total, heard } = judge();
-  results.push({ program: p, hits, total, heard });
+  results.push({ item, hits, total, heard });
   const top = [...heard.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2)
     .map(([k, v]) => `${k} x${v}`).join(", ");
-  console.log(`  ${String(p).padStart(3)} ${gmName(p).padEnd(24)} ${hits}/${total}   ${top}`);
+  const label = knob ? String(item).padEnd(28) : `${String(item).padStart(3)} ${gmName(item).padEnd(24)}`;
+  console.log(`  ${label} ${hits}/${total}   ${top}`);
 }
 
 const best = results.reduce((a, b) => (b.hits > a.hits ? b : a));
 console.log(
   best.hits > 0
-    ? `\nBest: program ${best.program} (${gmName(best.program)}) at ${best.hits}/${best.total}`
-    : `\nNo program scored above zero. The lead timbre is not what is wrong here.`,
+    ? `\nBest: ${knob ?? "program"} ${best.item} at ${best.hits}/${best.total}`
+    : `\nNothing scored above zero. ${knob ? `${knob} is not what is wrong here.` : "The lead timbre is not what is wrong here."}`,
 );
