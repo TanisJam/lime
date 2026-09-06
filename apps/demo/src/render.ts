@@ -16,6 +16,7 @@ import {
   classicalPack, popPack, hiphopPack, electronicPack, jazzPack, bluesPack,
   folkPack, latinPack, funkPack, metalPack, ambientPack,
 } from "@lime/styles";
+import { GENRE_PALETTES_SAMPLED } from "./sampledGenre";
 
 /**
  * LIME offline capture (browser) — render composed music to WAV through the
@@ -141,12 +142,17 @@ const REVERB_TAIL_SEC = 5;
 /** Seconds per bar in 4/4. Mirrors the bar count in render.mjs. */
 const barSeconds = (bpm: number): number => 240 / bpm;
 
+/** Which timbre set to render with. */
+export type PaletteKind = "synth" | "sampled";
+
 export interface RenderClipOptions {
   /** Genre id, e.g. "genre-metal". */
   genre: string;
   seed: number;
   /** Musical length. The returned WAV also carries the reverb tail. */
   seconds: number;
+  /** Timbre set. Defaults to the pure-synthesis palettes. */
+  palette?: PaletteKind;
 }
 
 export interface RenderClipResult {
@@ -214,6 +220,11 @@ function encodeWav(buffer: Tone.ToneAudioBuffer): Uint8Array {
  */
 export async function renderClip(opts: RenderClipOptions): Promise<RenderClipResult> {
   const { genre, seed, seconds } = opts;
+  // "synth" is the pure-synthesis palette; "sampled" swaps in recorded
+  // instrument bodies (including a real distorted guitar for metal).
+  const paletteKind: PaletteKind = opts.palette ?? "synth";
+  const palette =
+    paletteKind === "sampled" ? GENRE_PALETTES_SAMPLED[genre] : GENRE_PALETTES_FOR_RENDER[genre];
   const style = stylePack(genre);
   if (!style) throw new Error(`unknown genre "${genre}"`);
   const initialState = STATE[genre];
@@ -233,7 +244,7 @@ export async function renderClip(opts: RenderClipOptions): Promise<RenderClipRes
 
   const buffer = await Tone.Offline(
     async () => {
-      const renderer = createToneRenderer({ instruments: GENRE_PALETTES_FOR_RENDER[genre] });
+      const renderer = createToneRenderer({ instruments: palette });
       const lime = createLime({ seed, style, initialState, renderer, lookAheadBars: 4 });
 
       await renderer.start();
@@ -241,6 +252,8 @@ export async function renderClip(opts: RenderClipOptions): Promise<RenderClipRes
       // convolver has no buffer yet and the whole reverb/delay aux renders
       // silent, with no error.
       await renderer.ready();
+      // Samplers fetch their audio; without this they render silent.
+      await Tone.loaded();
 
       // Tempo is normally set by `lime.start()`. Assign it directly (rather than
       // via `renderer.setTempo`, which ramps over 0.5 s) so the clip sits at a

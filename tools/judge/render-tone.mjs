@@ -33,7 +33,7 @@ import { chromium } from "playwright";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, "../..");
 const DIST = join(REPO, "apps/demo/dist");
-const OUT = join(HERE, "out", "tone");
+const OUT = join(HERE, "out", process.argv.some((a) => a === "--palette=sampled") ? "tone-sampled" : "tone");
 
 const arg = (name, dflt) =>
   process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1] ?? dflt;
@@ -56,6 +56,8 @@ const NAMES = {
 const genres = (arg("genres") ?? Object.keys(NAMES).join(",")).split(",").filter(Boolean);
 const seeds = (arg("seeds", "1")).split(",").map(Number);
 const seconds = Number(arg("seconds", "22"));
+// "synth" = the pure-synthesis palettes, "sampled" = recorded instrument bodies.
+const palette = arg("palette", "synth");
 
 /** Minimal static server for the built demo — vite preview would also do, but
  *  this keeps the script to one process and one port we control. */
@@ -120,7 +122,7 @@ for (const genre of genres) {
     try {
       const result = await page.evaluate(
         (opts) => window.limeRenderClip(opts),
-        { genre, seed, seconds },
+        { genre, seed, seconds, palette },
       );
       const wav = Buffer.from(result.wav);
       writeFileSync(join(OUT, `${base}.wav`), wav);
@@ -145,7 +147,7 @@ for (const genre of genres) {
         truth: NAMES[genre] ?? genre,
         seed,
         seconds,
-        renderer: "tone",
+        renderer: `tone-${palette}`,
         peak,
         droppedNotes: result.dropped?.count ?? 0,
       });
