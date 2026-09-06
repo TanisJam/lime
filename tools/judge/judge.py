@@ -27,6 +27,16 @@ from transformers import AutoProcessor, Qwen2AudioForConditionalGeneration
 
 MODEL_ID = "Qwen/Qwen2-Audio-7B-Instruct"
 
+# Blind runs must not mention LIME or its knobs. The reference corpus is
+# human-composed music rendered through the same SoundFont, and the whole point
+# of that control is that the model cannot tell which is which.
+SYSTEM_BLIND = (
+    "You are a musicologist identifying short instrumental clips by ear. Every "
+    "clip is purely instrumental — no vocals. The instruments are General MIDI "
+    "soundfont patches, so judge composition, arrangement, rhythm and harmony, "
+    "not recording fidelity. Answer only from what you hear."
+)
+
 SYSTEM = (
     "You are a professional music producer evaluating short clips from LIME, a "
     "procedural music engine. Each clip is PURELY INSTRUMENTAL — there are NO vocals, "
@@ -63,6 +73,36 @@ KNOBS = (
 )
 
 
+def build_blind_prompt(clip: dict, candidates: list) -> str:
+    """Prompt that never reveals the intended genre or emotion.
+
+    Telling the model what a clip is *supposed* to be poisons the measurement:
+    paired mislabelling showed it scores the same audio 4/5 as "Ambient" and
+    4/5 as "Metal", echoing the label back as its own perception. So here it is
+    given the full candidate list with no hint of which one we want, and must
+    commit to exactly one. Chance is 1/len(candidates); anything near that means
+    the model cannot hear genre at all and is useless as a gate.
+    """
+    listed = "\n".join(f"  - {g}" for g in candidates)
+    label = "CANDIDATE EMOTIONS" if clip.get("task") == "emotion" else "CANDIDATE GENRES"
+    return (
+        "Listen to this clip and identify it. You are NOT told what it is meant "
+        "to be — judge only what you actually hear.\n\n"
+        f"{label} (choose from these exactly):\n{listed}\n\n"
+        "Answer each point briefly, IN ENGLISH:\n"
+        "1. BEST MATCH: exactly ONE entry copied verbatim from the candidate list "
+        "above. No explanation on this line, just the entry.\n"
+        "2. RUNNER-UP: the second most likely entry from the list, or 'none'.\n"
+        "3. WHY: the instrumentation, rhythm and harmony cues that led you there.\n"
+        "4. EMOTION HEARD: valence (positive/negative) and arousal (high/low).\n"
+        "5. INSTRUMENTS HEARD: name the actual timbres you hear per layer "
+        "(chord bed, bass, lead, any arpeggio/ostinato, drums).\n"
+        "6. HARMONY: do the chords move well, or feel static / repetitive / wrong? Rate 1-5.\n"
+        "7. RHYTHM: does the groove lock in and drive, or feel stiff / cluttered / weak? Rate 1-5.\n"
+        "8. MELODY: is the lead expressive, or aimless / too high / dull? Rate 1-5.\n"
+    )
+
+
 def build_prompt(clip: dict) -> str:
     genre = clip.get("genreName") or clip["genre"]
     emotion = clip.get("emotion")
@@ -95,10 +135,26 @@ def main() -> int:
     if len(sys.argv) < 2:
         print(__doc__)
         return 2
-    manifest_path = Path(sys.argv[1]).resolve()
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    blind = "--blind" in sys.argv
+    if not args:
+        print(__doc__)
+        return 2
+    manifest_path = Path(args[0]).resolve()
     manifest = json.loads(manifest_path.read_text())
     out_dir = manifest_path.parent
     clips = manifest["clips"]
+
+    # Sorted, not render order, so position in the list carries no information
+    # about which clip is which. A manifest may declare its own candidate set
+    # (e.g. the reference corpus, which is labelled by emotion, not genre).
+    task = manifest.get("task", "genre")
+    candidates = manifest.get("candidates") or sorted(
+        {c.get("genreName") or c["genre"] for c in clips}
+    )
+    candidates = sorted(candidates)
+    if blind:
+        print(f"BLIND mode — {len(candidates)} candidates, chance = {1/len(candidates):.0%}", flush=True)
 
     print(f"Loading {MODEL_ID} … (first run downloads ~16 GB)", flush=True)
     processor = AutoProcessor.from_pretrained(MODEL_ID)
@@ -110,14 +166,15 @@ def main() -> int:
     results = []
     for i, clip in enumerate(clips, 1):
         wav = (out_dir / clip["file"]).resolve()
-        print(f"[{i}/{len(clips)}] judging {clip['file']} ({clip.get('genreName', clip['genre'])}) …", flush=True)
+        print(f"[{i}/{len(clips)}] judging {clip['file']} ({clip.get("genreName") or clip.get("genre") or clip.get("truth") or clip["file"]}) …", flush=True)
         audio, _ = librosa.load(str(wav), sr=sr, mono=True)
 
         conversation = [
-            {"role": "system", "content": SYSTEM},
+            {"role": "system", "content": SYSTEM_BLIND if blind else SYSTEM},
             {"role": "user", "content": [
                 {"type": "audio", "audio_url": str(wav)},
-                {"type": "text", "text": build_prompt(clip)},
+                {"type": "text", "text": build_blind_prompt({**clip, "task": task}, candidates)
+                 if blind else build_prompt(clip)},
             ]},
         ]
         text = processor.apply_chat_template(conversation, add_generation_prompt=True, tokenize=False)
@@ -131,17 +188,18 @@ def main() -> int:
         results.append({**clip, "verdict": answer})
         print(answer + "\n" + ("-" * 60), flush=True)
 
-    (out_dir / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False))
+    stem = "report-blind" if blind else "report"
+    (out_dir / f"{stem}.json").write_text(json.dumps(results, indent=2, ensure_ascii=False))
     md = ["# LIME judge report — Qwen2-Audio-7B\n"]
     for r in results:
-        md.append(f"## {r.get('genreName', r['genre'])} — seed {r.get('seed', '?')} (`{r['file']}`)")
+        md.append(f"## {r.get("genreName") or r.get("genre") or r.get("truth") or r["file"]} — seed {r.get('seed', '?')} (`{r['file']}`)")
         if r.get("emotion"):
             md.append(f"*Intended emotion: {r['emotion']}*")
         md.append("")
         md.append(r["verdict"])
         md.append("")
-    (out_dir / "report.md").write_text("\n".join(md))
-    print(f"\nWrote {out_dir/'report.md'} and report.json", flush=True)
+    (out_dir / f"{stem}.md").write_text("\n".join(md))
+    print(f"\nWrote {out_dir/f'{stem}.md'} and {stem}.json", flush=True)
     return 0
 
 

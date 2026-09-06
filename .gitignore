@@ -30,3 +30,6 @@ packages/corpus/labels/
 
 # Judge pipeline output (rendered clips + reports)
 tools/judge/out/
+
+# Python bytecode from the judge tooling.
+__pycache__/
