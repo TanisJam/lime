@@ -17,6 +17,28 @@ import { linToDb, type InstrumentFactory } from "./instruments.js";
 const midiNote = (pitch: number): string => Tone.Frequency(pitch, "midi").toNote();
 
 /**
+ * Guards one monophonic source against being triggered at or before its own
+ * previous trigger, which Tone rejects outright.
+ *
+ * Several voices here share a single source on purpose: the guitar's pick noise
+ * fires on every note, and one NoiseSynth covers both snare and tom hits. Two
+ * events landing on the same tick is ordinary music, not a mistake — a tom and
+ * a snare on the same beat, or the notes of one chord once the strum offset
+ * moves them. Live playback rarely hit this because the transport schedules a
+ * bar at a time; rendering a clip offline schedules everything at once and hits
+ * it reliably. A tenth of a millisecond apart is inaudible.
+ */
+function monotonicTime(): (timeSec: number) => number {
+  let last = -Infinity;
+  return (timeSec) => {
+    if (timeSec < last - 1) last = -Infinity; // the transport restarted
+    const t = timeSec <= last ? last + 1e-4 : timeSec;
+    last = t;
+    return t;
+  };
+}
+
+/**
  * A distorted electric-guitar voice (shared by lead and rhythm). The chain
  * follows what actually reads as "guitar" vs "buzzy synth" (researched):
  * fat detuned saw → high-pass out the flub → waveshaping (Distortion with
@@ -57,10 +79,22 @@ export function guitarVoice(opts: {
   const pickHp = new Tone.Filter({ frequency: 2500, type: "highpass" });
   pick.chain(pickHp, output);
 
+  const nextPickTime = monotonicTime();
+
   return {
     output,
     triggerNote(pitch: number, velocity: number, timeSec: number, durationSec: number) {
-      const t = timeSec + Math.random() * 0.01; // light strum / humanize
+      // Strum offset, derived from the pitch rather than drawn at random.
+      // Math.random() here was a real bug, not just a reproducibility problem:
+      // the notes of one chord all arrive with the same timeSec, so different
+      // offsets could schedule the second note BEFORE the first and Tone threw
+      // "the time must be greater than or equal to the last scheduled time".
+      // Live playback hid it behind look-ahead; rendering a whole clip up front
+      // hits it every time. A deterministic offset also makes the audio
+      // reproducible, which the offline judge needs.
+      const jitter = ((pitch * 2654435761) % 1024) / 1024 * 0.01;
+      const t = nextPickTime(timeSec + jitter);
+
       synth.triggerAttackRelease(midiNote(pitch), durationSec, t, 0.5 + velocity * 0.5);
       pick.triggerAttackRelease(0.02, t, velocity * 0.6);
     },
@@ -159,20 +193,29 @@ export const rockKitFactory: InstrumentFactory = () => {
   const hatFilter = new Tone.Filter({ frequency: 7000, type: "highpass" });
   hat.chain(hatFilter, output);
 
+  const nextKick = monotonicTime();
+  const nextSnare = monotonicTime();
+  const nextHat = monotonicTime();
+
   return {
     output,
     triggerNote(pitch, velocity, timeSec, durationSec) {
       const sound = MIDI_TO_PERC.get(pitch) ?? "hat";
       switch (sound) {
         case "kick":
-          kick.triggerAttackRelease("C1", Math.max(durationSec, 0.12), timeSec, velocity);
+          kick.triggerAttackRelease("C1", Math.max(durationSec, 0.12), nextKick(timeSec), velocity);
           break;
         case "snare":
         case "tom":
-          snare.triggerAttackRelease(Math.min(Math.max(durationSec, 0.12), 0.24), timeSec, velocity);
+          // One source for both, so a tom and a snare on the same beat collide.
+          snare.triggerAttackRelease(
+            Math.min(Math.max(durationSec, 0.12), 0.24),
+            nextSnare(timeSec),
+            velocity,
+          );
           break;
         default:
-          hat.triggerAttackRelease(Math.min(durationSec, 0.06), timeSec, velocity * 0.85);
+          hat.triggerAttackRelease(Math.min(durationSec, 0.06), nextHat(timeSec), velocity * 0.85);
           break;
       }
     },

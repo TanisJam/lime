@@ -19,6 +19,9 @@ export type { LimeInstrument, InstrumentFactory } from "./instruments.js";
 type MixVoice = Exclude<VoiceId, "texture">;
 const MIX_VOICES: readonly MixVoice[] = ["pad", "bass", "melody", "motion", "percussion"];
 
+/** Silence left between a note and the next one on the same voice and pitch. */
+const RETRIGGER_GAP_TICKS = 4;
+
 const DEFAULT_INSTRUMENTATION: InstrumentationConfig = {
   reverbWet: 0.4,
   reverbDecay: 5,
@@ -174,6 +177,20 @@ export class ToneRenderer implements MusicRenderer {
     this.running = true;
   }
 
+  /**
+   * Resolves once every node that generates its buffer asynchronously is ready.
+   *
+   * Only the reverb does: Tone generates its impulse response off the main
+   * thread. Live playback never notices, because the first bars are inaudible
+   * by the time a listener reacts. An OfflineAudioContext does notice — it
+   * renders the moment it is told to, and an unfinished convolver has no
+   * buffer, so the whole reverb/delay aux comes out silent with no error.
+   */
+  async ready(): Promise<void> {
+    this.build();
+    await this.reverb.ready;
+  }
+
   stop(): void {
     if (!this.running) return;
     Tone.getTransport().stop();
@@ -181,22 +198,119 @@ export class ToneRenderer implements MusicRenderer {
     this.running = false;
   }
 
+  /**
+   * The note of each voice+pitch scheduled but not yet played, so a later note
+   * on the same pitch can shorten it.
+   *
+   * A held note that is struck again before it ends makes Tone's PolySynth
+   * restart the oscillator already assigned to that pitch, which throws "Start
+   * time must be strictly greater than previous start time". Metal's rhythm
+   * guitar does exactly that — 2.5 s chords re-struck every bar. Real
+   * instruments have the same constraint (one string cannot sound a pitch
+   * twice at once), so the musical answer is to cut the first note short, not
+   * to delay the second.
+   *
+   * Only `schedule()` can do it: it sees a batch of upcoming events, while the
+   * transport callback only ever knows about the note it is playing.
+   */
+  private pending = new Map<string, { startTick: number; duration: number }>();
+
   schedule(events: MusicalEvent[]): void {
     if (!this.built) this.build();
     const transport = Tone.getTransport();
-    for (const e of events) {
-      const at = `${e.time}i`;
+
+    // A voicing can name the same pitch twice; the second is inaudible as music
+    // but fatal to the synth, because PolySynth keeps one voice per pitch and
+    // the duplicate restarts an oscillator that is already running.
+    const seen = new Set<string>();
+
+    for (const e of [...events].sort((a, b) => a.time - b.time)) {
+      const key = `${e.voice}:${e.pitch}`;
+      const atSameTick = `${key}@${e.time}`;
+      if (seen.has(atSameTick)) continue;
+      seen.add(atSameTick);
+
+      // Cut the still-pending note on this pitch so it ends before this one
+      // starts. `plan` is read when the transport fires, so shortening it here
+      // still takes effect.
+      // `>=`, not `>`: LIME's pads hold a chord for exactly one bar and restrike
+      // it on the next, so the previous note ends on the very tick the next one
+      // starts. That is still an overlap as far as the synth is concerned — the
+      // release is not finished — so leave a real gap.
+      const previous = this.pending.get(key);
+      if (previous && previous.startTick + previous.duration >= e.time) {
+        previous.duration = Math.max(1, e.time - previous.startTick - RETRIGGER_GAP_TICKS);
+      }
+
+      const plan = { startTick: e.time, duration: e.duration };
+      this.pending.set(key, plan);
+
       transport.schedule((time) => {
-        const dur = Tone.Ticks(e.duration).toSeconds();
-        this.trigger(e, time, dur);
-      }, at);
+        if (this.pending.get(key) === plan) this.pending.delete(key);
+        this.trigger(e, time, Tone.Ticks(plan.duration).toSeconds());
+      }, `${e.time}i`);
     }
   }
+
+  /**
+   * Last trigger time per voice+pitch, so the same note is never restarted at
+   * or before its previous start.
+   *
+   * Tone's PolySynth reuses the voice already assigned to a pitch, so
+   * retriggering that pitch while it is still sounding calls start() on a
+   * running oscillator and throws "Start time must be strictly greater than
+   * previous start time". A repeated root note is completely ordinary music —
+   * a driving straight-eighth bass line does it all bar — so this is the
+   * engine's problem to absorb, not each palette's.
+   *
+   * Live playback mostly escaped it because the transport schedules a bar at a
+   * time; an offline render schedules the whole clip at once and any groove
+   * dense enough to repeat a pitch tightly kills the render.
+   */
+  private lastTrigger = new Map<string, number>();
 
   private trigger(e: MusicalEvent, time: number, dur: number): void {
     const chain = this.chains[e.voice as MixVoice];
     if (!chain) return; // e.g. texture — not realized in v0.2
-    chain.instrument.triggerNote(e.pitch, e.velocity, time, dur);
+
+    const key = `${e.voice}:${e.pitch}`;
+    const previous = this.lastTrigger.get(key);
+    // Never exactly zero. An OfflineAudioContext is created at time 0, so every
+    // source already carries a state entry there and starting one at 0 is
+    // rejected as not strictly later. Live playback never sees this because
+    // the context clock has always advanced past 0 before the first note.
+    let at = Math.max(time, 1e-3);
+    if (previous !== undefined) {
+      if (time < previous - 1) this.lastTrigger.delete(key); // transport restarted
+      else if (time <= previous) at = previous + 1e-4;
+    }
+    this.lastTrigger.set(key, at);
+
+    try {
+      chain.instrument.triggerNote(e.pitch, e.velocity, at, dur);
+    } catch (err) {
+      // One note that Tone refuses to schedule must not take the rest of the
+      // piece with it. Thrown from inside a transport callback this would kill
+      // playback outright in a browser, and abort a whole offline render — for
+      // a single inaudible click. Drop the note, count it, and keep playing.
+      //
+      // The count is not decoration: a handful of drops in a clip is noise, but
+      // a large number means the palette is genuinely broken and any judgement
+      // of that audio is worthless. Callers should read `droppedNotes`.
+      this.dropped++;
+      if (this.dropped === 1) {
+        const reason = err instanceof Error ? err.message : String(err);
+        this.firstDrop = `voice "${e.voice}" pitch ${e.pitch} at ${at.toFixed(4)}s: ${reason}`;
+      }
+    }
+  }
+
+  private dropped = 0;
+  private firstDrop = "";
+
+  /** Notes Tone refused to schedule, and why the first one failed. */
+  get droppedNotes(): { count: number; firstReason: string } {
+    return { count: this.dropped, firstReason: this.firstDrop };
   }
 
   setTempo(bpm: number): void {
