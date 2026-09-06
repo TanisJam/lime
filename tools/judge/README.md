@@ -16,10 +16,15 @@ No iterating by ear — the judge hears the exact same instruments as the browse
 
 ## Prerequisites
 
-- `fluidsynth` CLI and the SoundFont (`apps/demo/public/soundfonts/GeneralUser-GS.sf2`,
-  from `node apps/demo/scripts/setup-fluidsynth.mjs`).
+- `fluidsynth` CLI (`sudo apt install -y fluidsynth`) and the SoundFont
+  (`apps/demo/public/soundfonts/GeneralUser-GS.sf2`, from
+  `node apps/demo/scripts/setup-fluidsynth.mjs`).
 - Built packages: `pnpm -r --filter "./packages/**" build`.
-- A CUDA GPU (~16 GB) for the judge. `uv` for the Python env.
+- A CUDA GPU (~16 GB) for the judge. The Python env lives at
+  `/data/ai/judge/venv` (this machine keeps CUDA inside `uv` venvs and model
+  weights on `/data`, not in the repo), created by `~/scripts/setup-lime-judge.sh`.
+  Model weights land in `/data/ai/judge/models` via `HF_HOME`, set by
+  `source /data/ai/judge/env.sh`.
 
 ## Run
 
@@ -28,11 +33,11 @@ No iterating by ear — the judge hears the exact same instruments as the browse
 node tools/judge/render.mjs --genres=genre-metal,genre-rock-pop --seeds=1,2 --seconds=22
 
 # 2. One-time Python env (downloads torch, and ~16 GB model on first judge run)
-uv venv tools/judge/.venv
-uv pip install --python tools/judge/.venv -r tools/judge/requirements.txt
+~/scripts/setup-lime-judge.sh
 
 # 3. Judge
-tools/judge/.venv/bin/python tools/judge/judge.py tools/judge/out/manifest.json
+source /data/ai/judge/env.sh
+/data/ai/judge/venv/bin/python tools/judge/judge.py tools/judge/out/manifest.json
 ```
 
 Read `tools/judge/out/report.md` for the verdicts.
