@@ -25,18 +25,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "../..");
 const OUT = join(HERE, "out");
 const SF2 = join(REPO, "apps/demo/public/soundfonts/GeneralUser-GS.sf2");
-const TRACK_ORDER = ["pad", "bass", "melody", "motion", "percussion", "texture"];
 
 // Per-genre GM programs + lead-register folding — MIRROR of GM_PROGRAMS in
 // apps/demo/src/fluidRenderer.ts. Keep in sync so the WAV matches the browser.
-import { GM, STATE, GM_NAMES, NAMES, AUTHORED, STYLE_OVERRIDE, gmName, stylePack } from "./genreTables.mjs";
+import { GM, STATE, GM_NAMES, NAMES, AUTHORED, STYLE_OVERRIDE, gmName, stylePack, TRACK_ORDER, foldMelody } from "./genreTables.mjs";
 
-function foldMelody(pitch, cfg) {
-  let p = pitch + (cfg.melodyShift ?? 0);
-  if (cfg.melodyMax !== undefined) while (p > cfg.melodyMax) p -= 12;
-  if (cfg.melodyMin !== undefined) while (p < cfg.melodyMin) p += 12;
-  return p;
-}
 
 function emotionLabel(s) {
   const val = s.valence >= 0.55 ? "positive" : s.valence <= 0.45 ? "negative" : "neutral";
