@@ -27,6 +27,7 @@
   "license": "MIT",
   "packageManager": "pnpm@10.7.0",
   "devDependencies": {
+    "playwright": "^1.63.0",
     "typescript": "^5.5.4"
   }
 }
