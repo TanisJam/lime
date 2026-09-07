@@ -22,9 +22,14 @@ ways: `max` and `sum` over the 106 Electronic styles beat the 15 Funk ones the
 way a longer lottery ticket wins more often, while `mean` favours the small
 sets — Ambient is six styles, and left uncalibrated it swallowed seven of
 LIME's twelve genres. So the raw scores are z-scored per genre down the batch
-before anything is ranked. That needs a roughly class-balanced batch, which
-every LIME manifest is by construction, and it is what makes the columns
-comparable at all. Pass --raw to see the uncalibrated ranking.
+before anything is ranked, and that is what makes the columns comparable at all.
+
+Calibrating down the batch assumes the batch is roughly class-balanced. A full
+render is; a SWEEP is not — sixty-four variants of one genre would centre that
+genre's column on zero and delete the signal being measured. So a balanced run
+also writes its per-genre mean and spread, and an unbalanced one applies that
+instead of computing its own: fit the normaliser on balanced data, apply it to
+new data. Pass --raw to see the uncalibrated ranking.
 
 The 400-dim profile of every clip is cached next to the manifest, so comparing
 aggregators costs no inference.
@@ -33,10 +38,13 @@ Usage:
     /data/ai/ear/venv-essentia/bin/python tools/ear/tag-essentia.py <manifest.json> [--aggregate=mean]
 
 Aggregators: mean (default), max, sum, top3, argmax (winner-take-all over all 400).
+--calibration=<file.json> applies a saved calibration; a balanced run writes one.
 
 Output: <out_dir>/report-essentia.json (or report-essentia-maest.json) next to the manifest.
 """
 
+import collections
+import hashlib
 import json
 import os
 import re
@@ -187,14 +195,26 @@ def load_profiles(
     Inference dominates the runtime and the profile does not depend on the
     candidate set or the aggregator, so it is cached — per backend, since the
     two models put different numbers in the same 400 slots.
+
+    The key is a hash of the audio, not the file name. Re-rendering a genre
+    writes new audio to the same names, and a name-keyed cache would hand back
+    the old profile and report that the change did nothing.
     """
     cache_path = out_dir / f"essentia-profiles-{backend}.npz"
-    cached: dict[str, np.ndarray] = {}
+    stored: dict[str, np.ndarray] = {}
     if cache_path.exists():
         with np.load(cache_path) as data:
-            cached = {k: data[k] for k in data.files if data[k].shape == (n_classes,)}
+            stored = {k: data[k] for k in data.files if data[k].shape == (n_classes,)}
 
-    missing = [c for c in clips if c["file"] not in cached]
+    def key(clip: dict) -> str:
+        digest = hashlib.blake2b(
+            (out_dir / clip["file"]).read_bytes(), digest_size=16
+        ).hexdigest()
+        return f"{clip['file']}:{digest}"
+
+    keys = {clip["file"]: key(clip) for clip in clips}
+    cached = {k: v for k, v in stored.items() if k in set(keys.values())}
+    missing = [c for c in clips if keys[c["file"]] not in cached]
     if missing:
         print(f"Computing {len(missing)} {backend} profile(s) ({len(clips) - len(missing)} cached)")
         if backend == "maest":
@@ -217,11 +237,11 @@ def load_profiles(
         for i, clip in enumerate(missing, 1):
             wav_path = (out_dir / clip["file"]).resolve()
             audio = MonoLoader(filename=str(wav_path), sampleRate=SAMPLE_RATE, resampleQuality=4)()
-            cached[clip["file"]] = predict(audio)
+            cached[keys[clip["file"]]] = predict(audio)
             print(f"  [{i}/{len(missing)}] {clip['file'][:60]}", flush=True)
         np.savez_compressed(cache_path, **cached)
 
-    return cached
+    return {clip["file"]: cached[keys[clip["file"]]] for clip in clips}
 
 
 def main() -> int:
@@ -245,6 +265,9 @@ def main() -> int:
         return 2
 
     calibrate = "--raw" not in argv
+    calibration_arg = next(
+        (a.split("=", 1)[1] for a in argv if a.startswith("--calibration=")), None
+    )
 
     manifest_path = Path(args[0]).resolve()
     manifest = json.loads(manifest_path.read_text())
@@ -309,13 +332,32 @@ def main() -> int:
         else:
             raw.append({c: reduce(profile[idx]) for c, idx in columns.items()})
 
+    unscaled = [dict(r) for r in raw]
+    calibration: dict[str, list[float]] = {}
+    if calibrate and calibration_arg:
+        saved = json.loads(Path(calibration_arg).read_text())
+        missing = [c for c in candidates if c not in saved]
+        # Silently falling back to this batch would be the exact failure the
+        # saved calibration exists to prevent, and it would not look like one.
+        if missing:
+            print(
+                f"ERROR: {calibration_arg} has no calibration for: {', '.join(missing)}.\n"
+                "Produce it from a class-balanced run over the same candidates.",
+                file=sys.stderr,
+            )
+            return 2
+        calibration = saved
+
     if calibrate:
-        # Per-genre z-score down the batch. A genre whose styles simply score
-        # high on everything stops winning by default; only a clip that is
-        # unusually that genre *for this batch* does.
+        # Per-genre z-score. A genre whose styles simply score high on
+        # everything stops winning by default; only a clip that is unusually
+        # that genre does. The centre and spread come from a balanced run when
+        # one is supplied, and from this batch otherwise.
         for c in candidates:
             column = np.array([r[c] for r in raw])
-            centre, spread = float(column.mean()), float(column.std())
+            centre, spread = (
+                calibration[c] if calibration else (float(column.mean()), float(column.std()))
+            )
             for r, v in zip(raw, column):
                 r[c] = 0.0 if spread == 0 else float((v - centre) / spread)
 
@@ -348,6 +390,23 @@ def main() -> int:
         print(f"[{i}/{len(clips)}] {mark} {clip['file'][:38]:38} → {best[0].split(' (')[0]}", flush=True)
 
     suffix = "" if backend == "effnet" else f"-{backend}"
+
+    # A balanced run is the only one entitled to define the normaliser, so only
+    # a balanced run writes one. "Balanced" here means every candidate is the
+    # truth for the same number of clips.
+    if calibrate and not calibration:
+        per_class = collections.Counter(
+            (c.get("truth") or c.get("genreName") or c["genre"]) for c in clips
+        )
+        if set(per_class) == set(candidates) and len(set(per_class.values())) == 1:
+            stats = {}
+            for c in candidates:
+                column = np.array([r[c] for r in unscaled])
+                stats[c] = [float(column.mean()), float(column.std())]
+            path = out_dir / f"essentia-calibration{suffix}.json"
+            path.write_text(json.dumps(stats, indent=2, ensure_ascii=False))
+            print(f"Balanced batch — wrote {path}")
+
     (out_dir / f"report-essentia{suffix}.json").write_text(json.dumps(results, indent=2, ensure_ascii=False))
 
     md = ["# LIME ear report — Essentia genre_discogs400\n"]

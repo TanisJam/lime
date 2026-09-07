@@ -280,16 +280,47 @@ export class PercussionGenerator {
     return ev;
   }
 
-  /** Latin: son clave (3-2) on the shaker, supporting kick, straight hats. */
+  /**
+   * Latin: 3-2 son clave on claves, a one-drum conga tumbao, a bombo kick and a
+   * running shaker.
+   *
+   * The earlier version played the clave figure on the shaker — the softest
+   * timbre in the kit — over a kick on 1 and 3, so what came out was a rock
+   * backbeat with a decoration nobody could hear; classifiers read it as generic
+   * pop. What actually identifies the style is the clave figure and the conga
+   * tumbao, so both get real voices and sit on top, and the kick follows the
+   * bombo instead of the backbeat.
+   */
   private clave(ctx: BarContext, arc: number, dyn: number): NoteEvent[] {
     if (arc < 0.2) return [];
     const beat = ticksPerBeat(ctx.meter);
     const cell = (beat * ctx.meter.numerator) / 16;
+    const barLen = beat * ctx.meter.numerator;
     const ev: NoteEvent[] = [];
-    for (const step of [0, 3, 6, 10, 12]) this.hit(ev, ctx, cell * step, "shaker", 0.5 + 0.12 * dyn);
-    this.hit(ev, ctx, 0, "kick", 0.6 + 0.12 * dyn);
-    this.hit(ev, ctx, beat * 2, "kick", 0.55 + 0.12 * dyn);
-    for (let b = 0; b < ctx.meter.numerator; b++) this.hit(ev, ctx, beat * b, "hat", 0.3 + 0.1 * dyn);
+    // The pattern is written for a four-beat bar. In any other meter a position
+    // can land past the barline, and a hit there would belong to the next bar,
+    // so drop it rather than let the figure spill.
+    const place = (time: number, sound: PercussionSound, velocity: number): void => {
+      if (time < barLen) this.hit(ev, ctx, time, sound, velocity);
+    };
+
+    // The single most identifying figure in the style, so it is also the loudest.
+    for (const step of [0, 3, 6, 10, 12]) place(cell * step, "clave", 0.7 + 0.12 * dyn);
+
+    // One-drum tumbao: muted heel strokes keep the pulse, the slap answers them,
+    // and the two open tones at the end of the bar are what the ear recognizes.
+    place(0, "congaLow", 0.35);
+    place(cell * 8, "congaLow", 0.35);
+    place(cell * 4, "conga", 0.45);
+    place(cell * 12, "conga", 0.65 + 0.12 * dyn);
+    place(cell * 14, "conga", 0.65 + 0.12 * dyn);
+
+    // Bombo: a light anchor on the downbeat and the accent on the "and of 2".
+    place(0, "kick", 0.45);
+    place(cell * 6, "kick", 0.7 + 0.12 * dyn);
+
+    // The cascara/guiro layer — a continuous eighth-note bed under everything.
+    for (let i = 0; i < 8; i++) place((beat / 2) * i, "shaker", 0.28 + 0.08 * dyn);
     return ev;
   }
 }

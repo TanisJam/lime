@@ -31,6 +31,8 @@ const REPO = resolve(HERE, "../..");
 const SF2 = join(REPO, "apps/demo/public/soundfonts/GeneralUser-GS.sf2");
 const OUT = join(HERE, "out", "sweep");
 const EAR = "/data/ai/ear/venv/bin/python";
+const EAR_ESSENTIA = "/data/ai/ear/venv-essentia/bin/python";
+const EAR_MODELS = "/data/ai/ear/models";
 
 const arg = (n, d) => process.argv.find((a) => a.startsWith(`--${n}=`))?.split("=")[1] ?? d;
 
@@ -114,27 +116,62 @@ function renderVariant(program, knobValue, knobValue2) {
     }));
     execFileSync("fluidsynth", ["-ni", "-g", "0.8", "-r", "44100", "-F", wav, SF2, mid], { stdio: "ignore" });
     rmSync(mid, { force: true });
-    clips.push({ file: `${base}.wav`, genre, genreName: NAMES[genre], truth: NAMES[genre], seed, seconds });
+    clips.push({
+      file: `${base}.wav`, genre, genreName: NAMES[genre], truth: NAMES[genre],
+      seed, seconds, variant: tag,
+    });
   }
 
+  return clips;
+}
+
+/**
+ * Judges every variant at once, with every ear, and fuses them.
+ *
+ * One manifest for the whole sweep instead of one per variant: each clip is
+ * scored independently against the same twelve candidates either way, and
+ * batching turns dozens of model loads into three. It also lets the ears be
+ * calibrated across the batch, which is what makes their columns comparable.
+ *
+ * MuQ-MuLan alone is no longer enough. LIME's timbres and grooves were chosen
+ * by sweeping against it, so it is the one ear that cannot referee its own
+ * tuning; the two Essentia ears have never been in that loop. See
+ * tools/judge/README.md.
+ */
+function judgeAll(clips) {
   writeFileSync(join(OUT, "manifest.json"), JSON.stringify({
     sampleRate: 44100, task: "genre", candidates: CANDIDATES, clips,
   }, null, 2));
+  const manifest = join(OUT, "manifest.json");
+  const quiet = { stdio: "ignore", env: { ...process.env, HF_HOME: EAR_MODELS } };
+
+  execFileSync(EAR, [join(HERE, "../ear/tag.py"), manifest], quiet);
+  for (const backend of ["effnet", "maest"]) {
+    execFileSync(EAR_ESSENTIA, [join(HERE, "../ear/tag-essentia.py"), manifest, `--backend=${backend}`], quiet);
+  }
+  execFileSync("python3", [join(HERE, "../ear/fuse.py"), OUT], quiet);
+
+  const rows = JSON.parse(readFileSync(join(OUT, "report-fused.json"), "utf8"));
+  const truth = NAMES[genre];
+  const byVariant = new Map();
+  for (const r of rows) {
+    const order = Object.entries(r.scores).sort((a, b) => b[1] - a[1]);
+    // The rank of the true label is the signal that survives a 0/4. Latin was
+    // "broken" at zero hits while sitting second by a hair, and only the rank
+    // said so.
+    const rank = order.findIndex(([c]) => c === truth) + 1;
+    const v = byVariant.get(r.variant) ?? { hits: 0, total: 0, ranks: [], gaps: [], heard: new Map() };
+    v.total++;
+    if (order[0][0] === truth) v.hits++;
+    v.ranks.push(rank);
+    v.gaps.push(order[0][1] - r.scores[truth]);
+    v.heard.set(order[0][0], (v.heard.get(order[0][0]) ?? 0) + 1);
+    byVariant.set(r.variant, v);
+  }
+  return byVariant;
 }
 
-function judge() {
-  execFileSync(EAR, [join(HERE, "../ear/tag.py"), join(OUT, "manifest.json")], { stdio: "ignore" });
-  const rows = JSON.parse(readFileSync(join(OUT, "report-ear.json"), "utf8"));
-  const truth = NAMES[genre];
-  let hits = 0;
-  const heard = new Map();
-  for (const r of rows) {
-    const best = Object.entries(r.scores).sort((a, b) => b[1] - a[1])[0][0];
-    if (best === truth) hits++;
-    heard.set(best, (heard.get(best) ?? 0) + 1);
-  }
-  return { hits, total: rows.length, heard };
-}
+const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
 const sweepList = knob ? values : programs;
 console.log(
@@ -151,23 +188,41 @@ const pairs = knob2 && values2.length
 
 if (knob2) console.log(`  crossed with ${knob2}: ${values2.join(", ")} — ${pairs.length} combinations\n`);
 
-const results = [];
+const allClips = [];
+const labels = new Map();
 for (const [item, item2] of pairs) {
-  renderVariant(knob ? undefined : item, knob ? item : undefined, item2);
-  const { hits, total, heard } = judge();
-  results.push({ item, item2, hits, total, heard });
-  const top = [...heard.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2)
-    .map(([k, v]) => `${k} x${v}`).join(", ");
-  const label = knob
+  const clips = renderVariant(knob ? undefined : item, knob ? item : undefined, item2);
+  allClips.push(...clips);
+  labels.set(clips[0].variant, knob
     ? `${String(item)}${item2 !== undefined ? ` + ${item2}` : ""}`.padEnd(30)
-    : `${String(item).padStart(3)} ${gmName(item).padEnd(24)}`;
-  // Only the hits matter across dozens of rows; keep the misses quiet.
-  console.log(`  ${label} ${hits}/${total}${hits ? `   ${top}` : ""}`);
+    : `${String(item).padStart(3)} ${gmName(item).padEnd(24)}`);
+}
+console.log(`Rendered ${allClips.length} clip(s); judging with every ear...\n`);
+
+const byVariant = judgeAll(allClips);
+
+const results = [];
+for (const [variant, label] of labels) {
+  const v = byVariant.get(variant);
+  if (!v) continue;
+  const rank = mean(v.ranks);
+  const gap = mean(v.gaps);
+  results.push({ variant, label, ...v, rank, gap });
+  const top = [...v.heard.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2)
+    .map(([k, n]) => `${k} x${n}`).join(", ");
+  console.log(
+    `  ${label} ${v.hits}/${v.total}  rank ${rank.toFixed(2)}  gap ${gap.toFixed(3)}   ${top}`,
+  );
 }
 
-const best = results.reduce((a, b) => (b.hits > a.hits ? b : a));
+// Rank, not hits. A variant that moves the truth from fifth to second has told
+// us something even at zero hits, and picking by hits alone throws that away.
+const best = results.reduce((a, b) => (b.rank < a.rank ? b : a));
 console.log(
-  best.hits > 0
-    ? `\nBest: ${knob ?? "program"} ${best.item}${best.item2 !== undefined ? ` + ${knob2} ${best.item2}` : ""} at ${best.hits}/${best.total}`
-    : `\nNothing scored above zero. ${knob ? `${knob} is not what is wrong here.` : "The lead timbre is not what is wrong here."}`,
+  `\nBest by rank: ${best.label.trim()} — rank ${best.rank.toFixed(2)} of ${CANDIDATES.length}, ` +
+  `gap ${best.gap.toFixed(3)}, ${best.hits}/${best.total} hits`,
 );
+const baseline = results.find((r) => r.hits > 0) ? "" :
+  "\nNo variant scored a hit. Read the ranks: a rank near 2 is a near miss worth " +
+  "pushing on, a rank near the middle means this knob is not what is wrong.";
+if (baseline) console.log(baseline);

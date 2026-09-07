@@ -78,7 +78,11 @@ export const drumKitFactory: InstrumentFactory = (): LimeInstrument => {
     output,
     triggerNote(pitch, velocity, timeSec, durationSec) {
       const s = MIDI_TO_PERC.get(pitch) ?? "hat";
-      const smp = s === "kick" ? kick : s === "snare" ? snare : s === "tom" ? tom : hat;
+      // Congas go to the tom sample: it is the only drum here with a body, and
+      // on the hat sample they would come out as hi-hats. The clave stays on the
+      // hat, which is the short bright sample.
+      const isConga = s === "conga" || s === "congaLow";
+      const smp = s === "kick" ? kick : s === "snare" ? snare : s === "tom" || isConga ? tom : hat;
       smp.triggerAttackRelease("C2", Math.min(durationSec, 0.6), timeSec, s === "hat" ? velocity * 0.8 : velocity);
     },
     dispose() {

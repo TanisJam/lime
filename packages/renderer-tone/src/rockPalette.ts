@@ -207,6 +207,10 @@ export const rockKitFactory: InstrumentFactory = () => {
           break;
         case "snare":
         case "tom":
+        // Congas have a drum body, so the noise-plus-bandpass source is the
+        // closest thing here; on the hat branch they would read as hi-hats.
+        case "conga":
+        case "congaLow":
           // One source for both, so a tom and a snare on the same beat collide.
           snare.triggerAttackRelease(
             Math.min(Math.max(durationSec, 0.12), 0.24),
@@ -214,7 +218,7 @@ export const rockKitFactory: InstrumentFactory = () => {
             velocity,
           );
           break;
-        default:
+        default: // hat / shaker / clave — all short and bright
           hat.triggerAttackRelease(Math.min(durationSec, 0.06), nextHat(timeSec), velocity * 0.85);
           break;
       }

@@ -28,15 +28,33 @@ export const VOICES: readonly VoiceId[] = [
  * Abstract percussion sounds. Mapped to concrete synths by the renderer.
  * Pitches follow a General-MIDI-like convention for easy MIDI export.
  */
-export type PercussionSound = "kick" | "snare" | "hat" | "tom" | "shaker";
+export type PercussionSound =
+  | "kick"
+  | "snare"
+  | "hat"
+  | "tom"
+  | "shaker"
+  | "clave"
+  | "conga"
+  | "congaLow";
 
-/** GM-ish MIDI note numbers for percussion sounds (drum channel convention). */
+/**
+ * GM-ish MIDI note numbers for percussion sounds (drum channel convention).
+ *
+ * `clave`, `conga` and `congaLow` are the latin voices. They exist as their own
+ * sounds rather than as reused kit pieces because the GM drum map already gives
+ * them real timbres, so a MIDI export or a sampled kit plays an actual clave and
+ * an actual conga instead of a shaker standing in for both.
+ */
 export const PERCUSSION_MIDI: Record<PercussionSound, number> = {
   kick: 36,
   snare: 38,
   hat: 42,
   tom: 45,
   shaker: 70,
+  clave: 75,
+  conga: 63,
+  congaLow: 64,
 };
 
 /** A single note (or drum hit) placed on the timeline. */
