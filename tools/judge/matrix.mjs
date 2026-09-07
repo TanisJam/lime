@@ -95,6 +95,37 @@ console.log(`accuracy   : ${(accuracy * 100).toFixed(0)}%`);
 console.log(`chance     : ${(chance * 100).toFixed(0)}%  (${candidates.length} candidates)`);
 
 /**
+ * Top-1 throws away most of what the ear said. A clip whose true genre ranks
+ * second is a near miss; one that ranks ninth is a different failure entirely,
+ * and only the rank tells them apart. Reported whenever the report carries
+ * per-candidate `scores` — the judge's prose answers do not.
+ */
+const ranked = results
+  .filter((r) => r.scores && typeof r.scores === "object")
+  .map((r) => {
+    const order = Object.entries(r.scores).sort((a, b) => b[1] - a[1]);
+    return order.findIndex(([c]) => c === truthOf(r)) + 1;
+  })
+  .filter((rank) => rank > 0);
+
+if (ranked.length === rows.length && candidates.length > 2) {
+  const within = (k) => ranked.filter((rank) => rank <= k).length;
+  const mean = ranked.reduce((a, b) => a + b, 0) / ranked.length;
+  console.log(
+    `top-2      : ${within(2)}/${rows.length}` +
+      `  (chance ${((2 / candidates.length) * 100).toFixed(0)}%)`,
+  );
+  console.log(
+    `top-3      : ${within(3)}/${rows.length}` +
+      `  (chance ${((3 / candidates.length) * 100).toFixed(0)}%)`,
+  );
+  console.log(
+    `mean rank  : ${mean.toFixed(2)} of ${candidates.length}` +
+      `  (chance ${((candidates.length + 1) / 2).toFixed(2)})`,
+  );
+}
+
+/**
  * Raw accuracy is misleading at this sample size: with 12 clips and 12
  * candidates, scoring 2 correct still happens a quarter of the time by pure
  * guessing. So report the exact binomial tail, P(X >= correct), and let that

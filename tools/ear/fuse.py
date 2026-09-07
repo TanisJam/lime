@@ -25,7 +25,7 @@ It writes the SAME report shape as tag.py and judge.py --blind, so
 tools/judge/matrix.mjs scores it without changes.
 
 Usage:
-    python3 tools/ear/fuse.py <out_dir> [--ears=muq,effnet,maest] [--method=zscore|rrf]
+    python3 tools/ear/fuse.py <out_dir> [--ears=muq,effnet,maest] [--method=zscore|rrf] [--flat]
 
 Reads <out_dir>/report-{ear}.json for each ear; writes report-fused.json/.md.
 """
@@ -42,6 +42,14 @@ EAR_REPORTS = {
     "effnet": "report-essentia.json",
     "maest": "report-essentia-maest.json",
 }
+
+# Adding one z-score per ear treats them as independent witnesses, and two of
+# them are not: EfficientNet and MAEST share the Discogs taxonomy, the training
+# data and the classification head. They answer the same on 60% of the reference
+# corpus against 37% for either against MuQ-MuLan, and they share 19 wrong
+# answers against 12-14. So they vote once, as a family, and the vote is split
+# between them. Pass --flat to add every ear separately instead.
+FAMILIES = {"muq": ["muq"], "essentia": ["effnet", "maest"]}
 
 
 def z_scores(scores: dict[str, float]) -> dict[str, float]:
@@ -67,6 +75,7 @@ def main() -> int:
         print(__doc__)
         return 2
 
+    grouped = "--flat" not in argv
     method = next((a.split("=", 1)[1] for a in argv if a.startswith("--method=")), "zscore")
     if method not in ("zscore", "rrf"):
         print(f"ERROR: --method must be zscore or rrf, got {method!r}", file=sys.stderr)
@@ -123,10 +132,18 @@ def main() -> int:
             print(f"ERROR: {file} was judged against different candidate sets.", file=sys.stderr)
             return 2
 
+        groups = (
+            [[e for e in fam if e in records] for fam in FAMILIES.values()]
+            if grouped
+            else [[ear] for ear in ears]
+        )
         fused: dict[str, float] = {}
-        for record in records.values():
-            for candidate, value in normalise(record["scores"]).items():
-                fused[candidate] = fused.get(candidate, 0.0) + value
+        for group in groups:
+            if not group:
+                continue
+            for ear in group:
+                for candidate, value in normalise(records[ear]["scores"]).items():
+                    fused[candidate] = fused.get(candidate, 0.0) + value / len(group)
 
         ranked = sorted(fused.items(), key=lambda p: p[1], reverse=True)
         best, runner = ranked[0], ranked[1]

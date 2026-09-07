@@ -79,13 +79,28 @@ On the human reference corpus (72 clips, 9 classes, chance 11%):
 | MuQ-MuLan | 24/72 = 33% | |
 | Essentia EfficientNet | 31/72 = 43% | |
 | Essentia MAEST | 30/72 = 42% | |
-| **fused** | **37/72 = 51%** | McNemar vs MuQ-MuLan p=0.007 |
-| oracle (any ear right) | 44/72 = 61% | the headroom fusion does not reach |
+| **fused** | **38/72 = 53%** | McNemar vs MuQ-MuLan p=0.007 |
+| oracle (any ear right) | 44/72 = 61% | an upper bound, not a target |
 
 Picking a *subset* of ears was tried on one stratified half of that corpus and
 the winner did not survive the other half, so the rule is to use them all.
 Validated the same way, the fusion scores 19/36 on the held-out half against
 MuQ-MuLan's 11/36.
+
+The six clips between the fusion and the oracle do not come back. Reciprocal
+rank fusion, winner-take-all on the most confident ear, and 27 per-ear-per-class
+reliability weights fitted on one half were all measured on the other: every one
+of them lands between 35 and 38 of 72. The oracle assumes something that tells
+you which ear to trust on this clip, and no arithmetic over the scores
+reconstructs it. Treat 61% as a bound on this trio, not as work left to do.
+
+What the top-1 number hides is worth more. `matrix.mjs` now also reports where
+the true label ranks, and on LIME's own clips the two readouts tell opposite
+stories: MuQ-MuLan goes 28 → 29 → 32 from top-1 to top-3, so when it is wrong
+the right answer is nowhere near; the fusion goes 19 → 35 → 39. Its top-1 is
+worse and its ranking is far better, which is what a diagnostic wants. The
+useful question is rarely "did it get it right" — it is "how far down did the
+truth land, and under what".
 
 **On LIME's own clips the ranking inverts** — MuQ-MuLan 28/48, MAEST 10/48,
 EfficientNet 9/48, fused 15/48 — and that inversion is the reason to keep the
