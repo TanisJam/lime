@@ -73,6 +73,15 @@ const GENRES = {
     /jarre/i, /equinoxe/i, /oxygene/i, /rendez.vou/i, /axel.f/i, /popcorn/i,
     /kraftwerk/i, /autobahn/i, /depeche/i, /vangelis/i,
   ],
+  "Funk/R&B": [
+    /kool.*gang/i, /^celebration/i, /earth.wind/i, /superstition/i,
+    /play.that.funky/i, /wild.cherry/i, /\bprince\b/i, /rick.james/i,
+    /isley/i, /ohio.players/i, /average.white/i,
+  ],
+  "Pop": [
+    /michael.jackson/i, /madonna/i, /whitney/i, /cyndi.lauper/i, /\bwham\b/i,
+    /george.michael/i, /phil.collins/i, /lionel.richie/i, /tina.turner/i,
+  ],
   "metal or hard rock (distorted electric guitar, aggressive drums)": [
     /sabbath/i, /paranoid/i, /iron_man/i, /smoke.on.the.water/i, /\bacdc\b/i,
     /ac.dc/i, /soundgarden/i, /metallica/i, /queensryche/i, /deep.purple/i,
@@ -86,6 +95,10 @@ const GENRES = {
  * failing — a contaminated label is silent.
  */
 const DENY = [
+  /polovtsian|prince.igor/i,  // Borodin, matched on "Prince"
+  /2princes/i,                // Spin Doctors, rock
+  /disco.samba/i,             // already in the latin bucket
+
   /queens.of.the/i,
   /insect.queen/i,            // matched on "Queen"; not an identifiable track
   /bigger.than.the.beatles/i, // Joe Diffie (country), matched on "Beatles"
