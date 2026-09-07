@@ -79,7 +79,7 @@ On the human reference corpus (72 clips, 9 classes, chance 11%):
 | MuQ-MuLan | 24/72 = 33% | |
 | Essentia EfficientNet | 31/72 = 43% | |
 | Essentia MAEST | 30/72 = 42% | |
-| **fused** | **37/72 = 51%** | McNemar vs MuQ-MuLan p=0.001 |
+| **fused** | **37/72 = 51%** | McNemar vs MuQ-MuLan p=0.007 |
 | oracle (any ear right) | 44/72 = 61% | the headroom fusion does not reach |
 
 Picking a *subset* of ears was tried on one stratified half of that corpus and
