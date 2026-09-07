@@ -3,14 +3,19 @@ import { ROLE_REGISTERS } from "../src/harmony/Registers.js";
 import { LimeEngine } from "../src/engine/LimeEngine.js";
 import { testStyle } from "./helpers.js";
 import type { MusicalStatePatch } from "../src/state/MusicalState.js";
+import type { ChordStyle } from "../src/style/StylePack.js";
 
 function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
   return s[Math.floor(s.length / 2)]!;
 }
 
-function pitchesByVoice(state: MusicalStatePatch): Record<string, number[]> {
-  const engine = new LimeEngine({ seed: "registers", style: testStyle, initialState: state });
+function pitchesByVoice(
+  state: MusicalStatePatch,
+  overrides?: { chordStyle?: ChordStyle; keyPc?: number },
+): Record<string, number[]> {
+  const style = overrides ? { ...testStyle, ...overrides } : testStyle;
+  const engine = new LimeEngine({ seed: "registers", style, initialState: state });
   const out: Record<string, number[]> = { bass: [], pad: [], melody: [] };
   for (let b = 0; b < 96; b++) {
     for (const ev of engine.step().events) {
@@ -39,6 +44,26 @@ describe("register ownership", () => {
     // Voice leading picks only in-band voicings, so the pad never climbs into
     // the melody's range even under adventurous harmony. A small margin covers
     // the rare chord with no fully in-band voicing.
+    expect(Math.max(...p.pad!)).toBeLessThanOrEqual(ROLE_REGISTERS.pad.hi + 4);
+  });
+
+  // The test above pins two things without saying so: it leaves chordStyle unset,
+  // so it only ever walks the triad path through voiceLeadChord, and testStyle
+  // sits in C (keyPc 0). Each chordStyle reaches the pad through a different
+  // voicing function and they do not share the register logic, and the register
+  // is absolute while the key is not — a pack in A (rock's keyPc is 9) starts
+  // nine semitones higher with nothing folding it back. The invariant has to
+  // hold in every key, or it is an invariant about C.
+  const KEYS = [0, 3, 6, 9];
+  it.each(
+    (["triad", "power", "seventh"] as ChordStyle[]).flatMap((chordStyle) =>
+      KEYS.map((keyPc) => [chordStyle, keyPc] as const),
+    ),
+  )("holds the pad inside its register with %s chords in key %i", (chordStyle, keyPc) => {
+    const p = pitchesByVoice(
+      { energy: 0.8, tension: 0.6, brightness: 0.38, density: 0.6, complexity: 0.55, tempo: 126 },
+      { chordStyle, keyPc },
+    );
     expect(Math.max(...p.pad!)).toBeLessThanOrEqual(ROLE_REGISTERS.pad.hi + 4);
   });
 

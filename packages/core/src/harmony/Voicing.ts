@@ -25,6 +25,31 @@ const COMMON_TONE_BONUS = 1.5;
 /** Mild pull of the top voice toward the brightness-implied target register. */
 const BRIGHTNESS_WEIGHT = 0.5;
 
+/**
+ * Keep only the voicings that fit the pad's band, or all of them if none does.
+ *
+ * The band has to be enforced by selection rather than by cost: the continuity
+ * term compares against the previous voicing, so holding still is always free
+ * while stepping an octave is never cheap, and a soft penalty loses that
+ * argument every bar once the chord starts out of band.
+ */
+/**
+ * Octave shifts wide enough that some placement always reaches the band.
+ *
+ * `[-12, 0, 12]` is not: a chord spans up to an octave, so its top only fits
+ * under PAD_HIGH when its root sits near PAD_LOW, and a root seated high by the
+ * key cannot get there in one step. In A (keyPc 9) the fifth degree's root
+ * lands on 76 and needs -24 to come back inside.
+ */
+const OCTAVE_SHIFTS = [-36, -24, -12, 0, 12];
+
+function pickInBand(candidates: number[][]): number[][] {
+  const inBand = candidates.filter(
+    (c) => c[0]! >= PAD_LOW && c[c.length - 1]! <= PAD_HIGH,
+  );
+  return inBand.length > 0 ? inBand : candidates;
+}
+
 /** All inversions of a triad within an octave, each shifted ±12, sorted low→high. */
 function voicingCandidates(triad: number[]): number[][] {
   const [r, third, fifth] = triad as [number, number, number];
@@ -121,18 +146,28 @@ export function powerChordVoicing(
   targetTop: number,
 ): number[] {
   const root = chordPitches(chord, baseOctave)[0]!;
+  const candidates = OCTAVE_SHIFTS.map((shift) => {
+    const r = root + shift;
+    return [r, r + 7, r + 12]; // root, fifth, octave
+  });
+  // Hard band filter, as in voiceLeadChord. A penalty alone loses: staying put
+  // costs nothing against the previous voicing while moving an octave costs
+  // twelve, so once the key seats the chord high the pad never comes back down.
+  // That is not hypothetical — the pad's top tracked keyPc one-for-one, so a
+  // pack in A sat nine semitones above one in C and cleared the melody's floor.
+  const pool = pickInBand(candidates);
+
   let best: number[] | null = null;
   let bestCost = Infinity;
-  for (const shift of [-12, 0, 12]) {
-    const r = root + shift;
-    const voicing = [r, r + 7, r + 12]; // root, fifth, octave
+  for (const voicing of pool) {
+    const r = voicing[0]!;
     let cost = 0;
     if (r < PAD_LOW) cost += (PAD_LOW - r) * 2;
     if (r + 12 > PAD_HIGH) cost += (r + 12 - PAD_HIGH) * 2;
-    cost +=
-      previousVoicing && previousVoicing.length > 0
-        ? Math.abs(r - previousVoicing[0]!)
-        : Math.abs(r + 12 - targetTop);
+    if (previousVoicing && previousVoicing.length > 0) {
+      cost += Math.abs(r - previousVoicing[0]!);
+    }
+    cost += BRIGHTNESS_WEIGHT * Math.abs(r + 12 - targetTop);
     if (cost < bestCost) {
       bestCost = cost;
       best = voicing;
@@ -158,17 +193,17 @@ export function seventhChordVoicing(
   const base = [r, third, fifth, seventh];
   let best = base;
   let bestCost = Infinity;
-  for (const shift of [-12, 0, 12]) {
-    const v = base.map((p) => p + shift);
+  // Same hard band filter and same standing target as the other two voicings.
+  for (const v of pickInBand(OCTAVE_SHIFTS.map((shift) => base.map((p) => p + shift)))) {
     const low = v[0]!;
     const top = v[v.length - 1]!;
     let cost = 0;
     if (low < PAD_LOW) cost += (PAD_LOW - low) * 2;
     if (top > PAD_HIGH) cost += (top - PAD_HIGH) * 2;
-    cost +=
-      previousVoicing && previousVoicing.length > 0
-        ? Math.abs(low - previousVoicing[0]!)
-        : Math.abs(top - targetTop);
+    if (previousVoicing && previousVoicing.length > 0) {
+      cost += Math.abs(low - previousVoicing[0]!);
+    }
+    cost += BRIGHTNESS_WEIGHT * Math.abs(top - targetTop);
     if (cost < bestCost) {
       bestCost = cost;
       best = v;
