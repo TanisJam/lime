@@ -51,3 +51,32 @@ folding, tempo or mood in the app, update the mirrors here too.
 
 Not yet replicated: CC74 brightness cap (`melodyCut`) and pan. Add CC export to
 `@lime/midi` if the judge flags timbre issues that trace to those.
+
+## The ears
+
+Three instruments write the same report shape, so `matrix.mjs` scores any of
+them and they are directly comparable on identical clips.
+
+```bash
+# MuQ-MuLan — zero-shot, open label set, scores a sentence
+source /data/ai/ear/env.sh
+/data/ai/ear/venv/bin/python tools/ear/tag.py tools/judge/out/manifest.json
+
+# Essentia genre_discogs400 — supervised, closed 400-style taxonomy, CPU
+/data/ai/ear/venv-essentia/bin/python tools/ear/tag-essentia.py tools/judge/out/manifest.json
+
+# Fuse the two (parameter-free: per-clip z-scores, added)
+python3 tools/ear/fuse.py tools/judge/out
+
+node tools/judge/matrix.mjs tools/judge/out/report-fused.json
+```
+
+On the human reference corpus (72 clips, 9 classes, chance 11%) the fusion is
+the best ear measured: 34/72 against MuQ-MuLan's 24/72, McNemar p=0.041.
+
+**On LIME's own clips it is the opposite** — MuQ-MuLan 28/48, Essentia 9/48,
+fused 12/48 — and that gap is the reason to keep Essentia around. LIME's
+genres, timbres and grooves were chosen by sweeping against MuQ-MuLan, so
+MuQ-MuLan's 58% is partly a measure of that fitting. Essentia has never been in
+that loop. Tune with MuQ-MuLan; check with Essentia. A change that moves one
+and not the other moved the judge, not the music.
