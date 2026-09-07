@@ -42,6 +42,12 @@ const programs = (arg("programs") ?? "").split(",").filter(Boolean).map(Number);
 // being COMPOSED wrong, once the sound has been ruled out.
 const knob = arg("knob");
 const values = (arg("values") ?? "").split(",").filter(Boolean);
+// A second knob, swept as a full cross product with the first. Single-knob
+// sweeps came back empty for funk, latin and pop, which leaves the possibility
+// that a genre needs two things changed together — a groove is not funk
+// without the bass line that goes with it.
+const knob2 = arg("knob2");
+const values2 = (arg("values2") ?? "").split(",").filter(Boolean);
 
 /** Where each knob sits inside a StylePack. */
 const KNOB_PATH = {
@@ -73,9 +79,10 @@ const CANDIDATES = Object.values(NAMES).sort();
 
 mkdirSync(OUT, { recursive: true });
 
-function renderVariant(program, knobValue) {
-  const base = stylePack(genre);
-  const style = knobValue !== undefined ? KNOB_PATH[knob](base, knobValue) : base;
+function renderVariant(program, knobValue, knobValue2) {
+  let style = stylePack(genre);
+  if (knobValue !== undefined) style = KNOB_PATH[knob](style, knobValue);
+  if (knobValue2 !== undefined) style = KNOB_PATH[knob2](style, knobValue2);
   const state = STATE[genre];
   // Only override the program when sweeping programs. Writing `undefined` here
   // would drop the voice's GM program entirely and fall back to piano, so a
@@ -96,7 +103,9 @@ function renderVariant(program, knobValue) {
     const programs_ = {};
     for (const v of ["pad", "bass", "melody", "motion"]) if (cfg[v] !== undefined) programs_[v] = cfg[v];
 
-    const tag = knobValue !== undefined ? String(knobValue).replace(/[^a-z0-9-]/gi, "") : `p${program}`;
+    const tag = knobValue !== undefined
+      ? [knobValue, knobValue2].filter((v) => v !== undefined).join("-").replace(/[^a-z0-9-]/gi, "")
+      : `p${program}`;
     const base = `${genre}_${tag}_seed${seed}`;
     const mid = join(OUT, `${base}.mid`);
     const wav = join(OUT, `${base}.wav`);
@@ -136,20 +145,29 @@ console.log(
 if (!knob) console.log(`Baseline ${voice}: ${GM[genre][voice]} (${gmName(GM[genre][voice])})`);
 console.log(`Judged against ${CANDIDATES.length} candidates — chance ${(100 / CANDIDATES.length).toFixed(0)}%\n`);
 
+const pairs = knob2 && values2.length
+  ? sweepList.flatMap((a) => values2.map((b) => [a, b]))
+  : sweepList.map((a) => [a, undefined]);
+
+if (knob2) console.log(`  crossed with ${knob2}: ${values2.join(", ")} — ${pairs.length} combinations\n`);
+
 const results = [];
-for (const item of sweepList) {
-  renderVariant(knob ? undefined : item, knob ? item : undefined);
+for (const [item, item2] of pairs) {
+  renderVariant(knob ? undefined : item, knob ? item : undefined, item2);
   const { hits, total, heard } = judge();
-  results.push({ item, hits, total, heard });
+  results.push({ item, item2, hits, total, heard });
   const top = [...heard.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2)
     .map(([k, v]) => `${k} x${v}`).join(", ");
-  const label = knob ? String(item).padEnd(28) : `${String(item).padStart(3)} ${gmName(item).padEnd(24)}`;
-  console.log(`  ${label} ${hits}/${total}   ${top}`);
+  const label = knob
+    ? `${String(item)}${item2 !== undefined ? ` + ${item2}` : ""}`.padEnd(30)
+    : `${String(item).padStart(3)} ${gmName(item).padEnd(24)}`;
+  // Only the hits matter across dozens of rows; keep the misses quiet.
+  console.log(`  ${label} ${hits}/${total}${hits ? `   ${top}` : ""}`);
 }
 
 const best = results.reduce((a, b) => (b.hits > a.hits ? b : a));
 console.log(
   best.hits > 0
-    ? `\nBest: ${knob ?? "program"} ${best.item} at ${best.hits}/${best.total}`
+    ? `\nBest: ${knob ?? "program"} ${best.item}${best.item2 !== undefined ? ` + ${knob2} ${best.item2}` : ""} at ${best.hits}/${best.total}`
     : `\nNothing scored above zero. ${knob ? `${knob} is not what is wrong here.` : "The lead timbre is not what is wrong here."}`,
 );
