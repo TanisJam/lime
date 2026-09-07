@@ -199,7 +199,7 @@ export class FluidRenderer implements MusicRenderer {
 export const GM_PROGRAMS: Record<string, FluidPrograms> = {
   "genre-classical": { melody: 40, pad: 48, bass: 43, melodyMax: 79 },
   "genre-pop": { melody: 0, pad: 4, bass: 33, motion: 0, melodyMax: 76 },
-  "genre-rock-pop": { melody: 29, pad: 29, bass: 33, melodyMax: 76, melodyCut: 66 },
+  "genre-rock-pop": { melody: 29, pad: 28, bass: 33, melodyMax: 76, melodyCut: 66 },
   "genre-hiphop": { melody: 4, pad: 89, bass: 38, motion: 4, melodyMax: 76 },
   "genre-jazz": { melody: 66, pad: 4, bass: 32, motion: 0 },
   "genre-blues": { melody: 27, pad: 4, bass: 33, melodyMax: 76 },
