@@ -1,30 +1,33 @@
 #!/usr/bin/env python3
 """
-LIME "ear" — late fusion of MuQ-MuLan and Essentia genre_discogs400.
+LIME "ear" — late fusion of every available ear.
 
-On the human reference corpus the two instruments score 24/72 and 32/72, but at
-least one of them is right on 42/72. They are not a better and a worse ear;
-they are deaf in different places — Essentia hears classical and metal, MuQ-MuLan
-hears latin. All that headroom lives in combining them, not in picking one.
+Three instruments listen to the same clips: MuQ-MuLan (zero-shot, open label
+set), Essentia genre_discogs400 on EfficientNet, and the same head on MAEST.
+On the human reference corpus they score 24, 31 and 30 out of 72 — but at least
+one of them is right on 44 of those 72. They are not a better and a worse ear;
+they are deaf in different places, and all the headroom is in combining them.
 
-The fusion is deliberately free of tunable parameters. Each ear's scores for a
-clip are z-scored across the candidates — which is the only way to compare a
-cosine similarity with a mean sigmoid probability — and the two z-scores are
-added. There is no weight, no temperature and no threshold, so there is nothing
-here that can be quietly fitted to the corpus it is measured on.
+The fusion is deliberately free of tunable parameters and of choices. Each ear's
+scores for a clip are z-scored across the candidates — the only way to compare a
+cosine similarity with a mean sigmoid probability — and the z-scores are added.
+Every ear present is used; there is no weight, no temperature, no threshold and
+no subset to pick, so there is nothing here that can be quietly fitted to the
+corpus it is measured on. Choosing the subset was tried on one stratified half
+of the reference corpus and the winner did not survive the other half, which is
+exactly why the rule is "use them all".
 
-`--method=rrf` is the same idea over ranks instead of scores (reciprocal rank
-fusion), kept as a check: if the two methods disagree a lot, the z-scores are
-being driven by one ear's outliers.
+`--method=rrf` is the same idea over ranks (reciprocal rank fusion), kept as a
+check: if the two methods disagree a lot, one ear's outliers are driving the
+z-scores.
 
 It writes the SAME report shape as tag.py and judge.py --blind, so
 tools/judge/matrix.mjs scores it without changes.
 
 Usage:
-    python3 tools/ear/fuse.py <out_dir> [--method=zscore|rrf]
+    python3 tools/ear/fuse.py <out_dir> [--ears=muq,effnet,maest] [--method=zscore|rrf]
 
-Reads <out_dir>/report-ear.json and report-essentia.json.
-Writes <out_dir>/report-fused.json and report-fused.md.
+Reads <out_dir>/report-{ear}.json for each ear; writes report-fused.json/.md.
 """
 
 import json
@@ -33,6 +36,12 @@ import sys
 from pathlib import Path
 
 RRF_K = 60  # The constant from the original RRF paper, not tuned here.
+
+EAR_REPORTS = {
+    "muq": "report-ear.json",
+    "effnet": "report-essentia.json",
+    "maest": "report-essentia-maest.json",
+}
 
 
 def z_scores(scores: dict[str, float]) -> dict[str, float]:
@@ -65,72 +74,92 @@ def main() -> int:
     normalise = z_scores if method == "zscore" else rrf_scores
 
     out_dir = Path(args[0]).resolve()
-    reports = {}
-    for name, filename in (("muq", "report-ear.json"), ("essentia", "report-essentia.json")):
+    wanted = next((a.split("=", 1)[1].split(",") for a in argv if a.startswith("--ears=")), None)
+
+    reports: dict[str, dict[str, dict]] = {}
+    for ear, filename in EAR_REPORTS.items():
+        if wanted is not None and ear not in wanted:
+            continue
         path = out_dir / filename
         if not path.exists():
-            print(f"ERROR: missing {path}. Run both ears on this manifest first.", file=sys.stderr)
-            return 2
-        reports[name] = {r["file"]: r for r in json.loads(path.read_text())}
+            # An explicitly named ear must be there; an implicit one may not be.
+            if wanted is not None:
+                print(f"ERROR: missing {path}", file=sys.stderr)
+                return 2
+            continue
+        reports[ear] = {r["file"]: r for r in json.loads(path.read_text())}
 
-    muq, essentia = reports["muq"], reports["essentia"]
-    files = [f for f in muq if f in essentia]
-    if not files:
-        print("ERROR: the two reports share no clips.", file=sys.stderr)
+    unknown = [e for e in (wanted or []) if e not in EAR_REPORTS]
+    if unknown:
+        print(f"ERROR: unknown ear(s) {unknown}; known: {', '.join(EAR_REPORTS)}", file=sys.stderr)
         return 2
-    if len(files) != len(muq) or len(files) != len(essentia):
-        # Fusing a partial overlap would score a different clip set than either
-        # ear did, and the three numbers would stop being comparable.
+    if len(reports) < 2:
         print(
-            f"ERROR: reports disagree on clips — muq {len(muq)}, essentia {len(essentia)}, "
-            f"shared {len(files)}. Re-run both on the same manifest.",
+            f"ERROR: found {len(reports)} ear report(s) in {out_dir}. Run at least two ears "
+            "on this manifest first.",
             file=sys.stderr,
         )
         return 2
 
+    sizes = {ear: len(r) for ear, r in reports.items()}
+    files = sorted(set.intersection(*(set(r) for r in reports.values())))
+    # Fusing a partial overlap would score a different clip set than the ears
+    # did, and the numbers would stop being comparable.
+    if len(set(sizes.values())) != 1 or len(files) != next(iter(sizes.values())):
+        print(
+            f"ERROR: ear reports disagree on clips ({sizes}, shared {len(files)}). "
+            "Re-run every ear on the same manifest.",
+            file=sys.stderr,
+        )
+        return 2
+
+    ears = list(reports)
     results = []
-    agreed = 0
+    unanimous = 0
     for file in files:
-        a, b = muq[file], essentia[file]
-        candidates = set(a["scores"]) & set(b["scores"])
-        if candidates != set(a["scores"]) or candidates != set(b["scores"]):
+        records = {ear: reports[ear][file] for ear in ears}
+        candidate_sets = [frozenset(r["scores"]) for r in records.values()]
+        if len(set(candidate_sets)) != 1:
             print(f"ERROR: {file} was judged against different candidate sets.", file=sys.stderr)
             return 2
 
-        za, zb = normalise(a["scores"]), normalise(b["scores"])
-        fused = {c: za[c] + zb[c] for c in candidates}
+        fused: dict[str, float] = {}
+        for record in records.values():
+            for candidate, value in normalise(record["scores"]).items():
+                fused[candidate] = fused.get(candidate, 0.0) + value
+
         ranked = sorted(fused.items(), key=lambda p: p[1], reverse=True)
         best, runner = ranked[0], ranked[1]
 
-        top = lambda r: r["verdict"].split("\n")[0].split("BEST MATCH:", 1)[1].strip()
-        agreed += top(a) == top(b)
+        heard = {
+            ear: r["verdict"].split("\n")[0].split("BEST MATCH:", 1)[1].strip()
+            for ear, r in records.items()
+        }
+        unanimous += len(set(heard.values())) == 1
 
         verdict = (
             f"1. BEST MATCH: {best[0]}\n"
             f"2. RUNNER-UP: {runner[0]}\n"
             f"3. SCORES: " + ", ".join(f"{c}={s:.4f}" for c, s in ranked)
         )
-        clip = {k: v for k, v in a.items() if k not in ("verdict", "scores")}
-        results.append({
-            **clip,
-            "verdict": verdict,
-            "scores": fused,
-            "ears": {"muq": top(a), "essentia": top(b)},
-        })
+        first = records[ears[0]]
+        clip = {k: v for k, v in first.items() if k not in ("verdict", "scores", "topStyles")}
+        results.append({**clip, "verdict": verdict, "scores": fused, "ears": heard})
 
     (out_dir / "report-fused.json").write_text(json.dumps(results, indent=2, ensure_ascii=False))
 
-    md = [f"# LIME ear report — MuQ-MuLan + Essentia fused ({method})\n"]
+    md = [f"# LIME ear report — {' + '.join(ears)} fused ({method})\n"]
     for r in results:
         md.append(f"## {r.get('truth') or r.get('genreName')} (`{r['file']}`)")
         md.append("")
         md.append(r["verdict"])
         md.append("")
-        md.append(f"Ears: MuQ-MuLan → {r['ears']['muq']}, Essentia → {r['ears']['essentia']}")
+        md.append("Ears: " + ", ".join(f"{e} → {v}" for e, v in r["ears"].items()))
         md.append("")
     (out_dir / "report-fused.md").write_text("\n".join(md))
 
-    print(f"{len(results)} clip(s) fused by {method}; the two ears agreed on {agreed}.")
+    print(f"{len(results)} clip(s) fused by {method} over {', '.join(ears)}; "
+          f"all agreed on {unanimous}.")
     print(f"Wrote {out_dir/'report-fused.md'} and report-fused.json")
     return 0
 

@@ -64,19 +64,36 @@ source /data/ai/ear/env.sh
 
 # Essentia genre_discogs400 — supervised, closed 400-style taxonomy, CPU
 /data/ai/ear/venv-essentia/bin/python tools/ear/tag-essentia.py tools/judge/out/manifest.json
+/data/ai/ear/venv-essentia/bin/python tools/ear/tag-essentia.py tools/judge/out/manifest.json --backend=maest
 
-# Fuse the two (parameter-free: per-clip z-scores, added)
+# Fuse them (parameter-free: per-clip z-scores, added; every ear present is used)
 python3 tools/ear/fuse.py tools/judge/out
 
 node tools/judge/matrix.mjs tools/judge/out/report-fused.json
 ```
 
-On the human reference corpus (72 clips, 9 classes, chance 11%) the fusion is
-the best ear measured: 34/72 against MuQ-MuLan's 24/72, McNemar p=0.041.
+On the human reference corpus (72 clips, 9 classes, chance 11%):
 
-**On LIME's own clips it is the opposite** — MuQ-MuLan 28/48, Essentia 9/48,
-fused 12/48 — and that gap is the reason to keep Essentia around. LIME's
-genres, timbres and grooves were chosen by sweeping against MuQ-MuLan, so
-MuQ-MuLan's 58% is partly a measure of that fitting. Essentia has never been in
-that loop. Tune with MuQ-MuLan; check with Essentia. A change that moves one
-and not the other moved the judge, not the music.
+| ear | correct | |
+|---|---|---|
+| MuQ-MuLan | 24/72 = 33% | |
+| Essentia EfficientNet | 31/72 = 43% | |
+| Essentia MAEST | 30/72 = 42% | |
+| **fused** | **37/72 = 51%** | McNemar vs MuQ-MuLan p=0.001 |
+| oracle (any ear right) | 44/72 = 61% | the headroom fusion does not reach |
+
+Picking a *subset* of ears was tried on one stratified half of that corpus and
+the winner did not survive the other half, so the rule is to use them all.
+Validated the same way, the fusion scores 19/36 on the held-out half against
+MuQ-MuLan's 11/36.
+
+**On LIME's own clips the ranking inverts** — MuQ-MuLan 28/48, MAEST 10/48,
+EfficientNet 9/48, fused 15/48 — and that inversion is the reason to keep the
+other two. MuQ-MuLan does *better* on LIME's procedural music (58%) than on
+human arrangements (33%), which is backwards; both Essentia ears go the
+expected way. LIME's genres, timbres and grooves were chosen by sweeping
+against MuQ-MuLan, so a good part of that 58% is a measure of the sweep. The
+other two ears have never been in that loop.
+
+Tune with MuQ-MuLan; check with the others. A change that moves one and not the
+rest moved the judge, not the music.

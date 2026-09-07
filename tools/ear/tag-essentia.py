@@ -34,7 +34,7 @@ Usage:
 
 Aggregators: mean (default), max, sum, top3, argmax (winner-take-all over all 400).
 
-Output: <out_dir>/report-essentia.json and report-essentia.md next to the manifest.
+Output: <out_dir>/report-essentia.json (or report-essentia-maest.json) next to the manifest.
 """
 
 import json
@@ -50,12 +50,18 @@ from essentia.standard import (
     MonoLoader,
     TensorflowPredict2D,
     TensorflowPredictEffnetDiscogs,
+    TensorflowPredictMAEST,
 )
 
 MODEL_DIR = Path(os.environ.get("EAR_MODELS", "/data/ai/ear/models/essentia"))
 EMBEDDING_PB = MODEL_DIR / "discogs-effnet-bs64-1.pb"
 CLASSIFIER_PB = MODEL_DIR / "genre_discogs400-discogs-effnet-1.pb"
 CLASSIFIER_JSON = MODEL_DIR / "genre_discogs400-discogs-effnet-1.json"
+# MAEST carries the same 400-style head inside the transformer, so it needs no
+# separate classifier and lands in exactly the same label space. The 20s window
+# is the largest that fits a 22s clip without padding it with silence.
+MAEST_PB = MODEL_DIR / "discogs-maest-20s-pw-2.pb"
+BACKENDS = ("effnet", "maest")
 SAMPLE_RATE = 16000
 
 # Rock styles that read as metal or hard rock rather than as rock.
@@ -167,14 +173,22 @@ def map_candidate(candidate: str) -> str | None:
     return None
 
 
-def load_profiles(out_dir: Path, clips: list[dict], n_classes: int) -> dict[str, np.ndarray]:
+def maest_profile(model, audio: np.ndarray) -> np.ndarray:
+    """Mean sigmoid over MAEST's patches. Its head emits logits, not scores."""
+    logits = np.array(model(audio)).reshape(-1, 400)
+    return 1.0 / (1.0 + np.exp(-logits.mean(axis=0)))
+
+
+def load_profiles(
+    out_dir: Path, clips: list[dict], n_classes: int, backend: str
+) -> dict[str, np.ndarray]:
     """Return one 400-dim activation profile per clip, computing what is missing.
 
     Inference dominates the runtime and the profile does not depend on the
-    candidate set or the aggregator, so it is cached. The cache is keyed by
-    file name and silently ignored when the shape no longer matches.
+    candidate set or the aggregator, so it is cached — per backend, since the
+    two models put different numbers in the same 400 slots.
     """
-    cache_path = out_dir / "essentia-profiles.npz"
+    cache_path = out_dir / f"essentia-profiles-{backend}.npz"
     cached: dict[str, np.ndarray] = {}
     if cache_path.exists():
         with np.load(cache_path) as data:
@@ -182,20 +196,28 @@ def load_profiles(out_dir: Path, clips: list[dict], n_classes: int) -> dict[str,
 
     missing = [c for c in clips if c["file"] not in cached]
     if missing:
-        print(f"Computing {len(missing)} profile(s) ({len(clips) - len(missing)} cached)")
-        embedder = TensorflowPredictEffnetDiscogs(
-            graphFilename=str(EMBEDDING_PB), output="PartitionedCall:1"
-        )
-        classifier = TensorflowPredict2D(
-            graphFilename=str(CLASSIFIER_PB),
-            input="serving_default_model_Placeholder",
-            output="PartitionedCall:0",
-        )
+        print(f"Computing {len(missing)} {backend} profile(s) ({len(clips) - len(missing)} cached)")
+        if backend == "maest":
+            maest = TensorflowPredictMAEST(
+                graphFilename=str(MAEST_PB), output="PartitionedCall/Identity"
+            )
+            predict = lambda audio: maest_profile(maest, audio)
+        else:
+            embedder = TensorflowPredictEffnetDiscogs(
+                graphFilename=str(EMBEDDING_PB), output="PartitionedCall:1"
+            )
+            classifier = TensorflowPredict2D(
+                graphFilename=str(CLASSIFIER_PB),
+                input="serving_default_model_Placeholder",
+                output="PartitionedCall:0",
+            )
+            # One row per patch of audio; the clip's profile is their mean.
+            predict = lambda audio: np.mean(classifier(embedder(audio)), axis=0)
+
         for i, clip in enumerate(missing, 1):
             wav_path = (out_dir / clip["file"]).resolve()
             audio = MonoLoader(filename=str(wav_path), sampleRate=SAMPLE_RATE, resampleQuality=4)()
-            # One row per patch of audio; the clip's profile is their mean.
-            cached[clip["file"]] = np.mean(classifier(embedder(audio)), axis=0)
+            cached[clip["file"]] = predict(audio)
             print(f"  [{i}/{len(missing)}] {clip['file'][:60]}", flush=True)
         np.savez_compressed(cache_path, **cached)
 
@@ -215,6 +237,11 @@ def main() -> int:
             f"ERROR: --aggregate must be one of {', '.join(AGGREGATORS)}, got {aggregate!r}",
             file=sys.stderr,
         )
+        return 2
+
+    backend = next((a.split("=", 1)[1] for a in argv if a.startswith("--backend=")), "effnet")
+    if backend not in BACKENDS:
+        print(f"ERROR: --backend must be one of {', '.join(BACKENDS)}, got {backend!r}", file=sys.stderr)
         return 2
 
     calibrate = "--raw" not in argv
@@ -266,7 +293,7 @@ def main() -> int:
         f"aggregate = {aggregate}"
     )
 
-    profiles = load_profiles(out_dir, clips, len(classes))
+    profiles = load_profiles(out_dir, clips, len(classes), backend)
 
     reduce = AGGREGATORS[aggregate]
 
@@ -320,7 +347,8 @@ def main() -> int:
         mark = "OK" if best[0] == truth else "  "
         print(f"[{i}/{len(clips)}] {mark} {clip['file'][:38]:38} → {best[0].split(' (')[0]}", flush=True)
 
-    (out_dir / "report-essentia.json").write_text(json.dumps(results, indent=2, ensure_ascii=False))
+    suffix = "" if backend == "effnet" else f"-{backend}"
+    (out_dir / f"report-essentia{suffix}.json").write_text(json.dumps(results, indent=2, ensure_ascii=False))
 
     md = ["# LIME ear report — Essentia genre_discogs400\n"]
     for r in results:
@@ -330,9 +358,9 @@ def main() -> int:
         md.append("")
         md.append("Top Discogs styles: " + ", ".join(f"{k} ({v:.3f})" for k, v in r["topStyles"].items()))
         md.append("")
-    (out_dir / "report-essentia.md").write_text("\n".join(md))
+    (out_dir / f"report-essentia{suffix}.md").write_text("\n".join(md))
 
-    print(f"\nWrote {out_dir/'report-essentia.md'} and report-essentia.json")
+    print(f"\nWrote {out_dir/f'report-essentia{suffix}.md'} and report-essentia{suffix}.json")
     return 0
 
 
