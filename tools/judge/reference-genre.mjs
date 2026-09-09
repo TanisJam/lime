@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Genre positive control for the judge, built from a general MIDI collection.
+ * Retained non-authoritative genre heuristic experiment for the judge, built
+ * from a general MIDI collection. Its filename/artist-derived labels cannot
+ * establish calibration trust; use the reviewed calibration registry instead.
  *
  * The emotion control (reference.mjs, EMOPIA) used solo piano — the poorest
  * possible material for genre, since every clip has the same timbre and no

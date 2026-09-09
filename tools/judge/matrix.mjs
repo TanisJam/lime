@@ -1,158 +1,306 @@
 #!/usr/bin/env node
 /**
- * Scores a BLIND judge run: does the model actually hear genre?
+ * Scores judge and ear reports, with class-level gates for calibration corpora.
  *
- * Reads report-blind.json (produced by `judge.py --blind`), parses each clip's
- * "1. BEST GENRE" line, and compares it against the clip's true genre. In blind
- * mode the model is never told what a clip is meant to be, so a correct answer
- * is evidence of real discrimination rather than an echo of the prompt.
- *
- * The number that matters is accuracy vs. chance (1/N for N candidate genres).
- * Near chance means the judge cannot gate anything and the harness needs a
- * different verifier.
+ * Prose-only reports retain the legacy top-1, chance, and exact-binomial output.
+ * Reports with numeric scores receive deterministic per-class rank and confusion
+ * metrics, so a passing aggregate cannot hide a class that is unfit for tuning.
  *
  * Usage:
- *   node tools/judge/matrix.mjs [tools/judge/out/report-blind.json]
+ *   node tools/judge/matrix.mjs [--json] [tools/judge/out/report-fused.json]
  */
 
-import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const path = resolve(process.argv[2] ?? join(HERE, "out", "report-blind.json"));
+import {
+  CALIBRATION_SCHEMA_VERSION,
+  rankScores,
+  summarizeCalibration,
+} from "./calibration-corpus.mjs";
 
-let results;
-try {
-  results = JSON.parse(readFileSync(path, "utf8"));
-} catch {
-  console.error(
-    `Cannot read ${path}. Run the blind judge first:\n` +
-      `  /data/ai/judge/venv/bin/python tools/judge/judge.py tools/judge/out/manifest.json --blind`,
-  );
-  process.exit(1);
+const HERE = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_REPORT_PATH = join(HERE, "out", "report-blind.json");
+
+function truthOf(result) {
+  return result.truth ?? result.genreName ?? result.genre;
 }
 
-// A reference run carries its own ground truth ("truth") and its own label set;
-// a LIME run is labelled by genre. Both reduce to the same comparison.
-const truthOf = (r) => r.truth ?? r.genreName ?? r.genre;
-const candidates = [...new Set(results.map(truthOf))].sort();
+function matrixError(message) {
+  return new Error(`Invalid matrix report: ${message}`);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 /**
- * Pull the model's committed answer off the "1. BEST GENRE: X" line. The model
- * does not always keep the exact numbering, so fall back to the first line that
- * mentions a candidate name.
+ * Pull the model's committed answer off a BEST GENRE/MATCH line. The model does
+ * not always keep the exact numbering, so fall back to the first candidate name
+ * mentioned in the report.
  */
-function parseBest(verdict) {
-  const lines = verdict.split("\n").map((l) => l.trim()).filter(Boolean);
-
-  const labelled = lines.find((l) => /best\s*(genre|match)/i.test(l));
+export function parseBest(verdict, candidates) {
+  const lines = String(verdict ?? "").split("\n").map((line) => line.trim()).filter(Boolean);
+  const labelled = lines.find((line) => /best\s*(genre|match)/i.test(line));
   const scan = labelled ? [labelled] : lines;
 
   for (const line of scan) {
-    // Longest names first so "Rock/Pop" wins over a bare "Pop" substring.
     const hit = [...candidates]
-      .sort((a, b) => b.length - a.length)
-      .find((g) => line.toLowerCase().includes(g.toLowerCase()));
+      .sort((left, right) => right.length - left.length)
+      .find((candidate) => line.toLowerCase().includes(candidate.toLowerCase()));
     if (hit) return hit;
 
-    // The model routinely ignores "copy the entry verbatim" and answers with the
-    // head word alone ("happy" for "happy (high arousal, positive valence)").
-    // Refusing to parse that would score the tool's strictness, not the model.
     const head = [...candidates]
-      .map((c) => [c, c.split(/[\s(]/)[0]])
-      .sort((a, b) => b[1].length - a[1].length)
-      .find(([, w]) => new RegExp(`\\b${w}\\b`, "i").test(line));
+      .map((candidate) => [candidate, candidate.split(/[\s(]/)[0]])
+      .sort((left, right) => right[1].length - left[1].length)
+      .find(([, word]) => new RegExp(`\\b${escapeRegExp(word)}\\b`, "i").test(line));
     if (head) return head[0];
   }
   return null;
 }
 
-const rows = results.map((r) => {
-  const truth = truthOf(r);
-  const heard = parseBest(r.verdict ?? "");
-  return { truth, heard, correct: heard === truth };
-});
-
-const parsed = rows.filter((r) => r.heard !== null);
-const correct = rows.filter((r) => r.correct).length;
-const chance = 1 / candidates.length;
-const accuracy = correct / rows.length;
-
-const pad = (s, n) => String(s).padEnd(n);
-const width = Math.max(...rows.map((r) => r.truth.length), 8) + 2;
-
-console.log("BLIND GENRE IDENTIFICATION\n");
-console.log(`${pad("intended", width)}${pad("heard", width)}ok`);
-console.log("-".repeat(width * 2 + 3));
-for (const r of rows) {
-  console.log(`${pad(r.truth, width)}${pad(r.heard ?? "(unparsed)", width)}${r.correct ? "OK" : ""}`);
-}
-
-console.log(`\nparsed     : ${parsed.length}/${rows.length}`);
-console.log(`correct    : ${correct}/${rows.length}`);
-console.log(`accuracy   : ${(accuracy * 100).toFixed(0)}%`);
-console.log(`chance     : ${(chance * 100).toFixed(0)}%  (${candidates.length} candidates)`);
-
-/**
- * Top-1 throws away most of what the ear said. A clip whose true genre ranks
- * second is a near miss; one that ranks ninth is a different failure entirely,
- * and only the rank tells them apart. Reported whenever the report carries
- * per-candidate `scores` — the judge's prose answers do not.
- */
-const ranked = results
-  .filter((r) => r.scores && typeof r.scores === "object")
-  .map((r) => {
-    const order = Object.entries(r.scores).sort((a, b) => b[1] - a[1]);
-    return order.findIndex(([c]) => c === truthOf(r)) + 1;
-  })
-  .filter((rank) => rank > 0);
-
-if (ranked.length === rows.length && candidates.length > 2) {
-  const within = (k) => ranked.filter((rank) => rank <= k).length;
-  const mean = ranked.reduce((a, b) => a + b, 0) / ranked.length;
-  console.log(
-    `top-2      : ${within(2)}/${rows.length}` +
-      `  (chance ${((2 / candidates.length) * 100).toFixed(0)}%)`,
-  );
-  console.log(
-    `top-3      : ${within(3)}/${rows.length}` +
-      `  (chance ${((3 / candidates.length) * 100).toFixed(0)}%)`,
-  );
-  console.log(
-    `mean rank  : ${mean.toFixed(2)} of ${candidates.length}` +
-      `  (chance ${((candidates.length + 1) / 2).toFixed(2)})`,
-  );
-}
-
-/**
- * Raw accuracy is misleading at this sample size: with 12 clips and 12
- * candidates, scoring 2 correct still happens a quarter of the time by pure
- * guessing. So report the exact binomial tail, P(X >= correct), and let that
- * decide the verdict instead of an eyeballed accuracy threshold.
- */
-function binomialTail(k, n, p) {
-  const logFact = (m) => {
-    let s = 0;
-    for (let i = 2; i <= m; i++) s += Math.log(i);
-    return s;
+/** The exact upper tail P(X >= k) for a binomial(n, p). */
+export function binomialTail(k, n, probability) {
+  if (k <= 0 || k >= n) return 1;
+  const logFactorial = (value) => {
+    let result = 0;
+    for (let index = 2; index <= value; index += 1) result += Math.log(index);
+    return result;
   };
   let below = 0;
-  for (let i = 0; i < k; i++) {
-    const logP =
-      logFact(n) - logFact(i) - logFact(n - i) + i * Math.log(p) + (n - i) * Math.log(1 - p);
-    below += Math.exp(logP);
+  for (let successes = 0; successes < k; successes += 1) {
+    const logProbability =
+      logFactorial(n) -
+      logFactorial(successes) -
+      logFactorial(n - successes) +
+      successes * Math.log(probability) +
+      (n - successes) * Math.log(1 - probability);
+    below += Math.exp(logProbability);
   }
-  return 1 - below;
+  return Math.max(0, Math.min(1, 1 - below));
 }
 
-const pValue = binomialTail(correct, rows.length, chance);
-console.log(`p-value    : ${pValue.toFixed(3)}  P(this many correct by pure guessing)`);
+function readManifest(reportPath) {
+  const manifestPath = join(dirname(reportPath), "manifest.json");
+  if (!existsSync(manifestPath)) return null;
+  try {
+    return JSON.parse(readFileSync(manifestPath, "utf8"));
+  } catch (error) {
+    throw matrixError(`cannot read ${manifestPath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
 
-const verdict =
-  pValue > 0.05
-    ? "INDISTINGUISHABLE FROM GUESSING — do not use these scores as a gate."
-    : accuracy < 0.5
-      ? "ABOVE CHANCE but weak — not trustworthy on its own."
-      : "DISCRIMINATES — usable as a signal.";
-console.log(`verdict    : ${verdict}`);
+function sharedCandidates(results, manifest) {
+  const scored = results.some((result) => result && Object.hasOwn(result, "scores"));
+  if (!scored) return null;
+  const firstScores = results.find((result) => result && Object.hasOwn(result, "scores"))?.scores;
+
+  if (!Array.isArray(results) || results.some((result) => !result || !Object.hasOwn(result, "scores"))) {
+    throw matrixError("scored reports must provide scores for every row");
+  }
+  if (!firstScores || typeof firstScores !== "object" || Array.isArray(firstScores)) {
+    throw matrixError("scores must be an object for every row");
+  }
+
+  const scoreKeys = Object.keys(firstScores);
+  const declared = manifest?.candidates;
+  if (declared !== undefined && !Array.isArray(declared)) {
+    throw matrixError("manifest candidates must be an array");
+  }
+  const candidates = declared ? [...declared] : [...scoreKeys].sort();
+  if (candidates.length === 0 || new Set(candidates).size !== candidates.length) {
+    throw matrixError("candidate set must be non-empty and unique");
+  }
+  const expected = new Set(candidates);
+  for (const [index, result] of results.entries()) {
+    const keys = Object.keys(result.scores ?? {});
+    const missing = candidates.filter((candidate) => !Object.hasOwn(result.scores ?? {}, candidate));
+    const extra = keys.filter((candidate) => !expected.has(candidate));
+    if (missing.length > 0 || extra.length > 0) {
+      throw matrixError(
+        `row ${index + 1} has an inconsistent candidate set (missing: ${missing.join(", ") || "none"}; extra: ${extra.join(", ") || "none"})`,
+      );
+    }
+  }
+  if (declared && (scoreKeys.length !== candidates.length || scoreKeys.some((candidate) => !expected.has(candidate)))) {
+    throw matrixError("score keys do not match manifest candidates");
+  }
+  return candidates;
+}
+
+function scoreReport(results, manifest) {
+  const candidates = sharedCandidates(results, manifest);
+  if (!candidates) return null;
+  const summary = summarizeCalibration(
+    results.map((result) => ({ truth: truthOf(result), scores: result.scores })),
+    candidates,
+  );
+  return { candidates, summary };
+}
+
+function pad(value, width) {
+  return String(value).padEnd(width);
+}
+
+function percent(value) {
+  return `${(value * 100).toFixed(0)}%`;
+}
+
+function corpusMetadata(manifest) {
+  if (!manifest) return null;
+  return {
+    schemaVersion: manifest.schemaVersion,
+    corpusId: manifest.corpusId,
+    reference: manifest.reference,
+    task: manifest.task,
+    calibration: manifest.calibration,
+    sampleRate: manifest.sampleRate,
+  };
+}
+
+function jsonSummary(reportPath, manifest, scored) {
+  return {
+    schemaVersion: CALIBRATION_SCHEMA_VERSION,
+    reportPath,
+    corpus: corpusMetadata(manifest),
+    candidates: scored.candidates,
+    overall: scored.summary.overall,
+    classes: scored.summary.classes,
+  };
+}
+
+function printCalibrationTable(reportPath, scored) {
+  const { candidates, summary } = scored;
+  const classWidth = Math.max("class".length, ...candidates.map((candidate) => candidate.length)) + 2;
+  const confusionWidth = Math.max(
+    "primary confusion".length,
+    ...summary.classes.map(({ primaryConfusions }) => (primaryConfusions.join(", ") || "—").length),
+  ) + 2;
+  console.log(`CALIBRATION TRUST GATES (${basename(reportPath)}; ${summary.overall.total} clips; ${candidates.length} candidates)\n`);
+  console.log(
+    `${pad("class", classWidth)}${pad("n", 4)}${pad("top-1", 12)}${pad("top-2", 12)}${pad("mean rank", 12)}${pad("primary confusion", confusionWidth)}tuning gate`,
+  );
+  for (const result of summary.classes) {
+    const gate = result.trustedForTuning
+      ? "TRUSTED FOR TUNING"
+      : `UNTRUSTED FOR TUNING (${result.failedGates.join(", ")})`;
+    const confusion = result.primaryConfusions.join(", ") || "—";
+    const meanRank = result.meanTrueLabelRank === null ? "—" : result.meanTrueLabelRank.toFixed(2);
+    console.log(
+      `${pad(result.candidate, classWidth)}${pad(result.count, 4)}${pad(`${result.top1.correct}/${result.count} ${percent(result.top1.accuracy)}`, 12)}${pad(`${result.top2.withinTwo}/${result.count} ${percent(result.top2.accuracy)}`, 12)}${pad(meanRank, 12)}${pad(confusion, confusionWidth)}${gate}`,
+    );
+  }
+  console.log("");
+}
+
+function renderLegacyAndOverall(results, candidates, scored) {
+  const rows = results.map((result, index) => {
+    const truth = truthOf(result);
+    if (scored) {
+      const ranked = rankScores(result.scores, candidates);
+      const heard = ranked[0].candidate;
+      return { truth, heard, correct: heard === truth, rank: ranked.find(({ candidate }) => candidate === truth)?.rank };
+    }
+    const heard = parseBest(result.verdict ?? "", candidates);
+    return { truth, heard, correct: heard === truth };
+  });
+  const parsed = rows.filter((row) => row.heard !== null);
+  const overall = scored?.summary.overall ?? (() => {
+    const correct = rows.filter((row) => row.correct).length;
+    const chance = 1 / candidates.length;
+    return {
+      correct,
+      total: rows.length,
+      accuracy: correct / rows.length,
+      chance,
+      pValue: binomialTail(correct, rows.length, chance),
+    };
+  })();
+
+  const labels = rows.map((row) => String(row.truth ?? "(unknown)"));
+  const width = Math.max(...labels.map((label) => label.length), 8) + 2;
+  console.log("BLIND GENRE IDENTIFICATION\n");
+  console.log(`${pad("intended", width)}${pad("heard", width)}ok`);
+  console.log("-".repeat(width * 2 + 3));
+  for (const row of rows) {
+    console.log(`${pad(row.truth ?? "(unknown)", width)}${pad(row.heard ?? "(unparsed)", width)}${row.correct ? "OK" : ""}`);
+  }
+
+  console.log(`\nparsed     : ${parsed.length}/${rows.length}`);
+  console.log(`correct    : ${overall.correct}/${overall.total}`);
+  console.log(`accuracy   : ${percent(overall.accuracy)}`);
+  console.log(`chance     : ${percent(overall.chance)}  (${candidates.length} candidates)`);
+
+  if (scored && candidates.length > 2) {
+    console.log(`top-2      : ${overall.top2}/${overall.total}  (chance ${percent(2 / candidates.length)})`);
+    console.log(`top-3      : ${overall.top3}/${overall.total}  (chance ${percent(3 / candidates.length)})`);
+    console.log(`mean rank  : ${overall.meanTrueLabelRank.toFixed(2)} of ${candidates.length}  (chance ${((candidates.length + 1) / 2).toFixed(2)})`);
+  }
+  console.log(`p-value    : ${overall.pValue.toFixed(3)}  P(this many correct by pure guessing)`);
+
+  const aggregateVerdict =
+    overall.pValue > 0.05
+      ? "INDISTINGUISHABLE FROM GUESSING — do not use these scores as a gate."
+      : overall.accuracy < 0.5
+        ? "ABOVE CHANCE but weak — not trustworthy on its own."
+        : "DISCRIMINATES — usable as a signal.";
+  if (scored && scored.summary.classes.some(({ trustedForTuning }) => !trustedForTuning)) {
+    console.log(`verdict    : ${aggregateVerdict} Class gates remain authoritative; failed classes are not usable for tuning.`);
+  } else {
+    console.log(`verdict    : ${aggregateVerdict}`);
+  }
+}
+
+export function parseArgs(argv) {
+  const json = argv.includes("--json");
+  const paths = argv.filter((argument) => argument !== "--json" && argument !== "--help" && argument !== "-h");
+  if (argv.includes("--help") || argv.includes("-h")) return { help: true, json };
+  if (paths.length > 1) throw matrixError("only one report path may be supplied");
+  return { json, reportPath: resolve(paths[0] ?? DEFAULT_REPORT_PATH) };
+}
+
+export function main(argv = process.argv.slice(2)) {
+  const options = parseArgs(argv);
+  if (options.help) {
+    console.log("Usage: node tools/judge/matrix.mjs [--json] [report.json]");
+    return 0;
+  }
+
+  let results;
+  try {
+    results = JSON.parse(readFileSync(options.reportPath, "utf8"));
+  } catch {
+    console.error(
+      `Cannot read ${options.reportPath}. Run the blind judge first:\n` +
+        "  /data/ai/judge/venv/bin/python tools/judge/judge.py tools/judge/out/manifest.json --blind",
+    );
+    return 1;
+  }
+  if (!Array.isArray(results) || results.length === 0) {
+    console.error("Invalid matrix report: report must be a non-empty array");
+    return 1;
+  }
+
+  try {
+    const manifest = readManifest(options.reportPath);
+    const scored = scoreReport(results, manifest);
+    if (options.json) {
+      if (!scored) throw matrixError("--json requires numeric scores for every report row");
+      console.log(JSON.stringify(jsonSummary(options.reportPath, manifest, scored), null, 2));
+      return 0;
+    }
+    if (scored) printCalibrationTable(options.reportPath, scored);
+    const candidates = scored?.candidates ?? [...new Set(results.map(truthOf).filter((truth) => truth !== undefined))].sort();
+    if (candidates.length === 0) throw matrixError("report does not declare or contain any candidates");
+    renderLegacyAndOverall(results, candidates, scored);
+    return 0;
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  process.exitCode = main();
+}
