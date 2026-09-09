@@ -76,6 +76,55 @@ describe("rock StylePack — backbeat groove", () => {
   });
 });
 
+const latinStyle: StylePack = {
+  ...testStyle,
+  chordStyle: "seventh",
+  bassStyle: "montuno",
+  rhythm: { ...(testStyle.rhythm ?? {}), groove: "clave" },
+};
+
+describe("latin StylePack — clave groove", () => {
+  // The groove is deterministic, so one bar carries the whole pattern.
+  const barOf = (bar: number) =>
+    new LimeEngine({
+      seed: "latin",
+      style: latinStyle,
+      initialState: { energy: 0.8, density: 0.6, tempo: 105 },
+    })
+      .composeBar(bar)
+      .filter((e) => e.voice === "percussion");
+  const CELL = BAR / 16;
+  const at = (sound: string) =>
+    barOf(0)
+      .filter((e) => e.percussion === sound)
+      .map((e) => e.time)
+      .sort((a, b) => a - b);
+
+  it("plays the 3-2 son clave on the clave itself, not on the shaker", () => {
+    expect(at("clave")).toEqual([0, 3, 6, 10, 12].map((s) => s * CELL));
+  });
+
+  it("keeps the clave louder than the shaker bed, so the figure is audible", () => {
+    const perc = barOf(0);
+    const quietest = (s: string) =>
+      Math.min(...perc.filter((e) => e.percussion === s).map((e) => e.velocity));
+    const loudest = (s: string) =>
+      Math.max(...perc.filter((e) => e.percussion === s).map((e) => e.velocity));
+    expect(quietest("clave")).toBeGreaterThan(loudest("shaker"));
+  });
+
+  it("plays a conga tumbao with its two open tones at the end of the bar", () => {
+    expect(at("congaLow")).toEqual([0, 8 * CELL]);
+    expect(at("conga")).toEqual([4, 12, 14].map((s) => s * CELL));
+  });
+
+  it("follows the bombo instead of a backbeat: no kick on beat 3", () => {
+    const kicks = at("kick");
+    expect(kicks).toContain(6 * CELL); // the "and of 2"
+    expect(kicks).not.toContain(BEAT * 2);
+  });
+});
+
 describe("rock StylePack — power-chord pad", () => {
   it("voices a perfect fifth with no third", () => {
     const eng = new LimeEngine({

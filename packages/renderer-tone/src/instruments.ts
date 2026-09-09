@@ -273,9 +273,13 @@ export const percussionFactory: InstrumentFactory = () => {
           break;
         case "snare":
         case "tom":
+        // Congas have a drum body, so the filtered-noise source is far closer
+        // than the hat; on the hat branch they would read as hi-hats.
+        case "conga":
+        case "congaLow":
           snare.triggerAttackRelease(Math.min(durationSec, 0.2), timeSec, velocity);
           break;
-        default: // hat / shaker
+        default: // hat / shaker / clave — all short and bright
           hat.triggerAttackRelease(Math.min(durationSec, 0.06), timeSec, velocity * 0.8);
           break;
       }

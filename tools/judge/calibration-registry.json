@@ -1,0 +1,926 @@
+{
+  "schemaVersion": 1,
+  "corpusId": "lime-genre-calibration-v1",
+  "candidates": [
+    "Funk/R&B",
+    "Jazz",
+    "Blues",
+    "Rock",
+    "Pop",
+    "Electronic"
+  ],
+  "items": [
+    {
+      "id": "funk-rb-01",
+      "label": "Funk/R&B",
+      "localPath": "clean_midi/Al Jarreau/Roof Garden.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Al Jarreau/Roof Garden.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Funk' to Al Jarreau / Roof Garden; the target label is the fixed calibration label 'Funk/R&B'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 8512 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Funk, tracks=1, channels=9, bpm=101. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "funk-rb-02",
+      "label": "Funk/R&B",
+      "localPath": "clean_midi/Bee Gees/Jive Talkin.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Bee Gees/Jive Talkin.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Funk' to Bee Gees / Jive Talkin; the target label is the fixed calibration label 'Funk/R&B'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 6275 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Funk, tracks=16, channels=5, bpm=108. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "funk-rb-03",
+      "label": "Funk/R&B",
+      "localPath": "clean_midi/Billy Preston/Will It Go Round in Circles.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Billy Preston/Will It Go Round in Circles.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Funk' to Billy Preston / Will It Go Round in Circles; the target label is the fixed calibration label 'Funk/R&B'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 7663 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Funk, tracks=11, channels=10, bpm=103. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "funk-rb-04",
+      "label": "Funk/R&B",
+      "localPath": "clean_midi/Booker T. & The MG's/Green Onions.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Booker T. & The MG's/Green Onions.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Funk' to Booker T. & The MG's / Green Onions; the target label is the fixed calibration label 'Funk/R&B'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 6747 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Funk, tracks=9, channels=6, bpm=130. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "funk-rb-05",
+      "label": "Funk/R&B",
+      "localPath": "clean_midi/Boyzone/When The Going Gets Tough.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Boyzone/When The Going Gets Tough.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Funk' to Boyzone / When The Going Gets Tough; the target label is the fixed calibration label 'Funk/R&B'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 7839 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Funk, tracks=1, channels=15, bpm=126. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "funk-rb-06",
+      "label": "Funk/R&B",
+      "localPath": "clean_midi/Brown James/I Got the Feelin.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Brown James/I Got the Feelin.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Funk' to Brown James / I Got the Feelin; the target label is the fixed calibration label 'Funk/R&B'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 4594 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Funk, tracks=21, channels=10, bpm=125. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "funk-rb-07",
+      "label": "Funk/R&B",
+      "localPath": "clean_midi/Claude Francois/Magnolia forever.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Claude Francois/Magnolia forever.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Funk' to Claude Francois / Magnolia forever; the target label is the fixed calibration label 'Funk/R&B'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 8814 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Funk, tracks=10, channels=8, bpm=137. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "funk-rb-08",
+      "label": "Funk/R&B",
+      "localPath": "clean_midi/Collins Phil/Sussudio.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Collins Phil/Sussudio.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Funk' to Collins Phil / Sussudio; the target label is the fixed calibration label 'Funk/R&B'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 7018 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Funk, tracks=13, channels=12, bpm=116. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "jazz-01",
+      "label": "Jazz",
+      "localPath": "clean_midi/2 the Core/Have a Nice Day.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/2 the Core/Have a Nice Day.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Jazz' to 2 the Core / Have a Nice Day; the target label is the fixed calibration label 'Jazz'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 4653 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Jazz, tracks=30, channels=16, bpm=120. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "jazz-02",
+      "label": "Jazz",
+      "localPath": "clean_midi/Al Martino/Spanish Eyes.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Al Martino/Spanish Eyes.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Jazz' to Al Martino / Spanish Eyes; the target label is the fixed calibration label 'Jazz'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 3517 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Jazz, tracks=9, channels=8, bpm=114. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "jazz-03",
+      "label": "Jazz",
+      "localPath": "clean_midi/Al Wilson/Show and Tell.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Al Wilson/Show and Tell.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Jazz' to Al Wilson / Show and Tell; the target label is the fixed calibration label 'Jazz'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 3623 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Jazz, tracks=11, channels=10, bpm=87. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "jazz-04",
+      "label": "Jazz",
+      "localPath": "clean_midi/Alpert/South of the Border.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Alpert/South of the Border.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Jazz' to Alpert / South of the Border; the target label is the fixed calibration label 'Jazz'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 4287 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Jazz, tracks=1, channels=11, bpm=120. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "jazz-05",
+      "label": "Jazz",
+      "localPath": "clean_midi/Andre Brasseur/Early Bird Satellite.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Andre Brasseur/Early Bird Satellite.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Jazz' to Andre Brasseur / Early Bird Satellite; the target label is the fixed calibration label 'Jazz'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 3775 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Jazz, tracks=7, channels=6, bpm=132. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "jazz-06",
+      "label": "Jazz",
+      "localPath": "clean_midi/Antonio Carlos/Insensatez (How Insensitive).mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Antonio Carlos/Insensatez (How Insensitive).mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Jazz' to Antonio Carlos / Insensatez (How Insensitive); the target label is the fixed calibration label 'Jazz'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 5444 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Jazz, tracks=23, channels=7, bpm=120. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "jazz-07",
+      "label": "Jazz",
+      "localPath": "clean_midi/ARMSTRONG LOUIS/C'est si bon.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/ARMSTRONG LOUIS/C'est si bon.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Jazz' to ARMSTRONG LOUIS / C'est si bon; the target label is the fixed calibration label 'Jazz'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 2771 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Jazz, tracks=12, channels=10, bpm=116. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "jazz-08",
+      "label": "Jazz",
+      "localPath": "clean_midi/Barbra Streisand/Luck Be a Lady.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Barbra Streisand/Luck Be a Lady.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Jazz' to Barbra Streisand / Luck Be a Lady; the target label is the fixed calibration label 'Jazz'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 5011 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Jazz, tracks=14, channels=12, bpm=104. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "blues-01",
+      "label": "Blues",
+      "localPath": "clean_midi/Alan Jackson/Mercury Blues.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Alan Jackson/Mercury Blues.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Blues' to Alan Jackson / Mercury Blues; the target label is the fixed calibration label 'Blues'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 8566 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Blues, tracks=1, channels=9, bpm=168. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "blues-02",
+      "label": "Blues",
+      "localPath": "clean_midi/B.B. King/Don't Answer the Door.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/B.B. King/Don't Answer the Door.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Blues' to B.B. King / Don't Answer the Door; the target label is the fixed calibration label 'Blues'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 4846 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Blues, tracks=10, channels=8, bpm=50. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "blues-03",
+      "label": "Blues",
+      "localPath": "clean_midi/Bachman-Turner Overdrive/Let It Ride.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Bachman-Turner Overdrive/Let It Ride.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Blues' to Bachman-Turner Overdrive / Let It Ride; the target label is the fixed calibration label 'Blues'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 10760 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Blues, tracks=11, channels=9, bpm=104. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "blues-04",
+      "label": "Blues",
+      "localPath": "clean_midi/Billy Joel/Baby Grand.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Billy Joel/Baby Grand.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Blues' to Billy Joel / Baby Grand; the target label is the fixed calibration label 'Blues'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 1662 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Blues, tracks=9, channels=2, bpm=109. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "blues-05",
+      "label": "Blues",
+      "localPath": "clean_midi/Brown Clarence Gatemouth/Never Ending Love for You.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Brown Clarence Gatemouth/Never Ending Love for You.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Blues' to Brown Clarence Gatemouth / Never Ending Love for You; the target label is the fixed calibration label 'Blues'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 5722 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Blues, tracks=9, channels=8, bpm=104. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "blues-06",
+      "label": "Blues",
+      "localPath": "clean_midi/Canned Heat/Rollin' and Tumblin'.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Canned Heat/Rollin' and Tumblin'.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Blues' to Canned Heat / Rollin' and Tumblin'; the target label is the fixed calibration label 'Blues'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 429 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Blues, tracks=4, channels=3, bpm=120. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "blues-07",
+      "label": "Blues",
+      "localPath": "clean_midi/Creedence Clearwater Revival/Long As I Can See The Light.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Creedence Clearwater Revival/Long As I Can See The Light.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Blues' to Creedence Clearwater Revival / Long As I Can See The Light; the target label is the fixed calibration label 'Blues'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 1920 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Blues, tracks=7, channels=6, bpm=64. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "blues-08",
+      "label": "Blues",
+      "localPath": "clean_midi/Daniele/'Na tazzulella 'e cafe.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Daniele/'Na tazzulella 'e cafe.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Blues' to Daniele / 'Na tazzulella 'e cafe; the target label is the fixed calibration label 'Blues'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 6892 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Blues, tracks=12, channels=10, bpm=136. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "rock-01",
+      "label": "Rock",
+      "localPath": "clean_midi/4 Non Blondes/What's Up.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/4 Non Blondes/What's Up.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Rock' to 4 Non Blondes / What's Up; the target label is the fixed calibration label 'Rock'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 10034 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Rock, tracks=17, channels=10, bpm=130. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "rock-02",
+      "label": "Rock",
+      "localPath": "clean_midi/Ace of Base/Don't Turn Around.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Ace of Base/Don't Turn Around.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Rock' to Ace of Base / Don't Turn Around; the target label is the fixed calibration label 'Rock'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 6987 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Rock, tracks=1, channels=14, bpm=97. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "rock-03",
+      "label": "Rock",
+      "localPath": "clean_midi/Aerosmith/Eat the Rich.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Aerosmith/Eat the Rich.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Rock' to Aerosmith / Eat the Rich; the target label is the fixed calibration label 'Rock'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 4081 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Rock, tracks=1, channels=7, bpm=120. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "rock-04",
+      "label": "Rock",
+      "localPath": "clean_midi/Al Stewart/On The Border.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Al Stewart/On The Border.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Rock' to Al Stewart / On The Border; the target label is the fixed calibration label 'Rock'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 5774 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Rock, tracks=20, channels=12, bpm=190. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "rock-05",
+      "label": "Rock",
+      "localPath": "clean_midi/Alan Parsons/Prime Time.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Alan Parsons/Prime Time.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Rock' to Alan Parsons / Prime Time; the target label is the fixed calibration label 'Rock'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 5214 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Rock, tracks=12, channels=7, bpm=117. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "rock-06",
+      "label": "Rock",
+      "localPath": "clean_midi/Alanis Morissette/All I Really Want.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Alanis Morissette/All I Really Want.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Rock' to Alanis Morissette / All I Really Want; the target label is the fixed calibration label 'Rock'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 8224 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Rock, tracks=13, channels=4, bpm=100. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "rock-07",
+      "label": "Rock",
+      "localPath": "clean_midi/America/I Need You.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/America/I Need You.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Rock' to America / I Need You; the target label is the fixed calibration label 'Rock'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 2779 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Rock, tracks=28, channels=7, bpm=65. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "rock-08",
+      "label": "Rock",
+      "localPath": "clean_midi/Andrew Gold/Lonely Boy.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Andrew Gold/Lonely Boy.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Rock' to Andrew Gold / Lonely Boy; the target label is the fixed calibration label 'Rock'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 6742 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Rock, tracks=13, channels=6, bpm=124. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "pop-01",
+      "label": "Pop",
+      "localPath": "clean_midi/101 Strings/Theme From The Godfather.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/101 Strings/Theme From The Godfather.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Pop' to 101 Strings / Theme From The Godfather; the target label is the fixed calibration label 'Pop'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 1947 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Pop, tracks=10, channels=8, bpm=80. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "pop-02",
+      "label": "Pop",
+      "localPath": "clean_midi/3T/Why.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/3T/Why.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Pop' to 3T / Why; the target label is the fixed calibration label 'Pop'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 3869 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Pop, tracks=18, channels=6, bpm=75. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "pop-03",
+      "label": "Pop",
+      "localPath": "clean_midi/883/Andra tutto bene ('58).mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/883/Andra tutto bene ('58).mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Pop' to 883 / Andra tutto bene ('58); the target label is the fixed calibration label 'Pop'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 5259 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Pop, tracks=1, channels=7, bpm=92. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "pop-04",
+      "label": "Pop",
+      "localPath": "clean_midi/ABBA/Chiquitita.2.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/ABBA/Chiquitita.2.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Pop' to ABBA / Chiquitita.2; the target label is the fixed calibration label 'Pop'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 4896 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Pop, tracks=9, channels=8, bpm=87. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "pop-05",
+      "label": "Pop",
+      "localPath": "clean_midi/Ace of Base/Always Have, Always Will.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Ace of Base/Always Have, Always Will.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Pop' to Ace of Base / Always Have, Always Will; the target label is the fixed calibration label 'Pop'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 7188 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Pop, tracks=12, channels=11, bpm=137. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "pop-06",
+      "label": "Pop",
+      "localPath": "clean_midi/Adriano Celentano/Azzurro.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Adriano Celentano/Azzurro.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Pop' to Adriano Celentano / Azzurro; the target label is the fixed calibration label 'Pop'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 10375 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Pop, tracks=1, channels=13, bpm=119. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "pop-07",
+      "label": "Pop",
+      "localPath": "clean_midi/Aerosmith/Falling in Love (Is Hard on the Knees).1.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Aerosmith/Falling in Love (Is Hard on the Knees).1.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Pop' to Aerosmith / Falling in Love (Is Hard on the Knees).1; the target label is the fixed calibration label 'Pop'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 4014 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Pop, tracks=1, channels=10, bpm=116. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "pop-08",
+      "label": "Pop",
+      "localPath": "clean_midi/AL Bano/Felicita.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/AL Bano/Felicita.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Pop' to AL Bano / Felicita; the target label is the fixed calibration label 'Pop'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 16935 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Pop, tracks=7, channels=5, bpm=110. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "electronic-01",
+      "label": "Electronic",
+      "localPath": "clean_midi/Capella/You Made Me the Thief of Your Heart.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Capella/You Made Me the Thief of Your Heart.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Electronic' to Capella / You Made Me the Thief of Your Heart; the target label is the fixed calibration label 'Electronic'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 8223 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Electronic, tracks=13, channels=11, bpm=120. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "electronic-02",
+      "label": "Electronic",
+      "localPath": "clean_midi/Cocciante/Ammassati e distanti.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Cocciante/Ammassati e distanti.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Electronic' to Cocciante / Ammassati e distanti; the target label is the fixed calibration label 'Electronic'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 6854 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Electronic, tracks=11, channels=9, bpm=66. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "electronic-03",
+      "label": "Electronic",
+      "localPath": "clean_midi/Depeche Mode/The Things You Said.1.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Depeche Mode/The Things You Said.1.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Electronic' to Depeche Mode / The Things You Said.1; the target label is the fixed calibration label 'Electronic'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 2189 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Electronic, tracks=5, channels=4, bpm=110. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "electronic-04",
+      "label": "Electronic",
+      "localPath": "clean_midi/Dolls United/Blechbuchse roll!.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Dolls United/Blechbuchse roll!.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Electronic' to Dolls United / Blechbuchse roll!; the target label is the fixed calibration label 'Electronic'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 7180 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Electronic, tracks=12, channels=10, bpm=100. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "electronic-05",
+      "label": "Electronic",
+      "localPath": "clean_midi/Dune/I Can't Stop Raving.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Dune/I Can't Stop Raving.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Electronic' to Dune / I Can't Stop Raving; the target label is the fixed calibration label 'Electronic'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 8705 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Electronic, tracks=12, channels=10, bpm=161. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "electronic-06",
+      "label": "Electronic",
+      "localPath": "clean_midi/East Side Beat/I Didn't Know.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/East Side Beat/I Didn't Know.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Electronic' to East Side Beat / I Didn't Know; the target label is the fixed calibration label 'Electronic'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 9386 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Electronic, tracks=12, channels=11, bpm=122. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "electronic-07",
+      "label": "Electronic",
+      "localPath": "clean_midi/Falco/Rock Me Amadeus.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Falco/Rock Me Amadeus.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Electronic' to Falco / Rock Me Amadeus; the target label is the fixed calibration label 'Electronic'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 1085 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Electronic, tracks=1, channels=6, bpm=88. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    },
+    {
+      "id": "electronic-08",
+      "label": "Electronic",
+      "localPath": "clean_midi/Foster David/Winter Games.mid",
+      "source": {
+        "url": "https://colinraffel.com/projects/lmd/",
+        "collectionId": "lmd-clean/Foster David/Winter Games.mid"
+      },
+      "licence": {
+        "id": "CC-BY-4.0",
+        "evidence": "https://colinraffel.com/projects/lmd/"
+      },
+      "labelRationale": "Lakh Clean Analysis metadata assigns the exact source genre 'Electronic' to Foster David / Winter Games; the target label is the fixed calibration label 'Electronic'.",
+      "instrumentalReview": {
+        "status": "instrumental",
+        "evidence": "Static MIDI audit of the extracted file on 2026-09-08 found 6109 note events, no lyric events, and no track/meta marker matching vocals, words, karaoke, chant, choir, or voice; the file is retained as a MIDI performance control, not as an audio/vocal recording."
+      },
+      "selectionNotes": "Unique artist control selected from LMD Clean Analysis; source genre=Electronic, tracks=11, channels=9, bpm=120. LMD is metadata-only in this repository; no media bytes are committed. The LMD distribution is CC BY 4.0, while underlying scraped file rights may require additional review; use locally for internal judge calibration only and do not redistribute."
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import { degreePitch } from "../harmony/Scale.js";
 import { clamp01 } from "../state/MusicalState.js";
 import type { BarContext } from "../orchestration/BarContext.js";
 import type { BassStyle } from "../style/StylePack.js";
+import { FUNK_KICK_SIXTEENTHS } from "../percussion/grooveAnchors.js";
 
 const BASS_OCTAVE = 2;
 
@@ -95,12 +96,16 @@ export class BassGenerator {
       return events;
     }
 
-    // Funk: syncopated 16ths anchored on "the one", root with octave pops.
+    // Funk: syncopated 16ths anchored on "the one", root with octave pops. The
+    // pattern includes every position in FUNK_KICK_SIXTEENTHS so the bass locks
+    // with the kick — real funk rhythm sections interlock, not just share a
+    // downbeat — and adds a couple of pushed off-kick 16ths (3 and 10, plus 13
+    // to walk out of the bar) for the syncopated character.
     if (this.bassStyle === "funk" && arc >= 0.4) {
       const s = beat / 4;
-      const pat = [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0];
+      const onsets = new Set<number>([...FUNK_KICK_SIXTEENTHS, 3, 10, 13]);
       for (let i = 0; i < 16; i++) {
-        if (!pat[i]) continue;
+        if (!onsets.has(i)) continue;
         const pitch = i === 0 ? root : rng.bool(0.3) ? octave : root;
         push(Math.round(s * i), Math.round(s), pitch);
       }

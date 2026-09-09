@@ -14,35 +14,22 @@ import {
   type PhrasePlan,
 } from "@lime/core";
 import { eventsToStandardMidiFile } from "@lime/midi";
-import {
-  createToneRenderer,
-  ROCK_INSTRUMENTS, METAL_INSTRUMENTS, POP_INSTRUMENTS, JAZZ_INSTRUMENTS,
-  BLUES_INSTRUMENTS, HIPHOP_INSTRUMENTS, ELECTRONIC_INSTRUMENTS, FOLK_INSTRUMENTS,
-  LATIN_INSTRUMENTS, FUNK_INSTRUMENTS, CLASSICAL_INSTRUMENTS,
-  type ToneRenderer,
-  type InstrumentFactory,
-} from "@lime/renderer-tone";
+import { createToneRenderer, type ToneRenderer } from "@lime/renderer-tone";
 import { GENRE_PALETTES_SAMPLED } from "./sampledGenre";
 import { FluidRenderer, GM_PROGRAMS } from "./fluidRenderer";
 
 /**
- * Genre → instrument palette. The StylePack gives a genre its grammar; the
- * palette gives it its timbre. Genres without a palette fall back to the
- * default/sampled instruments (ambient).
+ * Genres rendered through the Tone.js SAMPLED palettes instead of FluidSynth.
+ * Measured with the same embedding ear on the same compositions: both genres
+ * went 0/4 → 4/4 once moved off FluidSynth, and the per-genre hybrid scored
+ * 31/48 (65%) on held-out seeds against 23/48 (48%) for FluidSynth alone.
+ * Everything else keeps FluidSynth, ties (jazz, electronic) included.
+ *
+ * Known, accepted difference: the lead-register folding (melodyMax/melodyCut,
+ * see GM_PROGRAMS) is a FluidRenderer-only feature, so these two genres do not
+ * get it.
  */
-const GENRE_PALETTES: Record<string, Partial<Record<VoiceId, InstrumentFactory>>> = {
-  "genre-rock-pop": ROCK_INSTRUMENTS,
-  "genre-metal": METAL_INSTRUMENTS,
-  "genre-pop": POP_INSTRUMENTS,
-  "genre-jazz": JAZZ_INSTRUMENTS,
-  "genre-blues": BLUES_INSTRUMENTS,
-  "genre-hiphop": HIPHOP_INSTRUMENTS,
-  "genre-electronic": ELECTRONIC_INSTRUMENTS,
-  "genre-folk": FOLK_INSTRUMENTS,
-  "genre-latin": LATIN_INSTRUMENTS,
-  "genre-funk": FUNK_INSTRUMENTS,
-  "genre-classical": CLASSICAL_INSTRUMENTS,
-};
+const SAMPLED_GENRES = new Set(["genre-ambient", "genre-hiphop"]);
 
 /** Friendly dropdown labels per genre id. */
 const GENRE_LABELS: Record<string, string> = {
@@ -215,9 +202,18 @@ const EMOTIONS: EmotionPreset[] = (
 let currentEmotion: EmotionPreset | null = null;
 
 let music: Lime | null = null;
-// Playback engine: FluidSynth-WASM + a GM SoundFont, persistent across genre
-// switches (the 30 MB SoundFont loads once).
-const renderer = new FluidRenderer();
+
+/** Either backend — both implement setBrightness() and setVoiceMuted(). */
+type DemoRenderer = FluidRenderer | ToneRenderer;
+
+// FluidSynth-WASM + a GM SoundFont, built once and kept across genre switches
+// (the 30 MB SoundFont loads once; its dispose() is a deliberate no-op).
+let fluid: FluidRenderer | null = null;
+// The live renderer and the key that produced it ("fluid" or the sampled
+// genre id). selectStyle rebuilds only when that key changes, and stops +
+// disposes the old one first — never two live renderers at once.
+let renderer: DemoRenderer | null = null;
+let rendererKey: string | null = null;
 let currentSeed = "demo-forest-1";
 let currentEntry: StyleEntry = STYLES[0]!;
 
@@ -269,6 +265,36 @@ $("#enter-btn").addEventListener("click", async () => {
 });
 
 /**
+ * Return the renderer for a genre, rebuilding it only when the backend (or the
+ * sampled palette) actually changes. The previous one is stopped and disposed
+ * before the new one exists.
+ */
+async function ensureRenderer(genreId: string): Promise<DemoRenderer> {
+  const sampled = SAMPLED_GENRES.has(genreId);
+  const key = sampled ? genreId : "fluid";
+  if (renderer && rendererKey === key) return renderer;
+
+  renderer?.stop();
+  renderer?.dispose?.(); // no-op on FluidRenderer, real teardown on ToneRenderer
+  renderer = null; // nothing live while a sampled palette loads
+  rendererKey = null;
+  if (sampled) {
+    const tone = createToneRenderer({ instruments: GENRE_PALETTES_SAMPLED[genreId] });
+    // ready() builds the voice chain, which is what actually constructs the
+    // Tone.Samplers (the constructor only stores factories) and kicks off
+    // their fetch from /samples/sf; Tone.loaded() then waits for the buffers.
+    // Without both, the first bars — or a whole render — come out silent.
+    await tone.ready();
+    await Tone.loaded();
+    renderer = tone;
+  } else {
+    renderer = fluid ??= new FluidRenderer();
+  }
+  rendererKey = key;
+  return renderer;
+}
+
+/**
  * (Re)build the renderer + engine for a style. Switching restarts composition
  * with the pack's own harmony/melody/rhythm and suggested state, keeping the
  * demo a live playground. A brief gap on switch is fine for a testing tool.
@@ -284,11 +310,13 @@ async function selectStyle(entry: StyleEntry, opts: { newSeed?: boolean } = {}):
   // grammar (StylePack), the emotion supplies the state we start from.
   const init: MusicalStatePatch =
     currentEmotion?.state ?? entry.suggestedState ?? { ...MOODS.Calm };
-  // The genre's per-voice GM programs drive the FluidSynth SoundFont.
-  renderer.setGenrePrograms(GM_PROGRAMS[entry.style.id] ?? {});
-  music = createLime({ seed: currentSeed, style: entry.style, renderer, initialState: init, lookAheadBars: 4 });
+  const active = await ensureRenderer(entry.style.id);
+  // The genre's per-voice GM programs drive the FluidSynth SoundFont. Sampled
+  // genres carry their timbre in the palette instead, so they skip this.
+  if (active instanceof FluidRenderer) active.setGenrePrograms(GM_PROGRAMS[entry.style.id] ?? {});
+  music = createLime({ seed: currentSeed, style: entry.style, renderer: active, initialState: init, lookAheadBars: 4 });
   await music.start(); // FluidRenderer loads the SoundFont on first start
-  renderer.setBrightness(init.brightness ?? 0.5);
+  active.setBrightness(init.brightness ?? 0.5);
   applyVoiceStates(); // re-push mute/solo onto the engine
 
   syncSliders(init);
