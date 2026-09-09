@@ -74,10 +74,12 @@ new seed.
 
 ## Status
 
-v0.3 — **Orchestration & Multi-Genre**. Determinism, continuous composition,
-musical inertia, motif memory, and adaptive state are implemented and tested,
-now with per-genre orchestration (ambient, blues, hip-hop, jazz, rock/pop). See
-ARCHITECTURE.md for what is intentionally out of scope.
+v0.4 — **Genre Judge & Calibration**. Determinism, continuous composition,
+musical inertia, motif memory, adaptive state and per-genre orchestration
+(ambient, blues, hip-hop, jazz, rock/pop) are implemented and tested. This
+release adds the measurement layer around them: three independent listeners, a
+calibrated judge, and an honest account of which genres it can actually score.
+See ARCHITECTURE.md for what is intentionally out of scope.
 
 ## Judging the output
 
