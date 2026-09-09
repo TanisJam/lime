@@ -128,7 +128,7 @@ export const GENRE_PALETTES_SAMPLED: Record<string, Palette> = {
   "genre-blues": { melody: cleanGtr, pad: rockOrgan, bass: eBass, percussion: drumKitFactory },
   "genre-folk": { melody: steel, pad: steel, bass: upright },
   "genre-latin": { melody: trumpet, pad: piano, bass: eBass, percussion: drumKitFactory, motion: nylon },
-  "genre-funk": { melody: sax, pad: mutedGtr, bass: eBass, percussion: drumKitFactory, motion: rhodes },
+  "genre-funk": { melody: mutedGtr, pad: mutedGtr, bass: eBass, percussion: drumKitFactory, motion: rhodes },
   "genre-metal": { melody: distortion, pad: distortion, bass: eBass, percussion: drumKitFactory },
   "genre-electronic": { melody: saw, pad: warmPad, bass: synthBass, percussion: drumKitFactory, motion: saw },
   "genre-ambient": { melody: flute, pad: warmPad },
