@@ -7,6 +7,7 @@ import { ticksPerBeat, ticksPerBar } from "../time/MusicalTime.js";
 import { clamp01 } from "../state/MusicalState.js";
 import type { BarContext } from "../orchestration/BarContext.js";
 import type { RhythmStyle, GrooveStyle } from "../style/StylePack.js";
+import { FUNK_KICK_SIXTEENTHS } from "./grooveAnchors.js";
 
 /**
  * Percussion voice — abstract kick/snare/hat from a small rhythmic grammar.
@@ -272,8 +273,8 @@ export class PercussionGenerator {
     const beats = ctx.meter.numerator;
     const s = beat / 4;
     const ev: NoteEvent[] = [];
-    this.hit(ev, ctx, 0, "kick", 0.82 + 0.15 * dyn);
-    this.hit(ev, ctx, Math.round(s * 6), "kick", 0.55);
+    this.hit(ev, ctx, Math.round(s * FUNK_KICK_SIXTEENTHS[0]), "kick", 0.82 + 0.15 * dyn);
+    this.hit(ev, ctx, Math.round(s * FUNK_KICK_SIXTEENTHS[1]), "kick", 0.55);
     this.hit(ev, ctx, beat, "snare", 0.7 + 0.15 * dyn);
     if (beats >= 4) this.hit(ev, ctx, beat * 3, "snare", 0.7 + 0.15 * dyn);
     for (let i = 0; i < beats * 4; i++) this.hit(ev, ctx, s * i, "hat", i % 2 === 0 ? 0.34 + 0.1 * dyn : 0.2);
