@@ -71,6 +71,40 @@ CLASSIFIER_JSON = MODEL_DIR / "genre_discogs400-discogs-effnet-1.json"
 MAEST_PB = MODEL_DIR / "discogs-maest-20s-pw-2.pb"
 BACKENDS = ("effnet", "maest")
 SAMPLE_RATE = 16000
+CALIBRATION_CANDIDATES = (
+    "Funk/R&B",
+    "Jazz",
+    "Blues",
+    "Rock",
+    "Pop",
+    "Electronic",
+)
+CALIBRATION_ITEMS_PER_CANDIDATE = 8
+CALIBRATION_ITEM_COUNT = len(CALIBRATION_CANDIDATES) * CALIBRATION_ITEMS_PER_CANDIDATE
+
+
+def can_establish_essentia_calibration(manifest: object) -> bool:
+    """Allow normalizer writes only for the reviewed balanced calibration manifest."""
+    if not isinstance(manifest, dict):
+        return False
+    if manifest.get("calibration") is not True or manifest.get("reference") is not True:
+        return False
+    if manifest.get("task") != "genre":
+        return False
+    if manifest.get("candidates") != list(CALIBRATION_CANDIDATES):
+        return False
+
+    clips = manifest.get("clips")
+    if not isinstance(clips, list) or len(clips) != CALIBRATION_ITEM_COUNT:
+        return False
+    if any(not isinstance(clip, dict) or "truth" not in clip for clip in clips):
+        return False
+    counts = collections.Counter(clip["truth"] for clip in clips)
+    return counts == collections.Counter({
+        candidate: CALIBRATION_ITEMS_PER_CANDIDATE
+        for candidate in CALIBRATION_CANDIDATES
+    })
+
 
 # Rock styles that read as metal or hard rock rather than as rock.
 METAL = {
@@ -391,21 +425,16 @@ def main() -> int:
 
     suffix = "" if backend == "effnet" else f"-{backend}"
 
-    # A balanced run is the only one entitled to define the normaliser, so only
-    # a balanced run writes one. "Balanced" here means every candidate is the
-    # truth for the same number of clips.
-    if calibrate and not calibration:
-        per_class = collections.Counter(
-            (c.get("truth") or c.get("genreName") or c["genre"]) for c in clips
-        )
-        if set(per_class) == set(candidates) and len(set(per_class.values())) == 1:
-            stats = {}
-            for c in candidates:
-                column = np.array([r[c] for r in unscaled])
-                stats[c] = [float(column.mean()), float(column.std())]
-            path = out_dir / f"essentia-calibration{suffix}.json"
-            path.write_text(json.dumps(stats, indent=2, ensure_ascii=False))
-            print(f"Balanced batch — wrote {path}")
+    # Only the exact reviewed calibration manifest may establish or replace
+    # the normaliser. Unbalanced sweeps may apply a saved calibration above.
+    if calibrate and not calibration and can_establish_essentia_calibration(manifest):
+        stats = {}
+        for c in candidates:
+            column = np.array([r[c] for r in unscaled])
+            stats[c] = [float(column.mean()), float(column.std())]
+        path = out_dir / f"essentia-calibration{suffix}.json"
+        path.write_text(json.dumps(stats, indent=2, ensure_ascii=False))
+        print(f"Balanced calibration manifest — wrote {path}")
 
     (out_dir / f"report-essentia{suffix}.json").write_text(json.dumps(results, indent=2, ensure_ascii=False))
 
