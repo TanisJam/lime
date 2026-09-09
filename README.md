@@ -78,3 +78,22 @@ v0.3 — **Orchestration & Multi-Genre**. Determinism, continuous composition,
 musical inertia, motif memory, and adaptive state are implemented and tested,
 now with per-genre orchestration (ambient, blues, hip-hop, jazz, rock/pop). See
 ARCHITECTURE.md for what is intentionally out of scope.
+
+## Judging the output
+
+Genre quality here is measured, not asserted. Three independent listeners score
+rendered clips — MuQ-MuLan, Essentia `genre_discogs400` and MAEST — and their
+fused verdict feeds a blind-identification and confusion-matrix report under
+`tools/judge/`.
+
+That judge is itself calibrated against 48 reviewed human recordings, eight for
+each of six genres, and the outcome is worth knowing before you read any number
+it produces: **only Blues and Electronic pass the per-class trust gates.**
+Funk/R&B, Rock and Pop score 25 %, 13 % and 0 % top-1 on real, human-made,
+human-labelled music, so a LIME score in those genres measures the evaluator
+more than it measures the music. A blind listening test confirmed the direction
+of the gap — a human identifies funk that the ears cannot hear.
+
+Treat any per-genre number outside the two trusted classes as unproven.
+[tools/judge/README.md](./tools/judge/README.md) documents the calibration
+workflow, the class gates and how to read them.
