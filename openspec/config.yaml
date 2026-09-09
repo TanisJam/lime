@@ -1,0 +1,6 @@
+schema: spec-driven
+preflight:
+  execution: auto
+  artifactStore: openspec
+  deliveryStrategy: auto-chain
+  reviewBudget: 400
