@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, copyFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,11 +9,11 @@ import * as styles from "../../packages/styles/dist/index.js";
 /**
  * LIME offline capture — render composed music to WAV for the audio judge.
  *
- * For each (genre, seed) it drives the pure-TS composer headlessly (no browser,
- * no renderer), collects the NoteEvents, writes a Standard MIDI File with the
- * SAME per-voice GM programs + lead-register folding the browser uses, then
- * renders it to WAV with `fluidsynth` and the SAME SoundFont — so the judge
- * hears what you hear. Emits out/manifest.json for judge.py.
+ * For each (genre, seed) it drives the pure-TS composer headlessly and emits
+ * out/manifest.json for judge.py. The established browser/Tone offline renderer
+ * is used for Hip-hop so its sampled palette matches the demo; all other genres
+ * retain the FluidSynth MIDI path below. Hip-hop's sampled path requires the
+ * built demo and headless Chromium (see render-tone.mjs).
  *
  * Usage:
  *   node tools/judge/render.mjs                       # all 12 genres, seed 1, 24s
@@ -47,6 +47,30 @@ const seeds = arg("seeds", "1").split(",").map(Number);
 const seconds = Number(arg("seconds", "24"));
 
 mkdirSync(OUT, { recursive: true });
+
+// The demo's Hip-hop renderer is a Tone.js hybrid with local recorded samples.
+// Reuse the repository's established headless browser path rather than trying to
+// reproduce Tone Samplers in Node (which silently renders silence without a real
+// window). The other genres intentionally stay on this script's FluidSynth path.
+const sampledHipHop = new Map();
+if (genres.includes("genre-hiphop")) {
+  execFileSync(process.execPath, [
+    join(HERE, "render-tone.mjs"),
+    "--palette=sampled",
+    "--genres=genre-hiphop",
+    `--seeds=${seeds.join(",")}`,
+    `--seconds=${seconds}`,
+  ], { cwd: REPO, stdio: "inherit" });
+  const sampledOut = join(OUT, "tone-sampled");
+  const sampledManifest = JSON.parse(readFileSync(join(sampledOut, "manifest.json"), "utf8"));
+  for (const clip of sampledManifest.clips ?? []) {
+    sampledHipHop.set(clip.seed, join(sampledOut, clip.file));
+  }
+  for (const seed of seeds) {
+    if (!sampledHipHop.has(seed)) throw new Error(`sampled Hip-hop render missing seed ${seed}`);
+  }
+}
+
 const clips = [];
 
 for (const genre of genres) {
@@ -62,7 +86,7 @@ for (const genre of genres) {
     const events = [];
     for (let bar = 0; bar < bars; bar++) {
       for (const e of lime.composeBar(bar)) {
-        events.push(e.voice === "melody" ? { ...e, pitch: foldMelody(e.pitch, cfg) } : e);
+        events.push(e.voice === "melody" && genre !== "genre-hiphop" ? { ...e, pitch: foldMelody(e.pitch, cfg) } : e);
       }
     }
     const programs = {};
@@ -73,7 +97,14 @@ for (const genre of genres) {
     const wavPath = join(OUT, `${base}.wav`);
     const bytes = eventsToStandardMidiFile(events, { tempo: bpm, ppq: 480, trackOrder: TRACK_ORDER, programs, name: `${NAMES[genre]} seed ${seed}` });
     writeFileSync(midPath, bytes);
-    execFileSync("fluidsynth", ["-ni", "-g", "0.8", "-r", "44100", "-F", wavPath, SF2, midPath], { stdio: "ignore" });
+    if (genre === "genre-hiphop") {
+      // render-tone.mjs already rendered this exact composition through the
+      // demo's sampled/hybrid palette; relocate it so existing judge commands
+      // keep consuming this manifest unchanged.
+      copyFileSync(sampledHipHop.get(seed), wavPath);
+    } else {
+      execFileSync("fluidsynth", ["-ni", "-g", "0.8", "-r", "44100", "-F", wavPath, SF2, midPath], { stdio: "ignore" });
+    }
 
     const character = {
       instruments: {
