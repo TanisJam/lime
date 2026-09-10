@@ -5,6 +5,14 @@ import type { StylePack } from "../src/style/StylePack.js";
 
 const BAR = 1920;
 const BEAT = 480;
+
+// Grid-exact checks need a tolerance now that every style gets at least core's
+// DEFAULT_FEEL humanization (Humanizer.ts) unless it opts into a zero feel.
+// Well above the default feel's worst-case per-note deviation, well below the
+// spacing between genuinely distinct grid positions.
+const JITTER_TOL = 60;
+const snap = (t: number) => Math.round(t / JITTER_TOL) * JITTER_TOL;
+
 const rockStyle: StylePack = {
   ...testStyle,
   keyPc: 4, // E — the rock key
@@ -43,7 +51,10 @@ it("rock conformance across seeds", () => {
 
       // Power chords: each pad onset should have a fifth and no third.
       const byTime = new Map<number, number[]>();
-      for (const e of pad) (byTime.get(e.time) ?? byTime.set(e.time, []).get(e.time)!).push(e.pitch);
+      for (const e of pad) {
+        const t = snap(e.time);
+        (byTime.get(t) ?? byTime.set(t, []).get(t)!).push(e.pitch);
+      }
       for (const pitches of byTime.values()) {
         padChords++;
         const pcs = new Set(pitches.map((p) => ((p % 12) + 12) % 12));
@@ -56,7 +67,7 @@ it("rock conformance across seeds", () => {
       }
 
       // Backbeat: snare on beats 2 & 4.
-      const snares = perc.filter((e) => e.percussion === "snare").map((e) => e.time - bar * BAR);
+      const snares = perc.filter((e) => e.percussion === "snare").map((e) => snap(e.time - bar * BAR));
       if (perc.length > 0) {
         drumBars++;
         if (snares.includes(BEAT) && snares.includes(BEAT * 3)) backbeatOk++;
@@ -64,7 +75,7 @@ it("rock conformance across seeds", () => {
       // Straight hats: on the 8th grid.
       for (const e of perc.filter((x) => x.percussion === "hat")) {
         hats++;
-        if ((e.time - bar * BAR) % (BEAT / 2) === 0) hatsStraight++;
+        if (snap(e.time - bar * BAR) % (BEAT / 2) === 0) hatsStraight++;
       }
       // Pentatonic melody.
       for (const e of melody) {

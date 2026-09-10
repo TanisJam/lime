@@ -19,6 +19,7 @@
 import type { MusicalState } from "../state/MusicalState.js";
 import type { PhrasePlan } from "../phrase/PhrasePlan.js";
 import type { FormState } from "../phrase/FormDirector.js";
+import type { EnsembleStyle } from "../style/StylePack.js";
 import { Arrangement, type ArrangementVoice } from "./Arrangement.js";
 import {
   MUSICAL_ROLES,
@@ -43,7 +44,16 @@ export class OrchestrationDirector {
    * The energy-gated voice arrangement with hysteresis, exactly as v0.2. Owned
    * here now instead of by the Orchestrator so a single layer decides presence.
    */
-  private readonly arrangement = new Arrangement();
+  private readonly arrangement: Arrangement;
+
+  /**
+   * @param ensemble Optional per-voice gate overrides from the active StylePack
+   * (e.g. a genre whose drummer plays at every dynamic). Falls through to the
+   * Arrangement defaults when omitted.
+   */
+  constructor(ensemble?: EnsembleStyle) {
+    this.arrangement = new Arrangement(ensemble);
+  }
 
   /**
    * Plan the bar's orchestration. Mutates the internal arrangement hysteresis,

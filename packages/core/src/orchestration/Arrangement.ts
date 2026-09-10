@@ -8,18 +8,19 @@
  * an edge — once it commits to entering or leaving, it stays until energy moves
  * clearly the other way.
  *
+ * The thresholds below are a style *default*, not a universal truth: a
+ * StylePack may override any voice's gate via {@link EnsembleStyle} (e.g. a
+ * jazz trio's drummer is present at every dynamic, so jazz declares its own,
+ * much lower, percussion gate). A voice the style doesn't override keeps the
+ * default here.
+ *
  * Decisions are taken once per bar (at the bar boundary), and the pad is always
  * present as the harmonic bed.
  */
 
-export type ArrangementVoice = "pad" | "melody" | "bass" | "percussion";
+import type { EnsembleStyle, VoiceGate } from "../style/StylePack.js";
 
-interface VoiceGate {
-  /** Energy at or above which an absent voice enters. */
-  readonly on: number;
-  /** Energy below which a present voice drops out. `on > off` is the hysteresis. */
-  readonly off: number;
-}
+export type ArrangementVoice = "pad" | "melody" | "bass" | "percussion";
 
 const GATES: ReadonlyArray<readonly [Exclude<ArrangementVoice, "pad">, VoiceGate]> = [
   ["melody", { on: 0.2, off: 0.14 }],
@@ -29,10 +30,16 @@ const GATES: ReadonlyArray<readonly [Exclude<ArrangementVoice, "pad">, VoiceGate
 
 export class Arrangement {
   private readonly active = new Set<ArrangementVoice>(["pad"]);
+  private readonly ensemble: EnsembleStyle | undefined;
+
+  constructor(ensemble?: EnsembleStyle) {
+    this.ensemble = ensemble;
+  }
 
   /** Update the active voice set for a bar's energy and return it. */
   update(energy: number): ReadonlySet<ArrangementVoice> {
-    for (const [voice, gate] of GATES) {
+    for (const [voice, defaultGate] of GATES) {
+      const gate = this.ensemble?.[voice] ?? defaultGate;
       if (this.active.has(voice)) {
         if (energy < gate.off) this.active.delete(voice);
       } else if (energy >= gate.on) {

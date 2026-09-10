@@ -7,6 +7,15 @@ const BAR = 1920;
 const BEAT = 480;
 const MINOR_PENT = new Set([0, 3, 5, 7, 10]);
 
+// These conformance checks assert exact grid positions, but every style now
+// gets at least core's DEFAULT_FEEL humanization (see Humanizer.ts) unless it
+// opts into a zero feel. Snap onset times back to the grid before comparing —
+// the tolerance is well above the default feel's worst-case per-note
+// deviation and well below the spacing between genuinely distinct grid
+// positions, so it never merges two real positions together.
+const JITTER_TOL = 60;
+const snap = (t: number) => Math.round(t / JITTER_TOL) * JITTER_TOL;
+
 interface Metrics {
   tempo: number;
   power: number; // % of pad chords that are power chords (fifth, no third)
@@ -33,7 +42,10 @@ function measure(style: StylePack, state: MusicalStatePatch, seeds: string[]): M
       if (perc.length + melody.length + pad.length > 6) drivingBars++;
       if (bass.length) { bassBars++; bassNotes += bass.length; }
       const byTime = new Map<number, number[]>();
-      for (const e of pad) (byTime.get(e.time) ?? byTime.set(e.time, []).get(e.time)!).push(e.pitch);
+      for (const e of pad) {
+        const t = snap(e.time);
+        (byTime.get(t) ?? byTime.set(t, []).get(t)!).push(e.pitch);
+      }
       for (const pitches of byTime.values()) {
         padChords++;
         const pcs = new Set(pitches.map((p) => ((p % 12) + 12) % 12));
@@ -44,11 +56,11 @@ function measure(style: StylePack, state: MusicalStatePatch, seeds: string[]): M
         }
         if (fifth && !third) powerOk++;
       }
-      const snares = perc.filter((e) => e.percussion === "snare").map((e) => e.time - bar * BAR);
+      const snares = perc.filter((e) => e.percussion === "snare").map((e) => snap(e.time - bar * BAR));
       if (perc.length) { drumBars++; if (snares.includes(BEAT) && snares.includes(BEAT * 3)) backbeatOk++; }
       for (const e of perc.filter((x) => x.percussion === "hat")) {
         hats++;
-        if ((e.time - bar * BAR) % (BEAT / 2) === 0) hatsStraight++;
+        if (snap(e.time - bar * BAR) % (BEAT / 2) === 0) hatsStraight++;
       }
       for (const e of melody) {
         mel++;

@@ -22,12 +22,13 @@ import { HarmonyPlanner } from "../harmony/HarmonyPlanner.js";
 import { pitchClassName } from "../harmony/Scale.js";
 import { chordLabel, chordRoman } from "../harmony/Chord.js";
 import type { NoteEvent } from "../events/MusicalEvent.js";
+import { humanizeBar } from "../humanize/Humanizer.js";
 import { Orchestrator } from "../orchestration/Orchestrator.js";
 import { OrchestrationDirector } from "../orchestration/OrchestrationDirector.js";
 import type { OrchestrationPlan } from "../orchestration/OrchestrationPlan.js";
 import { ROLE_FOR_VOICE } from "../orchestration/MusicalRole.js";
 import { CompositionScheduler } from "../scheduler/CompositionScheduler.js";
-import type { StylePack } from "../style/StylePack.js";
+import { DEFAULT_FEEL, type StylePack } from "../style/StylePack.js";
 import type { MusicRenderer } from "./MusicRenderer.js";
 import type { DebugSnapshot, UpcomingChord } from "../debug/DebugSnapshot.js";
 import type { BarCapture, CompositionCapture } from "../analysis/types.js";
@@ -108,6 +109,14 @@ export class LimeEngine implements Lime {
   private readonly orchestrationDirector: OrchestrationDirector;
   private readonly orchestrator: Orchestrator;
   private readonly scheduler: CompositionScheduler;
+  /**
+   * Dedicated RNG stream for humanization, derived once here so it never
+   * perturbs the streams the voice generators themselves consume (see the
+   * RNG architecture note in the handoff). A per-bar child is derived from
+   * this in {@link composeBar}, matching the pattern used for `orchestration`
+   * below.
+   */
+  private readonly humanizeRng: SeededRandom;
 
   private running = false;
   private pumpTimer: unknown = undefined;
@@ -153,7 +162,7 @@ export class LimeEngine implements Lime {
       transitions: this.style.harmony?.transitions,
       harmonyMotion: this.style.harmony?.harmonyMotion,
     });
-    this.orchestrationDirector = new OrchestrationDirector();
+    this.orchestrationDirector = new OrchestrationDirector(this.style.ensemble);
     this.orchestrator = new Orchestrator(this.rng.derive("orchestration"), undefined, {
       melody: this.style.melody,
       rhythm: this.style.rhythm,
@@ -161,6 +170,7 @@ export class LimeEngine implements Lime {
       bassStyle: this.style.bassStyle,
       motion: this.style.motion,
     });
+    this.humanizeRng = this.rng.derive("humanize");
 
     this.scheduler = new CompositionScheduler({
       meter: this.meter,
@@ -271,9 +281,10 @@ export class LimeEngine implements Lime {
     const orchestration = this.orchestrationDirector.plan(state, phrasePlan, formState);
     this.lastOrchestrationPlan = orchestration;
 
-    const events = this.orchestrator.composeBar({
+    const barStartTick = bar * ticksPerBar(this.meter);
+    const rawEvents = this.orchestrator.composeBar({
       bar,
-      barStartTick: bar * ticksPerBar(this.meter),
+      barStartTick,
       meter: this.meter,
       state,
       chord,
@@ -281,6 +292,19 @@ export class LimeEngine implements Lime {
       phrase,
       phrasePlan,
       orchestration,
+    });
+
+    // Humanize here, at the single point every composed bar passes through on
+    // its way out of the engine — not inside individual generators. That way
+    // a future generator can't forget to humanize its output: it physically
+    // cannot bypass this chokepoint. Uses its own derived RNG stream (see
+    // `humanizeRng` above) so humanization never perturbs the generators'
+    // own RNG sequences, keeping seeded output reproducible either way.
+    const events = humanizeBar(rawEvents, this.style.feel ?? DEFAULT_FEEL, {
+      barStartTick,
+      meter: this.meter,
+      tempo: state.tempo,
+      rng: this.humanizeRng.derive(String(bar)),
     });
 
     this.orchestrator.memory.expireCommitments(bar);
