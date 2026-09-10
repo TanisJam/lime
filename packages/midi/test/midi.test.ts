@@ -5,6 +5,7 @@ import {
   eventsToStandardMidiFile,
   toMidiVelocity,
   bpmToMicrosecondsPerQuarter,
+  DEFAULT_TRACK_ORDER,
   DRUM_CHANNEL,
 } from "../src/StandardMidiFile.js";
 import { encodeVLQ, MAX_VLQ } from "../src/vlq.js";
@@ -199,6 +200,55 @@ describe("MTrk chunks", () => {
     const bytes = eventsToStandardMidiFile(twoVoices);
     expect(parseHeader(bytes).ntrks).toBe(3); // conductor + 2
     expect(parseChunks(bytes).length).toBe(3);
+  });
+});
+
+describe("every core voice survives export by default", () => {
+  /**
+   * The bug this guards: `DEFAULT_TRACK_ORDER` listed pad/bass/melody/
+   * percussion/texture and omitted `motion`, and the exporter emits only the
+   * voices named in the order it is given. So any caller that did not pass an
+   * explicit `trackOrder` — including the demo's MIDI download button — silently
+   * dropped the motion voice from the file. The voice composed, the events were
+   * built, and they were discarded one line before the bytes were written.
+   *
+   * "Silently" is the part that matters: no error, no warning, a valid file that is
+   * merely missing a voice. Same failure shape as the Funk palette drift — a
+   * default quietly disagreeing with the system it describes.
+   */
+  const ALL_VOICES: NoteEvent["voice"][] = [
+    "pad",
+    "bass",
+    "melody",
+    "motion",
+    "percussion",
+    "texture",
+  ];
+
+  for (const voice of ALL_VOICES) {
+    it(`keeps the ${voice} voice when no trackOrder is given`, () => {
+      const events: NoteEvent[] = [note(voice, 0, 480, 60, 0.5)];
+      const bytes = eventsToStandardMidiFile(events);
+      // conductor + the one voice
+      expect(parseHeader(bytes).ntrks).toBe(2);
+      expect(parseChunks(bytes).length).toBe(2);
+    });
+  }
+
+  it("writes the motion voice's own track, not a dropped one", () => {
+    // Directly asserts the symptom the demo's download button had: a file with
+    // motion events in it and no motion track to carry them.
+    const events: NoteEvent[] = [
+      note("motion", 0, 160, 64, 0.3),
+      note("pad", 0, 960, 48, 0.5),
+    ];
+    const bytes = eventsToStandardMidiFile(events);
+    expect(parseHeader(bytes).ntrks).toBe(3); // conductor + motion + pad
+  });
+
+  it("names every voice in the default order, so nothing is unreachable", () => {
+    // A voice absent from the order cannot be emitted at all by a default caller.
+    expect([...DEFAULT_TRACK_ORDER].sort()).toEqual([...ALL_VOICES].sort());
   });
 });
 

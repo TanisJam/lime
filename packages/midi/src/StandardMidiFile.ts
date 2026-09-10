@@ -34,6 +34,7 @@ export const DEFAULT_TRACK_ORDER: readonly VoiceId[] = [
   "pad",
   "bass",
   "melody",
+  "motion",
   "percussion",
   "texture",
 ] as const;
