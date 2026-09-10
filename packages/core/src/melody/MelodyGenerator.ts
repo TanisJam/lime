@@ -46,8 +46,12 @@ const DEFAULT_LEAP_RESOLUTION = 0.7;
  *
  * Flow: pick/return/introduce a motif → adapt it to the current chord → apply a
  * role-appropriate variation → schedule. Density and energy gate whether melody
- * sounds at all; at low energy it deliberately falls silent for bars. Motif
- * recurrence gives the music a memory.
+ * sounds at all; at low energy it deliberately falls silent for whole phrases
+ * (`melodicActivity: "tacet"`). Above that, presence and rest are phrase-shaped
+ * rather than a bar-by-bar coin flip: the line rests where a real phrase would
+ * breathe — at a phrase's last bar, or the bar approaching a cadence — and
+ * otherwise keeps going, so silence clusters at structural boundaries instead
+ * of scattering uniformly. Motif recurrence gives the music a memory.
  */
 export class MelodyGenerator {
   private readonly motifGen: MotifGenerator;
@@ -61,22 +65,27 @@ export class MelodyGenerator {
     this.motifGen = new MotifGenerator(rng.derive("motif"), melody);
     this.leapResolution = melody?.leapResolution ?? DEFAULT_LEAP_RESOLUTION;
     this.scale = melody?.scale ?? "diatonic";
-    this.motifDevelopment = melody?.motifDevelopment ?? 0;
+    // A style that says nothing about development still gets some: without it
+    // the theme never reshapes and a new idea almost never arrives (both odds
+    // below are scaled by this knob), so the line has nowhere to go across a
+    // long piece. 0.3 is a light touch — noticeably more alive than 0, still
+    // shy of a style that leans into heavy development on purpose.
+    this.motifDevelopment = melody?.motifDevelopment ?? 0.3;
   }
 
   generateBar(ctx: BarContext, memory: ComposerMemory): NoteEvent[] {
-    const { phrasePlan, rng } = ctx;
+    const { phrasePlan } = ctx;
 
     // 1. Restraint: how present should the melody be this bar? The phrase plan
     //    decides, so every voice agrees on the gesture. A `tacet` phrase simply
-    //    doesn't play — the melody is allowed to sit out whole phrases — while
-    //    even a `lead` line never plays every bar, so it keeps breathing.
+    //    doesn't play — the melody is allowed to sit out whole phrases.
     if (phrasePlan.melodicActivity === "tacet") return [];
     // Always state the theme at the top of a statement phrase (unless the whole
     // phrase is tacet): that downbeat is the "here is the idea" moment, so it
-    // shouldn't be swallowed by a rest. Elsewhere the melody breathes as before.
+    // shouldn't be swallowed by a rest. Elsewhere the melody rests where a
+    // phrase actually breathes, not on a coin flip (see shouldRest).
     const isThemeHead = ctx.phrase.isStart && ctx.phrase.role === "statement";
-    if (!isThemeHead && !rng.bool(this.playProbability(ctx))) return [];
+    if (!isThemeHead && this.shouldRest(ctx)) return [];
 
     // 2. Choose the motif for this bar.
     const base = this.selectMotif(ctx, memory);
@@ -115,18 +124,36 @@ export class MelodyGenerator {
   }
 
   /**
-   * Chance the melody sounds at all this bar. Shaped off the phrase-arc energy
-   * (not raw state) so the line swells and settles with the phrase; sparse
-   * phrases thin out further, and the chance is capped below 1 so even at full
-   * energy some bars fall silent — the melody always has room to breathe.
+   * Whether the melody rests this bar — phrase-structured, not a per-bar coin
+   * flip. A real line breathes at specific places: the last bar of a phrase
+   * (the gesture is done, a new one is about to start) and the bar approaching
+   * a cadence (stepping back so the resolution lands clean). Every other bar
+   * inside a phrase keeps going, so rests cluster at those boundaries instead
+   * of scattering uniformly across the piece — and because most bars are no
+   * longer eligible to rest at all, the line is present far more often overall.
    */
-  private playProbability(ctx: BarContext): number {
-    const { state, phrase, phrasePlan } = ctx;
-    let p = -0.05 + 0.85 * phrasePlan.energy + 0.5 * state.density;
-    if (phrase.role === "statement") p += 0.15;
-    if (phrasePlan.melodicActivity === "sparse") p *= 0.55;
-    const ceiling = phrasePlan.melodicActivity === "lead" ? 0.9 : 0.7;
-    return Math.min(clamp01(p), ceiling);
+  private shouldRest(ctx: BarContext): boolean {
+    const { phrase, phrasePlan, rng } = ctx;
+    const atBoundary = phrase.isLastBar || phrasePlan.cadenceIntent === "approaching";
+    if (!atBoundary) return false;
+    return rng.bool(this.restProbabilityAt(ctx));
+  }
+
+  /**
+   * Chance of taking the breath once a bar is a phrase boundary (see
+   * shouldRest). A `lead` phrase rides through its own boundary more often
+   * than not; a `sparse` phrase usually takes it; and a cadence that is about
+   * to resolve leans further still, so the harmony lands without the melody
+   * stepping on it.
+   */
+  private restProbabilityAt(ctx: BarContext): number {
+    const { phrasePlan } = ctx;
+    let p = 0.4;
+    if (phrasePlan.melodicActivity === "lead") p = 0.15;
+    else if (phrasePlan.melodicActivity === "sparse") p = 0.6;
+    if (phrasePlan.cadenceIntent === "resolving") p += 0.2;
+    else if (phrasePlan.cadenceIntent === "approaching") p += 0.1;
+    return clamp01(p);
   }
 
   private selectMotif(ctx: BarContext, memory: ComposerMemory): Motif {
@@ -193,6 +220,29 @@ export class MelodyGenerator {
         if (rng.bool(0.4)) m = augment(m, 1.5);
         break;
     }
+
+    // A busy development has more to say than a short cell repeated once:
+    // sequence it — append the same shape a diatonic step away, the plain
+    // developmental gesture — so building bars actually yield a longer line
+    // instead of the same 3-4 notes at every activity level. This is where
+    // motifDevelopment (see the constructor) has somewhere to go: it lifts
+    // the odds here directly, on top of this bar's own share of the
+    // orchestration's activity budget (not a flat constant), so a quiet
+    // development barely extends and a driving one usually does. Reserved for
+    // "development" alone — the statement must stay recognizably plain (see
+    // its case above) and a cadence has just wound down — so this only ever
+    // appends to what vary() already produced there, never reshapes it.
+    const melodyShare = ctx.orchestration.activity["primary-melody"] ?? 0;
+    const extendChance = clamp01(0.5 * melodyShare + 0.3 * this.motifDevelopment);
+    if (phrase.role === "development" && m.intervals.length <= 4 && rng.bool(extendChance)) {
+      const seq = transpose(m, rng.pick([-2, -1, 1, 2]));
+      m = {
+        id: `${m.id}^seq`,
+        intervals: [...m.intervals, ...seq.intervals],
+        rhythm: [...m.rhythm, ...seq.rhythm],
+      };
+    }
+
     return m;
   }
 
@@ -254,30 +304,56 @@ export class MelodyGenerator {
     const { state, rng, meter, barStartTick } = ctx;
     const barLen = ticksPerBar(meter);
 
+    // How busy the line should read this bar: the orchestration's shared
+    // activity budget (this role's own slice, when a value has been assigned)
+    // folded with the phrase's energy — not a flat constant, so a lead line in
+    // a busy passage fills out and a sparse one stays sparse.
+    const activity = clamp01(
+      0.6 * (ctx.orchestration.activity["primary-melody"] ?? ctx.phrasePlan.energy) +
+        0.4 * ctx.phrasePlan.energy,
+    );
+
     // Optional starting rest for breathing room. Sparse phrases lead with
     // silence more often, so the motif enters after a gap instead of on the
-    // downbeat every time.
+    // downbeat every time — but a busy, active bar leads with less of it, so
+    // the extra room goes to notes instead of a longer silence.
     let cursor = 0;
-    const restProb =
-      ctx.phrasePlan.melodicActivity === "sparse" ? 0.55 : state.density < 0.5 ? 0.35 : 0;
-    if (restProb > 0 && rng.bool(restProb)) {
+    const leadInProb =
+      (ctx.phrasePlan.melodicActivity === "sparse" ? 0.55 : state.density < 0.5 ? 0.35 : 0) *
+      (1 - 0.7 * activity);
+    if (leadInProb > 0 && rng.bool(leadInProb)) {
       cursor = Math.round(barLen / 4);
     }
+
+    // Fit the motif into the room left in the bar. At low activity an overlong
+    // motif is simply cut off, same as before — a sparse bar stays sparse. At
+    // high activity the durations compress toward fitting the whole motif
+    // instead of dropping its tail, so a busy phrase actually gets to finish
+    // the idea it started rather than losing half of it to overflow.
+    const totalDur = motif.rhythm.reduce((s, d) => s + d, 0);
+    const room = barLen - cursor;
+    const fitScale = totalDur > 0 && totalDur > room ? room / totalDur : 1;
+    const compression = 1 - activity * (1 - fitScale);
 
     const velBase = clamp01(0.4 + 0.35 * ctx.phrasePlan.dynamics + 0.05 * state.valence);
     const events: NoteEvent[] = [];
 
     for (let i = 0; i < pitches.length; i++) {
-      const dur = motif.rhythm[i] ?? 0;
+      const rawDur = motif.rhythm[i] ?? 0;
+      const dur = Math.max(40, Math.round(rawDur * compression));
       if (cursor >= barLen) break; // out of bar — remaining notes become silence
       const time = barStartTick + cursor;
       const clippedDur = Math.min(dur, barLen - cursor);
-      const timingJitter = Math.round((rng.next() - 0.5) * 6);
+      // No timing jitter here: the Humanizer owns microtiming for every voice
+      // now, so a second displacement at this level would stack on top of it —
+      // and it would be the wrong shape anyway. This one was a fixed ±3 ticks,
+      // which is a different amount of time at 90 and at 180 bpm; the feel
+      // layer works in milliseconds and scales with the note's own duration.
       const accent = i === 0 ? 0.1 : 0;
       const pitch = pitches[i]!;
       events.push({
         type: "note",
-        time: Math.max(barStartTick, time + timingJitter),
+        time,
         duration: Math.max(1, clippedDur),
         pitch,
         velocity: clamp01(velBase + accent + (rng.next() - 0.5) * 0.08),
