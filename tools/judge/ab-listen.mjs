@@ -37,7 +37,7 @@ import { fileURLToPath } from "node:url";
 
 import { createLime } from "../../packages/core/dist/index.js";
 import { eventsToStandardMidiFile } from "../../packages/midi/dist/index.js";
-import { STATE, GM, stylePack, NAMES, foldMelody } from "./genreTables.mjs";
+import { STATE, GM, stylePack, NAMES, } from "./genreTables.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "../..");
@@ -100,15 +100,7 @@ function renderClip(genreId, patch, seed, seconds, outDir, tag) {
     const barEvents = lime.composeBar(bar);
     if (bar < warmup) continue;
     for (const e of barEvents) {
-      // Fold the lead into the genre's register, exactly as render.mjs and the
-      // demo's fluidRenderer do. Without this the clips carry the raw composer
-      // register — funk reaches E7 — and the test stops being representative of
-      // anything the library actually ships.
-      const folded =
-        e.voice === "melody" && genreId !== "genre-hiphop"
-          ? { ...e, pitch: foldMelody(e.pitch, cfg) }
-          : e;
-      events.push({ ...folded, time: folded.time - warmup * 1920 });
+      events.push({ ...e, time: e.time - warmup * 1920 });
     }
   }
 

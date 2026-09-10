@@ -25,9 +25,8 @@ import { FluidRenderer, GM_PROGRAMS } from "./fluidRenderer";
  * 31/48 (65%) on held-out seeds against 23/48 (48%) for FluidSynth alone.
  * Everything else keeps FluidSynth, ties (jazz, electronic) included.
  *
- * Known, accepted difference: the lead-register folding (melodyMax/melodyCut,
- * see GM_PROGRAMS) is a FluidRenderer-only feature, so these two genres do not
- * get it.
+ * The core now owns melody-register folding, so both renderers consume the same
+ * already-folded melody events.
  */
 const SAMPLED_GENRES = new Set(["genre-ambient", "genre-hiphop"]);
 

@@ -9,6 +9,7 @@ import type { Motif } from "../motif/Motif.js";
 import { MotifGenerator } from "../motif/MotifGenerator.js";
 import { augment, fragment, invert, transpose } from "../motif/MotifTransformer.js";
 import type { MelodyStyle, MelodyScale } from "../style/StylePack.js";
+import type { Register } from "../harmony/Registers.js";
 
 /** Pitch-class offsets (from the tonic) of the snap scales. */
 const SNAP_SCALES: Record<Exclude<MelodyScale, "diatonic">, readonly number[]> = {
@@ -41,6 +42,29 @@ const LEAP_SEMITONES = 5;
 /** Default chance a leap resolves stepwise, when the style doesn't set one. */
 const DEFAULT_LEAP_RESOLUTION = 0.7;
 
+function foldToRegister(pitch: number, register: Partial<Register> | undefined): number {
+  if (!register) return pitch;
+  const { lo, hi } = register;
+  if ((lo !== undefined && !Number.isFinite(lo)) || (hi !== undefined && !Number.isFinite(hi))) {
+    throw new Error("Melody register bounds must be finite numbers");
+  }
+  if (lo !== undefined && hi !== undefined && lo > hi) {
+    throw new Error("Melody register lower bound must not exceed its upper bound");
+  }
+  if (lo !== undefined && hi !== undefined) {
+    const minOctaves = Math.ceil((lo - pitch) / 12);
+    const maxOctaves = Math.floor((hi - pitch) / 12);
+    if (minOctaves > maxOctaves) {
+      throw new Error("Melody pitch class cannot fit within the melody register");
+    }
+    const octaves = pitch < lo ? minOctaves : pitch > hi ? maxOctaves : 0;
+    return pitch + octaves * 12;
+  }
+  if (hi !== undefined && pitch > hi) return pitch - Math.ceil((pitch - hi) / 12) * 12;
+  if (lo !== undefined && pitch < lo) return pitch + Math.ceil((lo - pitch) / 12) * 12;
+  return pitch;
+}
+
 /**
  * Melody voice — derived from motifs, never freshly random every bar.
  *
@@ -58,6 +82,7 @@ export class MelodyGenerator {
   private readonly leapResolution: number;
   private readonly scale: MelodyScale;
   private readonly motifDevelopment: number;
+  private readonly register: Partial<Register> | undefined;
   private activeMotif: Motif | undefined;
   private lastPitch: number | undefined;
 
@@ -71,6 +96,7 @@ export class MelodyGenerator {
     // long piece. 0.3 is a light touch — noticeably more alive than 0, still
     // shy of a style that leans into heavy development on purpose.
     this.motifDevelopment = melody?.motifDevelopment ?? 0.3;
+    this.register = melody?.register;
   }
 
   generateBar(ctx: BarContext, memory: ComposerMemory): NoteEvent[] {
@@ -350,7 +376,7 @@ export class MelodyGenerator {
       // which is a different amount of time at 90 and at 180 bpm; the feel
       // layer works in milliseconds and scales with the note's own duration.
       const accent = i === 0 ? 0.1 : 0;
-      const pitch = pitches[i]!;
+      const pitch = foldToRegister(pitches[i]!, this.register);
       events.push({
         type: "note",
         time,
@@ -360,7 +386,9 @@ export class MelodyGenerator {
         voice: "melody",
       });
       memory.recordPitch(pitch);
-      this.lastPitch = pitch;
+      // Keep contour decisions in the generator's native register; folding is
+      // an emission concern and must not alter later chord/motif choices.
+      this.lastPitch = pitches[i]!;
       cursor += dur;
     }
 

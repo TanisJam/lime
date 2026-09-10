@@ -10,6 +10,7 @@ import type {
   InstrumentationConfig,
   EnsembleStyle,
   FeelStyle,
+  Register,
 } from "@lime/core";
 
 /**
@@ -66,6 +67,7 @@ interface GenreSpec {
   readonly ensemble?: EnsembleStyle;
   /** Per-voice feel; omit to fall back to core's DEFAULT_FEEL (see StylePack.ts). */
   readonly feel?: FeelStyle;
+  readonly melodyRegister?: Partial<Register>;
 }
 
 function genrePack(s: GenreSpec): StylePack {
@@ -84,7 +86,9 @@ function genrePack(s: GenreSpec): StylePack {
     rhythm: s.groove
       ? { groove: s.groove, grooveVariation: s.grooveVariation }
       : undefined,
-    melody: s.melodyScale ? { scale: s.melodyScale } : undefined,
+    melody: s.melodyScale || s.melodyRegister
+      ? { scale: s.melodyScale, register: s.melodyRegister }
+      : undefined,
     ensemble: s.ensemble,
     feel: s.feel,
   };
@@ -97,7 +101,7 @@ export const metalPack = genrePack({
   melodyScale: "minor-pentatonic",
   // The proven rock/metal calibration anchor (previously only set at the app
   // layer — see PercussionGenerator.backbeat()); kept as-is here.
-  grooveVariation: 0.4,
+  grooveVariation: 0.4, melodyRegister: { hi: 71 },
 });
 
 /** Pop — bright diatonic four-chord loops over a straight backbeat. */
@@ -127,7 +131,7 @@ export const popPack = genrePack({
   // far busier than Rock (21.7 vs 15.6 hits/bar) despite the tighter
   // backbeat, and those two needs don't fit one scalar read the same way in
   // both places — see `looseness` in `PercussionGenerator.backbeat()`.
-  grooveVariation: 1.15,
+  grooveVariation: 1.15, melodyRegister: { hi: 76 },
 });
 
 /**
@@ -189,7 +193,7 @@ export const bluesPack = genrePack({
   ensemble: { percussion: { on: 0.22, off: 0.12 } },
   // Measured backbeat 0.55 (GROOVE-CRITERIA.md) — a shuffle groove sits
   // between jazz's looseness and rock's discipline.
-  grooveVariation: 0.6,
+  grooveVariation: 0.6, melodyRegister: { hi: 76 },
 });
 
 /** Hip-hop — minor loops, boom-bap half-time, sub bass, pentatonic. */
@@ -200,7 +204,7 @@ export const hiphopPack = genrePack({
   // No measured target (hip-hop is outside the six calibrated genres) — a
   // moderate value keyed to the chopped-breakbeat feel described in
   // PercussionGenerator.boomBap().
-  grooveVariation: 0.55,
+  grooveVariation: 0.55, melodyRegister: { hi: 76 },
 });
 
 /**
@@ -227,6 +231,7 @@ export const electronicPack = genrePack({
   id: "genre-electronic", modes: ["naturalMinor", "dorian"], defaultMode: "naturalMinor", keyPc: 9,
   tempoRange: [120, 130], chordStyle: "triad", bassStyle: "sub", groove: "four-on-floor",
   melodyScale: "minor-pentatonic", motion: "arp", feel: GRID_PERFECT_FEEL,
+  melodyRegister: { hi: 76 },
   // Measured backbeat is the lowest of any genre (0.29, GROOVE-CRITERIA.md) —
   // real EDM claps roll and build far more than a bare 2-&-4 clap. The kick
   // itself never varies (see fourOnFloor()); this only ever touches the
@@ -246,7 +251,7 @@ export const electronicPack = genrePack({
  */
 export const folkPack = genrePack({
   id: "genre-folk", modes: ["dorian", "mixolydian", "major"], defaultMode: "dorian", keyPc: 7,
-  tempoRange: [80, 120], chordStyle: "triad", groove: "none",
+  tempoRange: [80, 120], chordStyle: "triad", groove: "none", melodyRegister: { hi: 76 },
 });
 
 /** Latina — sevenths, clave, anticipated tumbao bass. */
@@ -258,7 +263,7 @@ export const latinPack = genrePack({
   // (there's no true backbeat "snare") doesn't apply. Moderate: the clave
   // figure itself never varies (see clave()), so this only moves the conga
   // ornaments and the shaker bed.
-  grooveVariation: 0.5,
+  grooveVariation: 0.5, melodyRegister: { hi: 78 },
 });
 
 /**
@@ -281,6 +286,7 @@ const FUNK_FEEL: FeelStyle = {
 
 /** R&B / soul / funk — extended chords, 16th funk groove, funk bass. */
 export const funkPack = genrePack({
+      melodyRegister: { hi: 79 },
   id: "genre-funk", modes: ["dorian", "mixolydian"], defaultMode: "dorian", keyPc: 4,
   tempoRange: [95, 120], chordStyle: "seventh", bassStyle: "funk", groove: "funk",
   melodyScale: "minor-pentatonic", motion: "stab", feel: FUNK_FEEL,
@@ -302,6 +308,7 @@ export const funkPack = genrePack({
 
 /** Clásica — functional triads, expressive, no drum kit. */
 export const classicalPack = genrePack({
+      melodyRegister: { hi: 79 },
   id: "genre-classical", modes: ["major", "naturalMinor"], defaultMode: "major", keyPc: 0,
   tempoRange: [60, 140], chordStyle: "triad", groove: "none",
   // No ensemble override: orchestral percussion (timpani, cymbals) really is
@@ -310,6 +317,7 @@ export const classicalPack = genrePack({
 
 /** Experimental / ambient — modal drones, slow, textural, no kit. */
 export const ambientPack = genrePack({
+      melodyRegister: { hi: 79 },
   id: "genre-ambient", modes: ["dorian", "naturalMinor"], defaultMode: "dorian", keyPc: 9,
   tempoRange: [50, 84], chordStyle: "triad", groove: "none",
   // Above 1 means unreachable — energy never gets there, so ambient never gets a kit.

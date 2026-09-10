@@ -66,6 +66,7 @@ export const ROCK_TUNING: GenreTuning = {
   // seed, with a touch of motifDevelopment so it evolves instead of
   // restating one shape.
   melody: {
+    register: { hi: 76 },
     motifDevelopment: 0.3,
     durationWeights: {
       whole: 1,

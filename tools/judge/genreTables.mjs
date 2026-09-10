@@ -1,5 +1,5 @@
 /**
- * Per-genre tables shared by the Node-side judge tools.
+ * Per-genre timbre/state tables shared by the Node-side judge tools.
  *
  * Extracted from render.mjs so the renderer, the symbolic feature extractor and
  * anything added later describe the same genres. `apps/demo/src/render.ts` keeps
@@ -20,18 +20,18 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "../..");
 
 export const GM = {
-  "genre-classical": { melody: 40, pad: 48, bass: 43, melodyMax: 79 },
-  "genre-pop": { melody: 0, pad: 4, bass: 33, motion: 0, melodyMax: 76 },
-  "genre-rock-pop": { melody: 29, pad: 28, bass: 33, melodyMax: 76 },
-  "genre-hiphop": { melody: 4, pad: 89, bass: 38, motion: 4, melodyMax: 76 },
+  "genre-classical": { melody: 40, pad: 48, bass: 43 },
+  "genre-pop": { melody: 0, pad: 4, bass: 33, motion: 0 },
+  "genre-rock-pop": { melody: 29, pad: 28, bass: 33 },
+  "genre-hiphop": { melody: 4, pad: 89, bass: 38, motion: 4 },
   "genre-jazz": { melody: 66, pad: 4, bass: 32, motion: 0 },
-  "genre-blues": { melody: 27, pad: 4, bass: 33, melodyMax: 76 },
-  "genre-folk": { melody: 25, pad: 24, bass: 32, melodyMax: 76 },
-  "genre-latin": { melody: 56, pad: 0, bass: 33, motion: 24, melodyMax: 78 },
-  "genre-funk": { melody: 28, pad: 28, bass: 33, motion: 4, melodyMax: 79 },
-  "genre-metal": { melody: 30, pad: 30, bass: 33, melodyMax: 71 },
-  "genre-electronic": { melody: 81, pad: 89, bass: 38, motion: 81, melodyMax: 76 },
-  "genre-ambient": { melody: 73, pad: 89, melodyMax: 79 },
+  "genre-blues": { melody: 27, pad: 4, bass: 33 },
+  "genre-folk": { melody: 25, pad: 24, bass: 32 },
+  "genre-latin": { melody: 56, pad: 0, bass: 33, motion: 24 },
+  "genre-funk": { melody: 28, pad: 28, bass: 33, motion: 4 },
+  "genre-metal": { melody: 30, pad: 30, bass: 33 },
+  "genre-electronic": { melody: 81, pad: 89, bass: 38, motion: 81 },
+  "genre-ambient": { melody: 73, pad: 89 },
 };
 
 // Per-genre initial state (tempo + mood) — MIRROR of GENRE_STATE in main.ts.
@@ -97,11 +97,3 @@ export function stylePack(id) {
 
 /** Voice order written into the Standard MIDI File. */
 export const TRACK_ORDER = ["pad", "bass", "melody", "motion", "percussion", "texture"];
-
-/** Fold the lead into the genre's register so it never screams above melodyMax. */
-export function foldMelody(pitch, cfg) {
-  let p = pitch + (cfg.melodyShift ?? 0);
-  if (cfg.melodyMax !== undefined) while (p > cfg.melodyMax) p -= 12;
-  if (cfg.melodyMin !== undefined) while (p < cfg.melodyMin) p += 12;
-  return p;
-}

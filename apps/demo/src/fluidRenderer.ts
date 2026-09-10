@@ -24,12 +24,6 @@ export interface FluidPrograms {
   readonly bass?: number;
   readonly melody?: number;
   readonly motion?: number;
-  /** Semitone shift applied to the melody (multiple of 12 to stay in key). */
-  readonly melodyShift?: number;
-  /** Octave-fold melody notes DOWN until ≤ this MIDI note (tames a screechy lead). */
-  readonly melodyMax?: number;
-  /** Octave-fold melody notes UP until ≥ this MIDI note. */
-  readonly melodyMin?: number;
   /** Cap the melody channel's brightness (CC74, 0–127) so a distorted lead doesn't fizz on top. */
   readonly melodyCut?: number;
 }
@@ -73,16 +67,7 @@ export class FluidRenderer implements MusicRenderer {
     if (this.loaded) this.applyPrograms();
   }
 
-  /** Map a melody note into the genre's lead register (in-key: octave folds only). */
-  private melodyKey(pitch: number): number {
-    let p = pitch + (this.programs.melodyShift ?? 0);
-    const { melodyMax, melodyMin } = this.programs;
-    if (melodyMax !== undefined) while (p > melodyMax) p -= 12;
-    if (melodyMin !== undefined) while (p < melodyMin) p += 12;
-    return p;
-  }
-
-  private applyPrograms(): void {
+    private applyPrograms(): void {
     const s = this.synth;
     if (!s) return;
     for (const v of PITCHED) {
@@ -158,7 +143,7 @@ export class FluidRenderer implements MusicRenderer {
       if (seqTick < 0) continue;
       const vel = Math.max(1, Math.min(127, Math.round(e.velocity * 127)));
       const durMs = (e.duration / this.ticksPerSec()) * 1000;
-      const key = e.voice === "melody" ? this.melodyKey(e.pitch) : e.pitch;
+      const key = e.pitch;
       this.seq.sendEventToClientAt(
         this.clientId,
         { type: "noteon", channel: ch, key, vel } as unknown as JSSynth.SequencerEvent,
@@ -197,16 +182,16 @@ export class FluidRenderer implements MusicRenderer {
 
 /** Per-genre GM program map (voice → GM program). Drums are automatic on ch 9. */
 export const GM_PROGRAMS: Record<string, FluidPrograms> = {
-  "genre-classical": { melody: 40, pad: 48, bass: 43, melodyMax: 79 },
-  "genre-pop": { melody: 0, pad: 4, bass: 33, motion: 0, melodyMax: 76 },
-  "genre-rock-pop": { melody: 29, pad: 28, bass: 33, melodyMax: 76, melodyCut: 66 },
-  "genre-hiphop": { melody: 4, pad: 89, bass: 38, motion: 4, melodyMax: 76 },
+  "genre-classical": { melody: 40, pad: 48, bass: 43 },
+  "genre-pop": { melody: 0, pad: 4, bass: 33, motion: 0 },
+  "genre-rock-pop": { melody: 29, pad: 28, bass: 33, melodyCut: 66 },
+  "genre-hiphop": { melody: 4, pad: 89, bass: 38, motion: 4 },
   "genre-jazz": { melody: 66, pad: 4, bass: 32, motion: 0 },
-  "genre-blues": { melody: 27, pad: 4, bass: 33, melodyMax: 76 },
-  "genre-folk": { melody: 25, pad: 24, bass: 32, melodyMax: 76 },
-  "genre-latin": { melody: 56, pad: 0, bass: 33, motion: 24, melodyMax: 78 },
-  "genre-funk": { melody: 66, pad: 28, bass: 33, motion: 4, melodyMax: 79 },
-  "genre-metal": { melody: 30, pad: 30, bass: 33, melodyMax: 71, melodyCut: 62 },
-  "genre-electronic": { melody: 81, pad: 89, bass: 38, motion: 81, melodyMax: 76 },
-  "genre-ambient": { melody: 73, pad: 89, melodyMax: 79 },
+  "genre-blues": { melody: 27, pad: 4, bass: 33 },
+  "genre-folk": { melody: 25, pad: 24, bass: 32 },
+  "genre-latin": { melody: 56, pad: 0, bass: 33, motion: 24 },
+  "genre-funk": { melody: 66, pad: 28, bass: 33, motion: 4 },
+  "genre-metal": { melody: 30, pad: 30, bass: 33, melodyCut: 62 },
+  "genre-electronic": { melody: 81, pad: 89, bass: 38, motion: 81 },
+  "genre-ambient": { melody: 73, pad: 89 },
 };

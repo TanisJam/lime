@@ -1,6 +1,7 @@
 import type { Mode } from "../harmony/Scale.js";
 import type { TransitionTable } from "../harmony/HarmonyRules.js";
 import type { VoiceId } from "../events/MusicalEvent.js";
+import type { Register } from "../harmony/Registers.js";
 
 /**
  * A StylePack configures the musical world: which modes are allowed, the key,
@@ -107,6 +108,8 @@ export interface MelodyStyle {
    * stay intact for recognizability. Default 0 (unchanged behaviour).
    */
   readonly motifDevelopment?: number;
+  /** Optional octave-only register target for emitted melody events. */
+  readonly register?: Partial<Register>;
 }
 
 /** A named groove feel the percussion generator can lock to. */

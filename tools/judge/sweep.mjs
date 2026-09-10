@@ -24,7 +24,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLime } from "../../packages/core/dist/index.js";
 import { eventsToStandardMidiFile } from "../../packages/midi/dist/index.js";
-import { GM, STATE, NAMES, stylePack, TRACK_ORDER, foldMelody, gmName } from "./genreTables.mjs";
+import { GM, STATE, NAMES, stylePack, TRACK_ORDER, gmName } from "./genreTables.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, "../..");
@@ -99,7 +99,7 @@ function renderVariant(program, knobValue, knobValue2) {
     const events = [];
     for (let bar = 0; bar < bars; bar++) {
       for (const e of lime.composeBar(bar)) {
-        events.push(e.voice === "melody" ? { ...e, pitch: foldMelody(e.pitch, cfg) } : e);
+        events.push(e);
       }
     }
     const programs_ = {};

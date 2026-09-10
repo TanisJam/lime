@@ -3,7 +3,7 @@ import { ROLE_REGISTERS } from "../src/harmony/Registers.js";
 import { LimeEngine } from "../src/engine/LimeEngine.js";
 import { testStyle } from "./helpers.js";
 import type { MusicalStatePatch } from "../src/state/MusicalState.js";
-import type { ChordStyle } from "../src/style/StylePack.js";
+import type { ChordStyle, StylePack } from "../src/style/StylePack.js";
 
 function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
@@ -12,10 +12,11 @@ function median(xs: number[]): number {
 
 function pitchesByVoice(
   state: MusicalStatePatch,
-  overrides?: { chordStyle?: ChordStyle; keyPc?: number },
+  overrides?: { chordStyle?: ChordStyle; keyPc?: number; melody?: StylePack["melody"] },
+  seed = "registers",
 ): Record<string, number[]> {
   const style = overrides ? { ...testStyle, ...overrides } : testStyle;
-  const engine = new LimeEngine({ seed: "registers", style, initialState: state });
+  const engine = new LimeEngine({ seed, style, initialState: state });
   const out: Record<string, number[]> = { bass: [], pad: [], melody: [] };
   for (let b = 0; b < 96; b++) {
     for (const ev of engine.step().events) {
@@ -65,6 +66,46 @@ describe("register ownership", () => {
       { chordStyle, keyPc },
     );
     expect(Math.max(...p.pad!)).toBeLessThanOrEqual(ROLE_REGISTERS.pad.hi + 4);
+  });
+
+  it("folds melody events into the declared register without changing pitch class", () => {
+    const unbounded = { ...testStyle, melody: { register: undefined } } satisfies StylePack;
+    const bounded = {
+      ...testStyle,
+      melody: { register: { lo: 55, hi: 76 } },
+    } satisfies StylePack;
+    const state = {
+      energy: 0.8, tension: 0.6, brightness: 0.38, density: 0.6,
+      complexity: 0.55, tempo: 126,
+    };
+    for (const keyPc of [0, 4, 9]) {
+      for (const seed of ["register-c", "register-e", "register-a"]) {
+        const raw = pitchesByVoice(state, { ...unbounded, keyPc }, seed).melody!;
+        const folded = pitchesByVoice(state, { ...bounded, keyPc }, seed).melody!;
+        expect(folded.length).toBeGreaterThan(0);
+        expect(Math.min(...folded)).toBeGreaterThanOrEqual(55);
+        expect(Math.max(...folded)).toBeLessThanOrEqual(76);
+        expect(folded.map((p) => p % 12)).toEqual(raw.map((p) => p % 12));
+      }
+    }
+  });
+
+  it("rejects contradictory melody register bounds", () => {
+    expect(() =>
+      pitchesByVoice(
+        { energy: 0.8, tension: 0.6, brightness: 0.38, density: 0.6, complexity: 0.55, tempo: 126 },
+        { melody: { register: { lo: 80, hi: 60 } } },
+      ),
+    ).toThrow("lower bound must not exceed");
+  });
+
+  it("rejects a narrow register when the pitch class cannot fit", () => {
+    expect(() =>
+      pitchesByVoice(
+        { energy: 0.8, tension: 0.6, brightness: 0.38, density: 0.6, complexity: 0.55, tempo: 126 },
+        { melody: { register: { lo: 60, hi: 60 } } },
+      ),
+    ).toThrow("pitch class cannot fit");
   });
 
   it("seats the melody above the pad and the bass below it", () => {
