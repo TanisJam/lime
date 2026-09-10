@@ -40,7 +40,7 @@ const GENRE_LABELS: Record<string, string> = {
 };
 import {
   classicalPack, popPack, hiphopPack, electronicPack, jazzPack, bluesPack,
-  folkPack, latinPack, funkPack, metalPack, ambientPack,
+  folkPack, latinPack, funkPack, metalPack, ambientPack, applyGenreTuning,
 } from "@lime/styles";
 import * as Tone from "tone";
 import { SAMPLED_INSTRUMENTS } from "./sampledInstruments";
@@ -115,50 +115,23 @@ const GENRE_STATE: Record<string, MusicalStatePatch> = {
 };
 const rockPack = corpusPacks.find((p) => p.id === "genre-rock-pop");
 
-// Per-genre generation tweaks (judged by ear with the audio judge): move the
-// harmony so it stops circling the tonic, and vary the backbeat. Only the named
-// genres change; the rest stay exactly as authored. Deep-merged so each pack's
-// own harmony/rhythm data (transitions, groove) survives.
-const STYLE_TWEAKS: Record<string, Partial<StylePack>> = {
-  "genre-metal": { harmony: { harmonyMotion: 0.7 }, rhythm: { grooveVariation: 0.4 } },
-  "genre-latin": { harmony: { harmonyMotion: 0.5 } },
-  "genre-folk": { harmony: { harmonyMotion: 0.5 } },
-  // Blues: a minor (dorian) 12-bar blues reads darker/sadder than the pack's
-  // mixolydian, and force a I-IV-V progression (its corpus transitions wandered).
-  "genre-blues": {
-    defaultMode: "dorian",
-    harmony: { transitions: {
-      1: [{ degree: 4, weight: 3 }, { degree: 1, weight: 2.5 }, { degree: 5, weight: 1 }],
-      4: [{ degree: 1, weight: 3 }, { degree: 4, weight: 1.5 }, { degree: 5, weight: 1 }],
-      5: [{ degree: 4, weight: 2.5 }, { degree: 1, weight: 2.5 }],
-    } },
-  },
-};
-function tweak(style: StylePack): StylePack {
-  const t = STYLE_TWEAKS[style.id];
-  if (!t) return style;
-  return {
-    ...style,
-    ...t,
-    ...(t.harmony ? { harmony: { ...style.harmony, ...t.harmony } } : {}),
-    ...(t.rhythm ? { rhythm: { ...style.rhythm, ...t.rhythm } } : {}),
-  };
-}
+// Per-genre style tuning (defaultMode, harmonyMotion, melody rebalancing,
+// grooveVariation, etc.) is `@lime/styles`' `applyGenreTuning` — the single
+// place that merge is expressed (see packages/styles/src/genreTuning.ts).
+// The demo no longer keeps its own copy of that override table.
 const entry = (style: StylePack): StyleEntry => ({
   id: style.id,
-  style: tweak(style),
+  style: applyGenreTuning(style),
   suggestedState: GENRE_STATE[style.id] ?? { ...MOODS.Calm },
 });
 const STYLES: StyleEntry[] = [
   entry(classicalPack),
   entry(popPack),
-  // Rock's corpus pack came out in major, which reads emotionally "happy"; force
-  // natural minor so it lands dark/aggressive as the genre intends. Its corpus
-  // matrix circled back to the tonic every chord (repetitive), so give it
-  // harmonyMotion so the progression travels, and a touch of motifDevelopment so
-  // the melody evolves instead of restating one shape. All judged by ear with the
-  // audio judge. Merge harmony/melody so the corpus data survives.
-  ...(rockPack ? [{ id: rockPack.style.id, style: { ...rockPack.style, defaultMode: "naturalMinor" as const, bassStyle: "default" as const, harmony: { ...rockPack.style.harmony, harmonyMotion: 0.8 }, melody: { ...rockPack.style.melody, motifDevelopment: 0.3, durationWeights: { whole: 1, half: 7, dottedQuarter: 3, quarter: 9, dottedEighth: 0.2, eighth: 0.5, sixteenth: 0.1 } }, rhythm: { ...rockPack.style.rhythm, grooveVariation: 0.5 } }, suggestedState: GENRE_STATE["genre-rock-pop"]! }] : []),
+  // Rock has no authored StylePack (its corpus pack IS the base one) — same
+  // applyGenreTuning() as every other genre, applied to the corpus pack.
+  ...(rockPack
+    ? [{ id: rockPack.style.id, style: applyGenreTuning(rockPack.style), suggestedState: GENRE_STATE["genre-rock-pop"]! }]
+    : []),
   entry(hiphopPack),
   entry(electronicPack),
   entry(jazzPack),

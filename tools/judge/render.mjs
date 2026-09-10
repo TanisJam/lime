@@ -28,7 +28,7 @@ const SF2 = join(REPO, "apps/demo/public/soundfonts/GeneralUser-GS.sf2");
 
 // Per-genre GM programs + lead-register folding — MIRROR of GM_PROGRAMS in
 // apps/demo/src/fluidRenderer.ts. Keep in sync so the WAV matches the browser.
-import { GM, STATE, GM_NAMES, NAMES, AUTHORED, STYLE_OVERRIDE, gmName, stylePack, TRACK_ORDER, foldMelody } from "./genreTables.mjs";
+import { GM, STATE, GM_NAMES, NAMES, AUTHORED, gmName, stylePack, TRACK_ORDER, foldMelody } from "./genreTables.mjs";
 
 
 function emotionLabel(s) {
