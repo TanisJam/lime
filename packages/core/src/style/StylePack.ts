@@ -1,5 +1,6 @@
 import type { Mode } from "../harmony/Scale.js";
 import type { TransitionTable } from "../harmony/HarmonyRules.js";
+import type { VoiceId } from "../events/MusicalEvent.js";
 
 /**
  * A StylePack configures the musical world: which modes are allowed, the key,
@@ -153,6 +154,130 @@ export type BassStyle =
   | "funk" // syncopated 16th root/octave with ghosts (funk/R&B)
   | "montuno"; // anticipated tumbao (latin)
 
+/**
+ * Optional per-genre shaping for a bass `BassStyle`'s own grammar — the
+ * counterpart to {@link RhythmStyle} for the bass voice. `bassStyle` alone
+ * picks the *grammar* a genre's bass plays, but two genres that share a
+ * grammar still want to sit differently against the kick: a jazz walking
+ * line and a blues walking line are structurally the same shape, yet blues
+ * wants the pocket locked tight and quiet while jazz wants it breathing more
+ * between the anchors it still lands squarely on (GROOVE-CRITERIA.md).
+ *
+ * `bassKickLock` and `bassOffbeat` pull against each other — landing on the
+ * kick means landing on a structural beat, which by definition lowers the
+ * off-beat share — so both knobs are given together rather than one derived
+ * from the other. A style that wants both high lock and real off-beat
+ * motion at once (jazz) gets there by leaning its off-anchor motion onto the
+ * shared groove anchors (grooveAnchors.ts / PercussionGenerator's own extra
+ * kick pushes) instead of spreading it evenly through the bar.
+ */
+export interface BassGrooveStyle {
+  /**
+   * 0..1: how much extra motion the line adds between its structural
+   * anchors — walking bass's eighth-note skips/chromatic approach/sixteenth
+   * pickup, root-drive's off-anchor eighths. Higher = busier, more
+   * syncopated. Each `bassStyle` branch keeps its own default rate when this
+   * is omitted, so an unconfigured genre's grammar is unaffected.
+   */
+  readonly syncopation?: number;
+  /**
+   * 0..1: how strongly that extra motion (and the anchors themselves) are
+   * pulled onto the positions the groove's own kick actually plays —
+   * including the kick's probabilistic extra hits (a backbeat's "and of 3"
+   * push, a swing groove's dropped bombs), not just its structural anchors
+   * (grooveAnchors.ts) — instead of spreading evenly through the bar. Higher
+   * = tighter bass/kick interlock: fewer rests on the structural anchors,
+   * and the off-anchor motion doubles a kick position rather than filling
+   * space against it. Each branch keeps its own default balance when
+   * omitted.
+   */
+  readonly kickLock?: number;
+}
+
+/** Energy thresholds at which a voice enters and leaves the arrangement. */
+export interface VoiceGate {
+  /** Energy at or above which an absent voice enters. */
+  readonly on: number;
+  /** Energy below which a present voice drops out. `on > off` is the hysteresis. */
+  readonly off: number;
+}
+
+/** Per-voice entry thresholds — which forces this style's ensemble carries. */
+export interface EnsembleStyle {
+  readonly melody?: VoiceGate;
+  readonly bass?: VoiceGate;
+  readonly percussion?: VoiceGate;
+}
+
+/**
+ * One voice's humanization knobs.
+ *
+ * Both fields are in **milliseconds**, not ticks, because a tick is a
+ * different amount of time at 90 bpm than at 180 bpm — a style should sound
+ * equally "loose" regardless of tempo, and only milliseconds hold that
+ * constant. The {@link Humanizer} converts to ticks per bar, from the bar's
+ * actual tempo, right before it applies them.
+ */
+export interface VoiceFeel {
+  /**
+   * Random microtiming jitter, as a standard deviation in ms, before the
+   * humanizer scales it by the note's own duration (a sixteenth drifts less
+   * than a whole note). `0` means perfectly quantised — the correct value for
+   * a genre whose discriminator IS the grid (Electronic).
+   */
+  readonly jitterMs: number;
+  /**
+   * A signed, systematic bias in ms, applied before jitter. Positive = laid
+   * back (behind the beat), negative = pushed (ahead of it). This is the
+   * better-evidenced of the two timing components — human timing is not
+   * white noise centered on the grid, it leans one way — which is why it is
+   * a separate, deliberate constant rather than folded into the jitter.
+   */
+  readonly offsetMs: number;
+}
+
+/**
+ * A genre's feel: per-voice microtiming plus how hard the metrical accent
+ * bites. Lives on the StylePack, alongside groove/chordStyle/bassStyle,
+ * because feel is a genre fact, not a generator implementation detail — the
+ * same generator plays tight for Electronic and loose for Jazz purely by
+ * being handed a different FeelStyle.
+ */
+export interface FeelStyle {
+  /** Per-voice jitter/offset. A voice absent here is left unhumanized. */
+  readonly voices: Partial<Record<VoiceId, VoiceFeel>>;
+  /**
+   * How strongly velocity follows metrical position, 0..1. `0` leaves the
+   * generator's own dynamics untouched; `1` applies the full ~2:1
+   * accented/unaccented swing (Räsänen et al. 2024). Applied multiplicatively
+   * on top of whatever velocity the generator already chose, so a
+   * generator's own dynamic decisions are shaped, not overwritten.
+   */
+  readonly accentDepth: number;
+}
+
+/**
+ * The feel every style gets unless it declares its own — so humanization
+ * improves every genre, not just the ones that opt in (GROOVE-CRITERIA.md).
+ * Values sit around 40% of the real-human deviation the reference corpus
+ * measures (≈5-7ms for melody/bass/pad, ≈4-6ms for percussion): Senn et al.
+ * 2016 found perceived groove peaks near there and *falls* beyond roughly
+ * 1.4-1.6x it, and Davies et al. 2013 found fully quantised versions rated
+ * highest in most non-jazz genres. Deliberately well below the 9.6-19.2ms the
+ * corpus itself shows — matching that magnitude was tried and the literature
+ * says it would read as worse, not more human.
+ */
+export const DEFAULT_FEEL: FeelStyle = {
+  voices: {
+    pad: { jitterMs: 5, offsetMs: 0 },
+    bass: { jitterMs: 6, offsetMs: 0 },
+    melody: { jitterMs: 6, offsetMs: 0 },
+    motion: { jitterMs: 6, offsetMs: 0 },
+    percussion: { jitterMs: 5, offsetMs: 0 },
+  },
+  accentDepth: 0.6,
+};
+
 export interface StylePack {
   readonly id: string;
   /** Modes this style may use. */
@@ -180,8 +305,30 @@ export interface StylePack {
    */
   readonly bassStyle?: BassStyle;
   /**
+   * Per-genre shaping of that bass grammar's syncopation and kick-lock,
+   * without changing `bassStyle` itself. Default (omitted) keeps the
+   * grammar's own unconfigured behaviour.
+   */
+  readonly bassGroove?: BassGrooveStyle;
+  /**
    * An extra motion layer — arpeggios (electronic/pop), ostinato/montuno (latin),
    * or offbeat comping stabs (funk/jazz). Omit for genres that don't want one.
    */
   readonly motion?: MotionStyle;
+  /**
+   * Which forces this style's ensemble carries: per-voice energy gates that
+   * override the {@link Arrangement} default. A voice the style omits keeps the
+   * default energy gate. Drum presence in particular is an ensemble fact — does
+   * this genre's band have a drummer at all — not a loudness fact, which is why
+   * it is declared here rather than derived from energy alone.
+   */
+  readonly ensemble?: EnsembleStyle;
+  /**
+   * Per-voice microtiming and velocity-accent humanization. Optional —
+   * omitting it gets {@link DEFAULT_FEEL}, not silence, so every genre is
+   * humanized by default. A style declares its own only to move away from
+   * that default: looser (jazz/blues), tighter-with-drag (funk), or to
+   * (near) zero, where zero is itself a genre decision (electronic).
+   */
+  readonly feel?: FeelStyle;
 }

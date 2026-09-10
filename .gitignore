@@ -36,3 +36,10 @@ __pycache__/
 
 # CodeGraph local index — rebuilt per checkout, never shared.
 .codegraph/
+
+# Local analysis scratch: extracted reference MIDI and generated LIME MIDI.
+# Derived data, regenerable, and the reference corpus is not ours to redistribute.
+.cache/
+
+# Blind listening-test renders (regenerate with tools/judge/ab-listen.mjs).
+tools/judge/out/ab/

@@ -3,8 +3,12 @@
  *
  * Extracted from render.mjs so the renderer, the symbolic feature extractor and
  * anything added later describe the same genres. `apps/demo/src/render.ts` keeps
- * its own mirror because it is bundled for the browser and cannot import from
- * here; those two must be kept in step by hand.
+ * its own copy of GM/STATE/NAMES because it is bundled for the browser and
+ * cannot import from here — but the per-genre style TUNING (defaultMode,
+ * harmonyMotion, melody rebalancing, grooveVariation, etc.) lives in exactly
+ * one place, `@lime/styles`' `applyGenreTuning`, and every consumer (this
+ * file, the demo, its offline render page) calls that instead of hand-copying
+ * an override table. See `packages/styles/src/genreTuning.ts` for why.
  */
 
 import * as styles from "../../packages/styles/dist/index.js";
@@ -73,35 +77,14 @@ export const AUTHORED = {
   "genre-funk": styles.funkPack, "genre-metal": styles.metalPack,
   "genre-ambient": styles.ambientPack,
 };
-// Per-genre style overrides applied at load (kept out of the corpus JSON so a
-// corpus rebuild can't clobber them). Mirror any keeper into main.ts.
-export const STYLE_OVERRIDE = {
-  "genre-rock-pop": {
-    defaultMode: "naturalMinor",
-    bassStyle: "default",
-    harmony: { harmonyMotion: 0.8 },
-    // The corpus rock lead was ~75% sixteenth/eighth notes → a choppy, nervous
-    // melody. Rebalance toward sustained values so the lead sings on every seed.
-    melody: {
-      motifDevelopment: 0.3,
-      durationWeights: { whole: 1, half: 7, dottedQuarter: 3, quarter: 9, dottedEighth: 0.2, eighth: 0.5, sixteenth: 0.1 },
-    },
-    rhythm: { grooveVariation: 0.5 },
-  },
-  // Metal is structurally rock-like (minor, power, backbeat): move the harmony
-  // and vary the drums. Keeps its fast minor-pentatonic character.
-  "genre-metal": { harmony: { harmonyMotion: 0.7 }, rhythm: { grooveVariation: 0.4 } },
-  // Latin/Folk read harmonically static; a moderate push helps without de-genre.
-  "genre-latin": { harmony: { harmonyMotion: 0.5 } },
-  "genre-folk": { harmony: { harmonyMotion: 0.5 } },
-  // Blues corpus transitions wandered (III/VI/VII); force a I-IV-V progression
-  // so it reads as a 12-bar blues. Dominant 7ths come from mixolydian+seventh.
-  "genre-blues": { defaultMode: "dorian", harmony: { transitions: {
-    1: [{ degree: 4, weight: 3 }, { degree: 1, weight: 2.5 }, { degree: 5, weight: 1 }],
-    4: [{ degree: 1, weight: 3 }, { degree: 4, weight: 1.5 }, { degree: 5, weight: 1 }],
-    5: [{ degree: 4, weight: 2.5 }, { degree: 1, weight: 2.5 }],
-  } } },
-};
+/**
+ * Resolve a StylePack by id: rock is corpus-derived (its own JSON has no
+ * authored StylePack in `@lime/styles`), the rest are authored. Either way,
+ * the genre's canonical tuning — defaultMode, harmonyMotion, melody
+ * rebalancing, grooveVariation, etc. — is applied by `@lime/styles`'
+ * `applyGenreTuning`, the single place that merge is expressed. See
+ * `packages/styles/src/genreTuning.ts`.
+ */
 export function stylePack(id) {
   let style;
   if (id === "genre-rock-pop") {
@@ -109,14 +92,7 @@ export function stylePack(id) {
   } else {
     style = AUTHORED[id];
   }
-  const ov = STYLE_OVERRIDE[id];
-  if (!ov) return style;
-  const merged = { ...style, ...ov };
-  // Deep-merge nested config so corpus transitions / melody weights survive.
-  if (ov.harmony) merged.harmony = { ...style.harmony, ...ov.harmony };
-  if (ov.melody) merged.melody = { ...style.melody, ...ov.melody };
-  if (ov.rhythm) merged.rhythm = { ...style.rhythm, ...ov.rhythm }; // keep groove/onsetProfile
-  return merged;
+  return styles.applyGenreTuning(style);
 }
 
 /** Voice order written into the Standard MIDI File. */

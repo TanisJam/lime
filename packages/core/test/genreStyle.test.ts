@@ -94,10 +94,17 @@ describe("latin StylePack — clave groove", () => {
       .composeBar(bar)
       .filter((e) => e.voice === "percussion");
   const CELL = BAR / 16;
+  // Onset checks below assert exact grid positions, but this style gets
+  // core's DEFAULT_FEEL humanization (Humanizer.ts) since it declares no feel
+  // of its own. Snap back to the grid — the tolerance is comfortably above
+  // the default feel's worst-case per-note deviation and below the spacing
+  // between distinct clave/conga/kick positions, so distinct hits never merge.
+  const JITTER_TOL = 60;
+  const snap = (t: number) => Math.round(t / JITTER_TOL) * JITTER_TOL;
   const at = (sound: string) =>
     barOf(0)
       .filter((e) => e.percussion === sound)
-      .map((e) => e.time)
+      .map((e) => snap(e.time))
       .sort((a, b) => a - b);
 
   it("plays the 3-2 son clave on the clave itself, not on the shaker", () => {

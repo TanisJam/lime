@@ -9,7 +9,14 @@ import { PercussionGenerator } from "../percussion/PercussionGenerator.js";
 import { MotionGenerator } from "../motion/MotionGenerator.js";
 import type { BarContext } from "./BarContext.js";
 import { ROLE_FOR_VOICE, type WiredVoice } from "./MusicalRole.js";
-import type { MelodyStyle, RhythmStyle, ChordStyle, BassStyle, MotionStyle } from "../style/StylePack.js";
+import type {
+  MelodyStyle,
+  RhythmStyle,
+  ChordStyle,
+  BassStyle,
+  BassGrooveStyle,
+  MotionStyle,
+} from "../style/StylePack.js";
 
 /** BarContext without the per-voice RNG (filled in per voice by the orchestrator). */
 export type BarContextBase = Omit<BarContext, "rng">;
@@ -22,6 +29,8 @@ export interface OrchestratorHints {
   readonly chordStyle?: ChordStyle;
   /** How the bass moves (default vs root-drive). */
   readonly bassStyle?: BassStyle;
+  /** Per-genre bass syncopation/kick-lock shaping (see StylePack.ts). */
+  readonly bassGroove?: BassGrooveStyle;
   /** Optional motion layer (arp / ostinato / stab). */
   readonly motion?: MotionStyle;
 }
@@ -56,7 +65,7 @@ export class Orchestrator {
     this.percRng = rng.derive("percussion");
     this.motionRng = rng.derive("motion");
     this.pad = new PadGenerator(hints?.chordStyle);
-    this.bass = new BassGenerator(hints?.bassStyle);
+    this.bass = new BassGenerator(hints?.bassStyle, hints?.bassGroove);
     this.melody = new MelodyGenerator(rng.derive("melodyMotif"), hints?.melody);
     this.percussion = new PercussionGenerator(hints?.rhythm);
     this.motion = hints?.motion ? new MotionGenerator(hints.motion) : null;

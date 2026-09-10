@@ -14,7 +14,7 @@ import {
 } from "@lime/renderer-tone";
 import {
   classicalPack, popPack, hiphopPack, electronicPack, jazzPack, bluesPack,
-  folkPack, latinPack, funkPack, metalPack, ambientPack,
+  folkPack, latinPack, funkPack, metalPack, ambientPack, applyGenreTuning,
 } from "@lime/styles";
 import { GENRE_PALETTES_SAMPLED } from "./sampledGenre";
 
@@ -28,9 +28,12 @@ import { GENRE_PALETTES_SAMPLED } from "./sampledGenre";
  * the SAME (genre, seed, state) through the real renderer + per-genre timbre
  * palettes, so the judge hears what the browser plays.
  *
- * The style packs, per-genre overrides and initial states below MIRROR
- * `tools/judge/render.mjs`; keep them in sync so both sets of clips are
- * comparable.
+ * The style packs and initial states below MIRROR `tools/judge/render.mjs`;
+ * keep them in sync so both sets of clips are comparable. Per-genre style
+ * tuning (defaultMode, harmonyMotion, melody rebalancing, grooveVariation,
+ * etc.) is NOT mirrored here — it comes from `@lime/styles`' single
+ * `applyGenreTuning`, the same one `render.mjs` and the demo's `main.ts` call
+ * (see `packages/styles/src/genreTuning.ts`).
  *
  * Driven by Playwright:
  *   await page.evaluate(() => window.limeRenderClip({ genre, seed, seconds }))
@@ -71,45 +74,15 @@ const rockModules = import.meta.glob("../../../packages/corpus/generated/genre-r
 }) as Record<string, { default: { style: StylePack } }>;
 const rockCorpusPack: StylePack | undefined = Object.values(rockModules)[0]?.default?.style;
 
-/** Per-genre style overrides. MIRROR of STYLE_OVERRIDE in render.mjs. */
-const STYLE_OVERRIDE: Record<string, Partial<StylePack>> = {
-  "genre-rock-pop": {
-    defaultMode: "naturalMinor",
-    bassStyle: "default",
-    harmony: { harmonyMotion: 0.8 },
-    melody: {
-      motifDevelopment: 0.3,
-      durationWeights: { whole: 1, half: 7, dottedQuarter: 3, quarter: 9, dottedEighth: 0.2, eighth: 0.5, sixteenth: 0.1 },
-    },
-    rhythm: { grooveVariation: 0.5 },
-  },
-  "genre-metal": { harmony: { harmonyMotion: 0.7 }, rhythm: { grooveVariation: 0.4 } },
-  "genre-latin": { harmony: { harmonyMotion: 0.5 } },
-  "genre-folk": { harmony: { harmonyMotion: 0.5 } },
-  "genre-blues": {
-    defaultMode: "dorian",
-    harmony: { transitions: {
-      1: [{ degree: 4, weight: 3 }, { degree: 1, weight: 2.5 }, { degree: 5, weight: 1 }],
-      4: [{ degree: 1, weight: 3 }, { degree: 4, weight: 1.5 }, { degree: 5, weight: 1 }],
-      5: [{ degree: 4, weight: 2.5 }, { degree: 1, weight: 2.5 }],
-    } },
-  },
-};
-
-/** Resolve a StylePack by genre id, deep-merging its override. */
+/**
+ * Resolve a StylePack by genre id and apply its canonical tuning. Rock has no
+ * authored pack (its corpus JSON is the base pack); every other genre comes
+ * from `@lime/styles`. Either way, `applyGenreTuning` is the single place the
+ * per-genre tuning merge is expressed — see `packages/styles/src/genreTuning.ts`.
+ */
 function stylePack(id: string): StylePack | undefined {
   const style = id === "genre-rock-pop" ? rockCorpusPack : AUTHORED[id];
-  if (!style) return undefined;
-  const ov = STYLE_OVERRIDE[id];
-  if (!ov) return style;
-  // Deep-merge nested config so corpus transitions / melody weights survive.
-  return {
-    ...style,
-    ...ov,
-    ...(ov.harmony ? { harmony: { ...style.harmony, ...ov.harmony } } : {}),
-    ...(ov.melody ? { melody: { ...style.melody, ...ov.melody } } : {}),
-    ...(ov.rhythm ? { rhythm: { ...style.rhythm, ...ov.rhythm } } : {}),
-  };
+  return style ? applyGenreTuning(style) : undefined;
 }
 
 /**

@@ -129,3 +129,39 @@ describe("OrchestrationDirector — plan invariants", () => {
     expect(tacetPlan.focus).toBe<MusicalRole>("harmonic-bed");
   });
 });
+
+describe("OrchestrationDirector — per-style ensemble gates", () => {
+  it("a style declaring a low percussion gate activates mid-rhythm where the default table would not", () => {
+    const styled = new OrchestrationDirector({ percussion: { on: 0.22, off: 0.12 } });
+    const styledPlan = planAt(styled, 0, 0.25);
+    expect(styledPlan.activeRoles).toContain<MusicalRole>("mid-rhythm");
+
+    const defaultDir = new OrchestrationDirector();
+    const defaultPlan = planAt(defaultDir, 0, 0.25);
+    expect(defaultPlan.activeRoles).not.toContain<MusicalRole>("mid-rhythm");
+  });
+});
+
+describe("Arrangement — per-voice ensemble overrides", () => {
+  it("keeps the exact default percussion thresholds when a style declares nothing", () => {
+    const arr = new Arrangement();
+    expect(arr.update(0.54).has("percussion")).toBe(false);
+    expect(arr.update(0.55).has("percussion")).toBe(true);
+    expect(arr.update(0.44).has("percussion")).toBe(true);
+    expect(arr.update(0.43).has("percussion")).toBe(false);
+  });
+
+  it("never activates percussion for an unreachable gate, even at energy 1.0", () => {
+    const arr = new Arrangement({ percussion: { on: 1.01, off: 1.01 } });
+    expect(arr.update(1.0).has("percussion")).toBe(false);
+  });
+
+  it("preserves hysteresis with an overridden gate: enters at on, stays until below off", () => {
+    const arr = new Arrangement({ percussion: { on: 0.22, off: 0.12 } });
+    expect(arr.update(0.21).has("percussion")).toBe(false);
+    expect(arr.update(0.22).has("percussion")).toBe(true);
+    expect(arr.update(0.15).has("percussion")).toBe(true);
+    expect(arr.update(0.12).has("percussion")).toBe(true);
+    expect(arr.update(0.11).has("percussion")).toBe(false);
+  });
+});

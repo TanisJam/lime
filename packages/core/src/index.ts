@@ -32,6 +32,9 @@ export * from "./melody/MelodyGenerator.js";
 export * from "./percussion/PercussionGenerator.js";
 export * from "./motion/MotionGenerator.js";
 
+// Humanization
+export * from "./humanize/Humanizer.js";
+
 // Orchestration / scheduling / engine
 export * from "./orchestration/BarContext.js";
 export * from "./orchestration/Arrangement.js";

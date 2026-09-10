@@ -13,3 +13,13 @@ export {
   metalPack,
   ambientPack,
 } from "./genres.js";
+export {
+  applyGenreTuning,
+  GENRE_TUNING,
+  ROCK_TUNING,
+  METAL_TUNING,
+  LATIN_TUNING,
+  FOLK_TUNING,
+  BLUES_TUNING,
+  type GenreTuning,
+} from "./genreTuning.js";

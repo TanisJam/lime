@@ -4,8 +4,13 @@ import { chordRoot, type HarmonicEvent } from "../harmony/Chord.js";
 import { degreePitch } from "../harmony/Scale.js";
 import { clamp01 } from "../state/MusicalState.js";
 import type { BarContext } from "../orchestration/BarContext.js";
-import type { BassStyle } from "../style/StylePack.js";
-import { FUNK_KICK_SIXTEENTHS } from "../percussion/grooveAnchors.js";
+import type { BassStyle, BassGrooveStyle } from "../style/StylePack.js";
+import {
+  FUNK_KICK_SIXTEENTHS,
+  BACKBEAT_KICK_SIXTEENTHS,
+  BOOM_BAP_KICK_SIXTEENTHS,
+  CLAVE_KICK_SIXTEENTHS,
+} from "../percussion/grooveAnchors.js";
 
 const BASS_OCTAVE = 2;
 
@@ -19,7 +24,10 @@ const BASS_OCTAVE = 2;
  * loudness the dynamics contour, and it steps aside when the melody leads.
  */
 export class BassGenerator {
-  constructor(private readonly bassStyle: BassStyle = "default") {}
+  constructor(
+    private readonly bassStyle: BassStyle = "default",
+    private readonly bassGroove?: BassGrooveStyle,
+  ) {}
 
   generateBar(ctx: BarContext): NoteEvent[] {
     const { chord, nextChord, state, phrasePlan, phrase, rng, meter, barStartTick } = ctx;
@@ -65,34 +73,170 @@ export class BassGenerator {
     // Rock: a driving straight-8th pulse doubling the chord root, locked with the
     // kick — mostly root, an octave lift mid-beat, walking into the next root on
     // the last eighth. Below arc 0.4 it relaxes to the calm grammar below (a rock
-    // ballad intro doesn't pound eighths).
+    // ballad intro doesn't pound eighths). The two eighths that fall on
+    // BACKBEAT_KICK_SIXTEENTHS (beats 1 and 3, where the backbeat kick always
+    // lands) are never thinned — the rest of the pulse is, more aggressively at
+    // low density, so the bass locks hardest exactly where the kick does instead
+    // of spreading evenly across all eight eighths.
     if (this.bassStyle === "root-drive" && arc >= 0.4) {
       const eighth = beat / 2;
       const steps = meter.numerator * 2;
+      const kickAnchors = new Set<number>(BACKBEAT_KICK_SIXTEENTHS);
+      const groove = this.bassGroove;
       for (let i = 0; i < steps; i++) {
         const isLast = i === steps - 1;
+        const pos = i * 2;
+        const onAnchor = kickAnchors.has(pos);
+        // Position 10 ("and" of the last beat) is handled separately below,
+        // as its own kick-locked dyad, when a groove config is present.
+        if (groove && pos === 10) continue;
         let pitch = root;
         if (isLast && nextChord) pitch = approach;
         else if (i % 4 === 2) pitch = octave;
-        if (!isLast && i % 2 === 1 && state.density < 0.45 && rng.bool(0.4)) continue;
+        if (!onAnchor) {
+          let keepChance: number;
+          if (groove) {
+            const sync = groove.syncopation ?? 0.5;
+            const lock = groove.kickLock ?? 0;
+            // On-beat filler (steps 4/12 — doubling a beat the anchors
+            // already cover) is only worth playing when the line ISN'T
+            // already locked onto position 10 below; genuinely off-beat
+            // filler (steps 2/6/14, plus the walk into the next root on the
+            // last eighth) tracks `syncopation` directly.
+            keepChance = pos % 4 === 0 ? (1 - lock) / 2 : sync;
+          } else if (isLast) {
+            keepChance = 1; // unconfigured: always walk into the next root
+          } else {
+            keepChance = state.density < 0.45 ? 0.35 : 0.52;
+          }
+          if (!rng.bool(keepChance)) continue;
+        }
         push(Math.round(eighth * i), Math.round(eighth), pitch);
+      }
+      if (groove) {
+        const lock = groove.kickLock ?? 0;
+        // Position 10 is the one off-anchor spot the backbeat kick itself
+        // sometimes plays, beyond its two structural anchors
+        // (PercussionGenerator.backbeat's own `beat*2+beat/2` sync push).
+        // Two independent draws (expected count 0..2, root then an octave
+        // pop) let a highly locked line double the kick there instead of
+        // spreading its motion evenly across the bar — the same device
+        // walking bass uses for its own kick-locked pickup below.
+        if (rng.bool(lock)) push(eighth * 5, eighth, root);
+        if (rng.bool(lock)) push(eighth * 5, eighth, octave);
       }
       return events;
     }
 
-    // Jazz walking bass: a quarter-note line through chord tones into the next
-    // root — root, then stepping through fifth/third and an approach note.
+    // Jazz/blues walking bass: real walking lines are never four flat quarters
+    // — they move with eighth-note skips, chromatic approach notes, the odd
+    // rest, and the odd held note. Every beat sits on WALKING_KICK_SIXTEENTHS
+    // (SWING_KICK_SIXTEENTHS / SHUFFLE_KICK_SIXTEENTHS, both [0, 4, 8, 12]):
+    // jazz/blues drummers feather the kick on all four beats to reinforce
+    // exactly this pulse. So the anchor is the four quarter-note downbeats,
+    // and the motion that makes a line feel walked — skips, chromatic
+    // approaches, the sixteenth-note pickup — happens strictly *around* those
+    // downbeats, never instead of them: a walking line that wanders off the
+    // kick is worse than a rigid one, not more human.
     if (this.bassStyle === "walking" && arc >= 0.3) {
+      const eighth = beat / 2;
+      const sixteenth = beat / 4;
       const third = degreePitch(chord.degree + 2, chord.keyPc, chord.mode, BASS_OCTAVE);
-      const seq = [root, fifth, third, nextChord ? approach : fifth];
-      for (let i = 0; i < 4; i++) push(beat * i, beat, seq[i]!);
+      const chromaticApproach = approach - 1; // half-step below the diatonic approach tone
+      const beatPitch = [root, rng.pick([fifth, third, octave]), rng.bool(0.6) ? root : fifth, approach];
+      const groove = this.bassGroove;
+      // Unconfigured defaults reproduce today's fixed rates exactly.
+      const restChance = groove ? 0.12 * (1 - (groove.kickLock ?? 0)) : 0.12;
+      const ornamentChance = groove ? (groove.syncopation ?? 0.4) : 0.4;
+      const chromaticChance = groove ? (groove.syncopation ?? 0.45) : 0.45;
+      const pickupChance = groove ? (groove.syncopation ?? 0.4) * 0.5 : 0.2;
+      const kickLock = groove?.kickLock ?? 0;
+
+      for (let b = 0; b < 4; b++) {
+        const isLast = b === 3;
+        // Let the previous note ring through this beat instead of restating
+        // it — never on beat 1 (the line's home) or beat 4 (needs to resolve
+        // into the next chord). `kickLock` shrinks this toward zero: a
+        // tightly-locked line never drops a beat the kick is counting on.
+        if (b > 0 && !isLast && rng.bool(restChance)) continue;
+        if ((b === 1 || b === 2) && rng.bool(ornamentChance)) {
+          // Eighth-note skip leading into beats 2 or 3 — off-anchor motion
+          // that still lands its target squarely on the anchor tick.
+          push(beat * b - eighth, eighth, beatPitch[b]! - 3);
+          push(beat * b, eighth, beatPitch[b]!);
+        } else if (isLast && rng.bool(chromaticChance)) {
+          // Chromatic double-approach into the next bar's downbeat — a
+          // classic walking-bass lead-in. The first note still lands on the
+          // anchor; the chromatic passing tone is the off-anchor half.
+          push(beat * 3, eighth, third);
+          push(beat * 3 + eighth, eighth, chromaticApproach);
+        } else {
+          push(beat * b, beat, beatPitch[b]!);
+        }
+      }
+
+      // An occasional sixteenth-note pickup into beat 3 — the small rhythmic
+      // wrinkle a real walking line has and a machine-quantised one doesn't
+      // (bass16th, GROOVE-CRITERIA.md).
+      if (rng.bool(pickupChance)) push(beat * 2 - sixteenth, sixteenth, root - 1);
+
+      // `kickLock`: an extra pickup on the "and" of beat 3 (`beat*2+eighth`)
+      // — the exact spot PercussionGenerator.swing()'s "dropped bombs" land
+      // on (a bebop kick staple). Two independent draws (expected count
+      // 0..2, root then a fifth-below-the-octave color note) let a highly
+      // locked line double the kick there instead of spreading its motion
+      // evenly — GROOVE-CRITERIA.md: jazz wants both high lock and more
+      // off-beat motion at once, which only works if part of that motion
+      // itself sits on the kick's own extra hit, not despite it.
+      if (kickLock > 0) {
+        if (rng.bool(kickLock)) push(beat * 2 + eighth, eighth, fifth);
+        if (rng.bool(kickLock)) push(beat * 2 + eighth, eighth, octave);
+      }
+
       return events;
     }
 
-    // Sub / 808: sparse sustained root, with an occasional syncopated push.
+    // Sub / 808. Hip-hop and electronic share this style, but they should
+    // not share its shape: house/techno basslines are "simple, repetitive
+    // one- or two-note riffs on straight 8th-note rhythms, often layered
+    // with a sub-bass drone" (GROOVE-CRITERIA.md, medium confidence) — a
+    // drone alone measured 0.88 onsets/bar against a real 5.23, the sparsest
+    // voice in the whole engine. Hip-hop's boom-bap 808 stays a genuine
+    // drone; electronic gets the riff. The two tempo ranges never overlap
+    // (hip-hop 82-96 bpm, electronic 120-130 bpm — see genres.ts), so tempo
+    // is a safe, ambient way to tell them apart without a new StylePack
+    // field or a bass-side groove parameter.
     if (this.bassStyle === "sub") {
+      if (state.tempo >= 110) {
+        // House/techno riff: mostly on the "and" of each beat — electronic
+        // is the one genre whose bass deliberately does NOT lock to the
+        // kick (measured bassKickLock 0.31, the lowest of any genre); it
+        // plays *between* the four-on-the-floor kicks, only occasionally
+        // touching them, rather than doubling them the way root-drive does.
+        if (arc >= 0.2) {
+          const eighth = beat / 2;
+          const steps = meter.numerator * 2;
+          for (let i = 0; i < steps; i++) {
+            const onKick = i % 2 === 0; // coincides with the quarter-note kick
+            if (!rng.bool(onKick ? 0.35 : 0.85)) continue;
+            const pitch = !onKick && rng.bool(0.35) ? octave : root;
+            push(Math.round(eighth * i), Math.round(eighth), pitch);
+          }
+        }
+        return events;
+      }
+      // Hip-hop 808: sparse sustained root, with an occasional syncopated
+      // push. The downbeat root lands on boom-bap's own kick (beat 1). The
+      // syncopated push lands on BOOM_BAP_KICK_SIXTEENTHS[1] (the "and of
+      // 2") about half the time it fires — hip-hop's second kick anchor —
+      // and off it the rest of the time, so the lock is meaningful without
+      // becoming rigid.
       push(0, beat * 3, root);
-      if (arc >= 0.4 && rng.bool(0.5)) push(beat * 2 + beat / 2, beat, root);
+      if (arc >= 0.4 && rng.bool(0.5)) {
+        const s = beat / 4;
+        const onAnchor = rng.bool(0.5);
+        push(onAnchor ? s * BOOM_BAP_KICK_SIXTEENTHS[1] : beat * 2 + beat / 2, beat, root);
+      }
       return events;
     }
 
@@ -103,7 +247,24 @@ export class BassGenerator {
     // to walk out of the bar) for the syncopated character.
     if (this.bassStyle === "funk" && arc >= 0.4) {
       const s = beat / 4;
-      const onsets = new Set<number>([...FUNK_KICK_SIXTEENTHS, 3, 10, 13]);
+      // The anchor kicks and the two core pushes are the line's identity and
+      // never move. What `syncopation` selects is how the bar is finished:
+      // pushed out on the off-quarter 13, or grounded on the quarters 8 and 12.
+      //
+      // The pushed reading is the default and is what a human confirmed by ear.
+      // It measures well past the reference (bassOffbeat 0.79 against 0.53,
+      // bass16th 0.40 against 0.20); the grounded reading measures 0.50 and
+      // 0.17, almost exactly on target. Which one is actually better is a
+      // question for ears, not for the tables — GROOVE-CRITERIA.md is explicit
+      // that measurement does not settle feel — so both are reachable and the
+      // ear-confirmed one stays the default.
+      const onsets = new Set<number>([...FUNK_KICK_SIXTEENTHS, 3, 10]);
+      if ((this.bassGroove?.syncopation ?? 1) >= 0.6) {
+        onsets.add(13);
+      } else {
+        onsets.add(8);
+        onsets.add(12);
+      }
       for (let i = 0; i < 16; i++) {
         if (!onsets.has(i)) continue;
         const pitch = i === 0 ? root : rng.bool(0.3) ? octave : root;
@@ -112,10 +273,15 @@ export class BassGenerator {
       return events;
     }
 
-    // Latin tumbao: anticipated bass — off the "and of 2" and beat 4, pulling
-    // into the next chord ahead of the beat.
+    // Latin tumbao: anticipated bass — a downbeat touch, then off the "and of
+    // 2" and beat 4, pulling into the next chord ahead of the beat. The
+    // downbeat and the "and of 2" both sit on CLAVE_KICK_SIXTEENTHS (the
+    // bombo's own two hits), so the tumbao and the bombo interlock instead of
+    // the tumbao's anticipatory phrasing simply floating past the kick.
     if (this.bassStyle === "montuno" && arc >= 0.4) {
-      push(beat + beat / 2, beat, root); // and of 2
+      const s = beat / 4;
+      push(s * CLAVE_KICK_SIXTEENTHS[0], beat / 2, root); // downbeat touch
+      push(s * CLAVE_KICK_SIXTEENTHS[1], beat, root); // and of 2
       push(beat * 3, beat / 2, fifth); // beat 4
       push(beat * 3 + beat / 2, beat / 2, nextChord ? nextRoot : root); // anticipation
       return events;
@@ -148,12 +314,26 @@ export class BassGenerator {
         push(beat * i, beat, pitches[i]!);
       }
     } else {
-      // Driving eighths with octaves, walking into the next root on the last hit.
+      // Driving eighths with octaves, walking into the next root on the last
+      // hit. This is the fallback grammar any style reaches at high energy
+      // (including bassStyle "default" — e.g. Rock's corpus-derived pack),
+      // so it thins off-anchor eighths the same way `root-drive` does: beats
+      // 1 and 3 (BACKBEAT_KICK_SIXTEENTHS) are where a driving kick most
+      // commonly lands, so the bass locks hardest there instead of spreading
+      // evenly across all eight eighths.
       const seq = [root, root, fifth, root, octave, fifth, root, nextChord ? approach : nextRoot];
       const eighth = beat / 2;
+      const kickAnchors = new Set<number>(BACKBEAT_KICK_SIXTEENTHS);
       for (let i = 0; i < 8; i++) {
-        // Skip some off-beat eighths at lower density to keep it musical, not busy.
-        if (state.density < 0.5 && i % 2 === 1 && rng.bool(0.4)) continue;
+        const isLast = i === 7;
+        const onAnchor = kickAnchors.has(i * 2);
+        // Skip some off-beat eighths at lower density to keep it musical, not
+        // busy; skip off-anchor eighths a bit more often regardless of
+        // density so the anchor beats dominate the bar's onset count.
+        if (!isLast && !onAnchor) {
+          if (state.density < 0.5 && i % 2 === 1 && rng.bool(0.4)) continue;
+          if (rng.bool(0.4)) continue;
+        }
         push(Math.round(eighth * i), Math.round(eighth), seq[i]!);
       }
     }
