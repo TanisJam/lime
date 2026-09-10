@@ -14,6 +14,42 @@ No iterating by ear — the judge hears the exact same instruments as the browse
   folding, and renders it to WAV via `fluidsynth`. Emits `out/manifest.json`.
 - **`judge.py`** — loads Qwen2-Audio-7B and writes `out/report.md` + `report.json`.
 
+### The symbolic ear
+
+The audio judge scores timbre and texture. It never measured whether the bass
+locks to the kick, whether anything lands off the beat, or whether the
+performance is quantised — so those defects survived every round of tuning
+while the scores went up. These three measure the **notes** instead, and they
+are the reason the caricature was findable at all. See `GROOVE-CRITERIA.md` at
+the repo root for what the numbers are supposed to be and why.
+
+- **`groove-stats.mjs`** — symbolic groove statistics for any Standard MIDI
+  File: density, drum and bass placement, bass/kick interlock, grid deviation,
+  velocity spread. Takes files or `--manifest=<json>` and prints per-label
+  medians. Runs unchanged over real reference recordings and over LIME's own
+  output — same ruler on both sides, which is the only way a target means
+  anything.
+- **`groove-reference.json`** — those statistics for the 48 human-labelled
+  reference recordings, frozen. Derived medians only; no corpus audio or MIDI
+  is redistributed. Carries per-metric caveats: `ghost` and `swing` are
+  **unusable** from this corpus, because Lakh clean MIDI are quantised
+  transcriptions rather than performances (real Jazz measures a swing of 0.03).
+- **`groove-gap.mjs`** — the iteration loop in one command. Renders, measures,
+  diffs against the reference, prints only the rows that miss.
+
+```bash
+node tools/judge/groove-gap.mjs            # off-target rows only
+node tools/judge/groove-gap.mjs --all      # every metric
+node tools/judge/groove-gap.mjs --bars=192 --seeds=1,2,3,4
+```
+
+Two traps it handles that hand-rolled counting does not: it strips **velocity**
+before counting distinct rhythms (otherwise a groove that is one pattern on
+repeat reports 92-96 distinct bars out of 96, because the phrase plan varies
+velocities while the rhythm never changes), and it snaps onsets to a coarse grid
+before comparing positions (otherwise the humanisation layer's few milliseconds
+of jitter read as rhythmic variety). Both traps hid real defects for a long time.
+
 ## Prerequisites
 
 - `fluidsynth` CLI (`sudo apt install -y fluidsynth`) and the SoundFont
@@ -240,3 +276,28 @@ other two ears have never been in that loop.
 
 Tune with MuQ-MuLan; check with the others. A change that moves one and not the
 rest moved the judge, not the music.
+
+## The ear, blind
+
+`GROOVE-CRITERIA.md` names the questions no measurement settles — microtiming
+magnitude above all, where the literature actively disputes that more is better.
+A blind listening test has already once caught a defect this whole model stack
+scored as an improvement. So some decisions belong to ears, and they have to be
+blind: knowing which clip is "the fix" is enough to hear it as better.
+
+- **`ab-listen.mjs`** — renders two StylePack variants of one genre over the
+  same seeds, loudness-matches them (so neither wins on level alone), shuffles
+  them under opaque labels, and writes the answer key to a separate file.
+
+```bash
+node tools/judge/ab-listen.mjs --variant=bass-syncopation
+node tools/judge/ab-listen.mjs --variant=bass-syncopation --seeds=1,2,3,4 --seconds=20
+```
+
+Output goes to `out/ab/<variant>/`: the clips, a `PROMPT.md` saying what to
+listen for, and `ANSWER-KEY.json` to be read **last**.
+
+Each variant is expressed as a StylePack patch, so whichever the ear picks
+becomes a configuration value rather than a code edit. Clips skip the first 24
+bars deliberately: a clip taken from bar 0 is always the intro of a two-minute
+form arch, which is the bias that made every earlier clip unrepresentative.
