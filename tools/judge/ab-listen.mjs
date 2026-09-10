@@ -21,8 +21,13 @@
  *
  * Output lands in `tools/judge/out/ab/<variant>/`:
  *   clip-01.wav … clip-NN.wav   the shuffled clips — listen to these
+ *   clip-01.mp3 … clip-NN.mp3   the same clips, small enough to carry to a phone
  *   PROMPT.md                   what to listen for, and how to answer
+ *   RATIONALE.md                why it is being asked. Do NOT read before answering.
  *   ANSWER-KEY.json             which clip was which. Read this LAST.
+ *
+ *   node tools/judge/ab-page.mjs builds a single self-contained HTML page from any
+ *   rendered test, so it can be answered on a phone or offline.
  */
 
 import { execFileSync } from "node:child_process";
@@ -32,7 +37,7 @@ import { fileURLToPath } from "node:url";
 
 import { createLime } from "../../packages/core/dist/index.js";
 import { eventsToStandardMidiFile } from "../../packages/midi/dist/index.js";
-import { STATE, GM, stylePack, NAMES } from "./genreTables.mjs";
+import { STATE, GM, stylePack, NAMES, foldMelody } from "./genreTables.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "../..");
@@ -54,7 +59,13 @@ const VARIANTS = {
     detail:
       "Both keep the same kick pattern and the same bass/kick interlock. They " +
       "differ only in how the bar is finished: one pushes out on an off-beat " +
-      "sixteenth, the other lands on the quarters.\n\n" +
+      "sixteenth, the other lands on the quarters.",
+    // Withheld from PROMPT.md deliberately. This paragraph names which variant
+    // the measurements favour, and this is a *preference* test: telling the
+    // listener which answer is "correct" is priming, and priming is the exact
+    // thing blinding exists to prevent. It goes to RATIONALE.md instead, and the
+    // HTML page keeps it behind the answer-key reveal.
+    rationale:
       "Measured against real funk recordings, the pushed version overshoots " +
       "the reference (bassOffbeat 0.79 against 0.53, bass16th 0.40 against " +
       "0.20) and the grounded version is almost exactly on target (0.50 and " +
@@ -89,7 +100,15 @@ function renderClip(genreId, patch, seed, seconds, outDir, tag) {
     const barEvents = lime.composeBar(bar);
     if (bar < warmup) continue;
     for (const e of barEvents) {
-      events.push({ ...e, time: e.time - warmup * 1920 });
+      // Fold the lead into the genre's register, exactly as render.mjs and the
+      // demo's fluidRenderer do. Without this the clips carry the raw composer
+      // register — funk reaches E7 — and the test stops being representative of
+      // anything the library actually ships.
+      const folded =
+        e.voice === "melody" && genreId !== "genre-hiphop"
+          ? { ...e, pitch: foldMelody(e.pitch, cfg) }
+          : e;
+      events.push({ ...folded, time: folded.time - warmup * 1920 });
     }
   }
 
@@ -177,6 +196,13 @@ function main() {
   order.forEach((item, i) => {
     const name = `clip-${String(i + 1).padStart(2, "0")}.wav`;
     execFileSync("mv", [item.path, join(outDir, name)]);
+    // A portable copy as well. The WAV is the measurement artifact; the mp3 is so
+    // the test can actually be taken away from the desk it was rendered on.
+    execFileSync(
+      "ffmpeg",
+      ["-y", "-i", join(outDir, name), "-b:a", "160k", "-ar", "44100", join(outDir, name.replace(/\.wav$/, ".mp3"))],
+      { stdio: "ignore" },
+    );
     key.push({ clip: name, variant: variant[item.side].label, side: item.side, seed: item.seed });
   });
 
@@ -206,6 +232,11 @@ Play them in order and for each one note whether the bass feels **pushed** or
 identify the variants; you are being asked which you prefer, clip by clip,
 without knowing which is which.
 
+This file deliberately does **not** say which variant the measurements favour.
+That reasoning is in \`RATIONALE.md\`, withheld because this is a preference test:
+being told which answer is "correct" is enough to hear it as correct, which is
+exactly what blinding is for. Read it after answering.
+
 Do not open \`ANSWER-KEY.json\` until you have written your answers down.
 Knowing which clip is "the fix" is enough to hear it as better — that is the
 whole reason this is blind.
@@ -217,6 +248,35 @@ indistinguishable to you, that is a real and useful result: it means the
 measured target should win, because nothing is lost by taking it.
 `;
   writeFileSync(join(outDir, "PROMPT.md"), prompt);
+
+  // The measurement rationale lives apart from the prompt so it cannot prime the
+  // listener. Everything before the answer belongs to the ear; everything after
+  // belongs to the tables.
+  const rationale = `# Why this is being asked — read this AFTER answering
+
+This file exists because the reasoning below names which variant the numbers
+prefer, and this is a *preference* test. Read it once your list is written.
+
+## The question
+
+${variant.question}
+
+## The measurement rationale
+
+${variant.rationale}
+
+## How to read the result
+
+- If the **pushed** version wins, the ear keeps its call and the reference gap is
+  a documented overshoot rather than a defect.
+- If the **grounded** version wins, the measured target was right and the earlier
+  listening pass was reading a rendering artefact, not the line.
+- If the two are **indistinguishable**, take the grounded version: it matches the
+  reference, and nothing is lost by preferring it.
+
+Whichever wins becomes a configuration value, not a code edit.
+`;
+  writeFileSync(join(outDir, "RATIONALE.md"), rationale);
 
   console.log(`\n${order.length} clips written to ${outDir}`);
   console.log(`Read PROMPT.md first. Do NOT open ANSWER-KEY.json until you have answered.\n`);
