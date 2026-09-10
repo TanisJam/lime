@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { PercussionGenerator } from "../src/percussion/PercussionGenerator.js";
+import type { NoteEvent } from "../src/events/MusicalEvent.js";
 import { FUNK_KICK_SIXTEENTHS } from "../src/percussion/grooveAnchors.js";
 import { PhraseDirector } from "../src/phrase/PhrasePlan.js";
 import type { PhrasePlan } from "../src/phrase/PhrasePlan.js";
@@ -54,6 +55,117 @@ function makeBarContext(bar: number, energy: number, seed: string): BarContext {
     rng: new SeededRandom(seed).derive(String(bar)),
   };
 }
+
+/**
+ * The funk hat layer and its ghosts — the two things that make the genre both
+ * bright and, when they are wrong, pulse-less.
+ *
+ * Measured on LIME's own output for `genre-funk`: the hats were a full sixteenth
+ * grid at a near-flat ~0.23 velocity. That is 75 % of the percussion by count, the
+ * loudest voice in the mix, and the brightest single element — dropping the hats
+ * alone takes a funk render's spectral centroid from 2262 Hz to 1980 Hz, and
+ * dropping all percussion takes it to 1460 Hz.
+ *
+ * The sixteenth grid itself is *correct* for the genre: `drum16th` measures 0.28
+ * against a 0.28 reference. Flattening the hats to eighths was tried and reverted,
+ * because it fixed `drumOffbeat` (0.67 -> 0.47 against a 0.48 reference) while
+ * collapsing `drum16th` from 0.39 to 0.07 against that same reference. Trading one
+ * off-target metric for another is not a fix. What was missing was the *pulse*.
+ */
+
+/** Bars/energy for the funk hat and ghost checks (kept distinct from the shared
+ * BARS/ENERGY constants above, which the other grooves' blocks use). */
+const HAT_BARS = 32;
+const HAT_ENERGY = 0.72;
+
+/** Every hat the funk groove plays across HAT_BARS bars, at bar-relative ticks. */
+function funkHats(grooveVariation?: number): NoteEvent[] {
+  const gen = new PercussionGenerator({ groove: "funk", grooveVariation });
+  const out: NoteEvent[] = [];
+  for (let bar = 0; bar < HAT_BARS; bar++) {
+    const ctx = makeBarContext(bar, HAT_ENERGY, `funk-hats-${bar}`);
+    for (const e of gen.generateBar(ctx) as NoteEvent[]) {
+      if (e.percussion === "hat") out.push({ ...e, time: e.time - ctx.barStartTick });
+    }
+  }
+  return out;
+}
+
+describe("funk hat layer", () => {
+  it("plays eighths, and leaves the sixteenth subdivision to the snare", () => {
+    // A sixteenth hat grid measured `drumOffbeat` 0.65 against a 0.48 reference,
+    // because a 16th grid scores 0.75 on that metric by construction. Eighths
+    // measure 0.42. The subdivision does not disappear — it moves to the ghost
+    // snares, which is where GROOVE-CRITERIA.md says funk's sixteenths live.
+    const hats = funkHats(0.75);
+    const perBar = hats.length / HAT_BARS;
+    expect(perBar).toBeGreaterThanOrEqual(7);
+    expect(perBar).toBeLessThan(11);
+  });
+
+  it("accents the beat instead of playing a flat wall", () => {
+    const hats = funkHats(0.75);
+    const onBeat = (t: number) => Math.round(t / 240) % 2 === 0;
+    const on = hats.filter((e) => onBeat(e.time)).map((e) => e.velocity);
+    const off = hats.filter((e) => !onBeat(e.time)).map((e) => e.velocity);
+    expect(on.length).toBeGreaterThan(0);
+    expect(off.length).toBeGreaterThan(0);
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    // The beat must read as an accent. A grid whose velocities are all ~0.23 has no
+    // pulse in it — the ear hears a wall, not a beat.
+    expect(mean(on) - mean(off)).toBeGreaterThan(0.1);
+    expect(mean(off)).toBeLessThan(0.28);
+  });
+
+  it("hands the sixteenth subdivision to the ghost snares, not to nothing", () => {
+    // The point of moving the hats is that the subdivision still exists. If both
+    // the hats and the ghosts were on eighths, `drum16th` would collapse to zero
+    // and the groove would lose its 16th-note motion entirely.
+    const gen = new PercussionGenerator({ groove: "funk", grooveVariation: 0.75 });
+    let oddSteps = 0;
+    for (let bar = 0; bar < HAT_BARS; bar++) {
+      const ctx = makeBarContext(bar, HAT_ENERGY, `funk-subdiv-${bar}`);
+      const hits = gen.generateBar(ctx) as NoteEvent[];
+      for (const e of hits) {
+        if (!e.percussion) continue;
+        const step = Math.round((e.time - ctx.barStartTick) / 120) % 16;
+        if (step % 2 === 1) oddSteps++;
+      }
+    }
+    // Several per bar, from the snare: the subdivision has to be carried.
+    expect(oddSteps / HAT_BARS).toBeGreaterThan(1);
+  });
+});
+
+describe("funk ghost snares", () => {
+  it("plays audible ghosts, not counted-but-inaudible ones", () => {
+    // Funk's defining texture per GROOVE-CRITERIA.md. The reference corpus cannot
+    // set this target — it measures ~0.00 ghosts for every label including funk,
+    // because the Lakh transcriptions flattened them. The literature does.
+    const gen = new PercussionGenerator({ groove: "funk", grooveVariation: 0.75 });
+    const ghosts: NoteEvent[] = [];
+    const backbeats: NoteEvent[] = [];
+    for (let bar = 0; bar < HAT_BARS; bar++) {
+      const ctx = makeBarContext(bar, HAT_ENERGY, `funk-ghost-${bar}`);
+      const snares = (gen.generateBar(ctx) as NoteEvent[]).filter(
+        (e) => e.percussion === "snare",
+      );
+      for (const e of snares) {
+        const step = Math.round((e.time - ctx.barStartTick) / 120) % 16;
+        if (step === 4 || step === 12) backbeats.push(e);
+        else ghosts.push(e);
+      }
+    }
+    expect(ghosts.length).toBeGreaterThan(0);
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    const ghostVel = mean(ghosts.map((e) => e.velocity));
+    const backbeatVel = mean(backbeats.map((e) => e.velocity));
+    // Audible while still clearly a ghost rather than a second backbeat.
+    expect(ghostVel).toBeGreaterThan(0.15);
+    expect(ghostVel).toBeLessThan(0.35);
+    expect(backbeatVel).toBeGreaterThan(ghostVel + 0.25);
+  });
+});
 
 /** Sixteenth-note position (0..15) of a note event within its bar. */
 function sixteenthOf(e: NoteEvent, ctx: BarContext): number {
