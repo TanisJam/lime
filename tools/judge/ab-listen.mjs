@@ -75,6 +75,29 @@ const VARIANTS = {
     a: { label: "pushed (current default, ear-confirmed)", patch: { bassGroove: { syncopation: 1 } } },
     b: { label: "grounded (matches the measured reference)", patch: { bassGroove: { syncopation: 0.3 } } },
   },
+  "bass-variety": {
+    genre: "genre-funk",
+    question:
+      "Which bass line holds the groove better over two minutes — and does " +
+      "either one start to feel like a loop?",
+    detail:
+      "Both play the same kick anchors and the same two core pushes, so the " +
+      "bass/kick interlock is identical. The only difference is whether the " +
+      "bar's finish is chosen fresh each bar, or fixed to the same reading from " +
+      "the first bar to the last.",
+    // Withheld from PROMPT.md deliberately: naming the hypothesis is priming,
+    // and priming is the exact thing blinding exists to prevent.
+    rationale:
+      "This asks the question the earlier bass test could not. That test compared " +
+      "two *static* finishes and the ear accepted both, reported as 'either is " +
+      "fine'. But it never varied anything: fixed at syncopation 0.3, the shipped " +
+      "funk bass produced exactly ONE rhythm for 700 consecutive bars — the same " +
+      "bar in every seed, from bar 0. Every positional metric stayed on target, " +
+      "which is why it survived: bassOffbeat, bass16th and bassKickLock measure " +
+      "shares and positions, never repetition. Variety was never in the table.",
+    a: { label: "varied (per-bar draw)", patch: { bassGroove: { syncopation: 0.3 } } },
+    b: { label: "frozen (always the same finish)", patch: { bassGroove: { syncopation: 0 } } },
+  },
 };
 
 function arg(name, fallback) {
@@ -219,10 +242,10 @@ ${order.length} clips, ${seconds}s each, in \`${outDir}\`. Two variants, ${seeds
 each, shuffled and loudness-matched. Both are the same genre, tempo and seed set —
 only the one property above differs.
 
-Play them in order and for each one note whether the bass feels **pushed** or
-**grounded**, and which you would rather keep. You are not being asked to
-identify the variants; you are being asked which you prefer, clip by clip,
-without knowing which is which.
+Play them in order and write one line per clip: which you would rather keep, and
+whether either one starts to feel **repetitive** (like a loop) as it plays. You
+are not being asked to identify the variants or to guess what changed — you are
+being asked which you prefer, clip by clip, without knowing which is which.
 
 This file deliberately does **not** say which variant the measurements favour.
 That reasoning is in \`RATIONALE.md\`, withheld because this is a preference test:
@@ -235,9 +258,9 @@ whole reason this is blind.
 
 ## Answering
 
-A list is enough, e.g. \`1 grounded, 2 pushed keep, 3 …\`. If the two are
-indistinguishable to you, that is a real and useful result: it means the
-measured target should win, because nothing is lost by taking it.
+A list is enough, e.g. \`1 keep, 2 keep, 3 …\`, plus any note you want to add.
+If the two are indistinguishable to you, that is a real and useful result: it
+means the measured target should win, because nothing is lost by taking it.
 `;
   writeFileSync(join(outDir, "PROMPT.md"), prompt);
 

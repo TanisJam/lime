@@ -1,6 +1,7 @@
 import * as JSSynth from "js-synthesizer";
 import type { MusicRenderer, MusicalEvent, VoiceId } from "@lime/core";
 import { TICKS_PER_QUARTER } from "@lime/core";
+import * as styles from "@lime/styles";
 
 /**
  * FluidRenderer — a MusicRenderer backed by FluidSynth compiled to WebAssembly
@@ -180,18 +181,13 @@ export class FluidRenderer implements MusicRenderer {
   }
 }
 
-/** Per-genre GM program map (voice → GM program). Drums are automatic on ch 9. */
-export const GM_PROGRAMS: Record<string, FluidPrograms> = {
-  "genre-classical": { melody: 40, pad: 48, bass: 43 },
-  "genre-pop": { melody: 0, pad: 4, bass: 33, motion: 0 },
-  "genre-rock-pop": { melody: 29, pad: 28, bass: 33, melodyCut: 66 },
-  "genre-hiphop": { melody: 4, pad: 89, bass: 38, motion: 4 },
-  "genre-jazz": { melody: 66, pad: 4, bass: 32, motion: 0 },
-  "genre-blues": { melody: 27, pad: 4, bass: 33 },
-  "genre-folk": { melody: 25, pad: 24, bass: 32 },
-  "genre-latin": { melody: 56, pad: 0, bass: 33, motion: 24 },
-  "genre-funk": { melody: 66, pad: 28, bass: 33, motion: 4 },
-  "genre-metal": { melody: 30, pad: 30, bass: 33, melodyCut: 62 },
-  "genre-electronic": { melody: 81, pad: 89, bass: 38, motion: 81 },
-  "genre-ambient": { melody: 73, pad: 89 },
-};
+/**
+ * Per-genre GM program map. The values live in `@lime/styles` as the single
+ * source of truth so the judge's offline renders and this live path cannot
+ * diverge — they once did, and Funk was listened to through an instrument the
+ * demo never played. See `packages/styles/src/gmPrograms.ts`.
+ */
+export const GM_PROGRAMS: Record<string, FluidPrograms> = styles.GM_PROGRAMS as Record<
+  string,
+  FluidPrograms
+>;

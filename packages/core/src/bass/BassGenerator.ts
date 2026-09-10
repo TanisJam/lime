@@ -243,23 +243,34 @@ export class BassGenerator {
     // Funk: syncopated 16ths anchored on "the one", root with octave pops. The
     // pattern includes every position in FUNK_KICK_SIXTEENTHS so the bass locks
     // with the kick — real funk rhythm sections interlock, not just share a
-    // downbeat — and adds a couple of pushed off-kick 16ths (3 and 10, plus 13
-    // to walk out of the bar) for the syncopated character.
+    // downbeat — and adds a couple of pushed off-kick 16ths (3 and 10) for the
+    // syncopated character.
     if (this.bassStyle === "funk" && arc >= 0.4) {
       const s = beat / 4;
       // The anchor kicks and the two core pushes are the line's identity and
-      // never move. What `syncopation` selects is how the bar is finished:
-      // pushed out on the off-quarter 13, or grounded on the quarters 8 and 12.
+      // never move: dropping any of them would break the interlock this branch
+      // exists to provide. Everything else is drawn per bar.
       //
-      // The pushed reading is the default and is what a human confirmed by ear.
-      // It measures well past the reference (bassOffbeat 0.79 against 0.53,
-      // bass16th 0.40 against 0.20); the grounded reading measures 0.50 and
-      // 0.17, almost exactly on target. Which one is actually better is a
-      // question for ears, not for the tables — GROOVE-CRITERIA.md is explicit
-      // that measurement does not settle feel — so both are reachable and the
-      // ear-confirmed one stays the default.
+      // `syncopation` used to be a *threshold* here — `>= 0.6` selected one of two
+      // hardcoded finishes — so the shipped funk configuration (syncopation 0.3)
+      // picked the grounded finish before any random draw and kept it forever
+      // after: one identical bar, in every seed, for the whole session. No
+      // positional metric in the groove tables could see it, because every share
+      // stayed on target. It is a continuous probability here now, exactly as it
+      // already was in the walking and root-drive branches.
+      const sync = this.bassGroove?.syncopation ?? 1;
       const onsets = new Set<number>([...FUNK_KICK_SIXTEENTHS, 3, 10]);
-      if ((this.bassGroove?.syncopation ?? 1) >= 0.6) {
+
+      // Finish: pushed out on the off-quarter 16th, or grounded on the quarters.
+      // Both readings are ones the ear already accepted; which one a bar takes is
+      // now a per-bar draw rather than a per-style constant.
+      //
+      // Adding a lead-in sixteenth *around* these onsets was tried and rejected:
+      // it dilutes `bassKickLock`, which is a share over the line's own onsets, and
+      // an extra onset that the kick itself does not play lowers that share without
+      // the line leaving the kick at all (GROOVE-CRITERIA.md, third measurement
+      // trap). Variety has to come from recombining the line's real hits.
+      if (rng.bool(sync)) {
         onsets.add(13);
       } else {
         onsets.add(8);

@@ -84,6 +84,23 @@ const TOLERANCE = {
  * criterion we have (Friberg & Sundström 2002). Same corpus limitation as
  * `ghost` and `swing`, third instance found; excluded for the same reason.
  */
+/**
+ * Floors for the variety watch, in distinct rhythms per 100 *sounding* bars.
+ *
+ * Deliberately not part of `TOLERANCE`: no reference recording can judge it,
+ * because the reference corpus is quantised transcriptions whose own repetition
+ * is an artefact of transcription, not of performance. It exists because of a
+ * specific defect every metric above missed — the shipped funk bass produced
+ * **one** rhythm for 700 consecutive bars while `bassOffbeat`, `bass16th` and
+ * `bassKickLock` all stayed on target. Position and share were healthy; variety
+ * was zero.
+ *
+ * Read a low value as a question, never as a failure: a deliberate one-bar vamp
+ * and a stuck generator look identical here. Check whether the style intends to
+ * repeat before "fixing" anything.
+ */
+const VARIETY_WATCH = { bass: 3, percussion: 3 };
+
 const UNRELIABLE_FOR = {
   drum16th: new Set(["Jazz", "Blues"]),
   bass16th: new Set(["Jazz", "Blues"]),
@@ -117,6 +134,7 @@ function renderAndMeasure(genreId, seeds, bars, outDir) {
 
   const rows = [];
   const rhythms = { percussion: new Set(), bass: new Set() };
+  const barsSounding = { percussion: 0, bass: 0 };
   const barTicks = 1920;
   const snap = (t) => Math.round(t / 60) * 60;
 
@@ -129,6 +147,8 @@ function renderAndMeasure(genreId, seeds, bars, outDir) {
       for (const voice of ["percussion", "bass"]) {
         const v = barEvents.filter((e) => e.voice === voice);
         if (!v.length) continue;
+
+        barsSounding[voice]++;
         rhythms[voice].add(
           v
             .map((e) => `${snap(e.time - bar * barTicks)}:${e.percussion ?? ""}`)
@@ -155,6 +175,8 @@ function renderAndMeasure(genreId, seeds, bars, outDir) {
     stats: aggregate(rows),
     distinctPercussion: rhythms.percussion.size,
     distinctBass: rhythms.bass.size,
+        barsBass: barsSounding.bass,
+        barsPercussion: barsSounding.percussion,
   };
 }
 
@@ -205,6 +227,26 @@ function main() {
     }
     if (anyOff) offTarget++;
     if (showAll || anyOff) console.log(name.padEnd(18) + cells.join(""));
+  }
+
+  // Variety per 100 sounding bars, not the raw count: a slower genre fits
+  // fewer bars into the same span, so raw counts are not comparable across a row.
+  const per100 = (m, voice) =>
+    voice === "bass"
+      ? m.barsBass ? (m.distinctBass / m.barsBass) * 100 : 0
+      : m.barsPercussion ? (m.distinctPercussion / m.barsPercussion) * 100 : 0;
+  console.log("\nvariety per 100 sounding bars (* = watch: the voice may be repeating itself)");
+  for (const voice of ["percussion", "bass"]) {
+    const floor = VARIETY_WATCH[voice];
+    console.log(
+      `${voice} (watch <${floor})`.padEnd(18) +
+        genres
+          .map((g) => {
+            const r = per100(measured.get(g), voice);
+            return `${r.toFixed(1)}${r < floor ? "*" : " "}`.padStart(15);
+          })
+          .join(""),
+    );
   }
 
   console.log("\n" + "distinct rhythms (velocity stripped — see the header comment)");

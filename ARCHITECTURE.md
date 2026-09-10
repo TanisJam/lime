@@ -1,8 +1,12 @@
-# LIME Architecture (v0.1)
+# LIME Architecture
 
 **LIME — Live Interactive Music Engine.** A continuous adaptive music engine for
-the web. This document reflects the v0.1 implementation and the reasoning behind
-it.
+the web.
+
+> This document began as the v0.1 design record. It has been updated to describe
+the current implementation; where a section still describes v0.1 scope, it says so
+explicitly, and the "Out of scope" section at the end is kept as the v0.1 record
+with a note on what has since shipped.
 
 ## Core idea
 
@@ -81,18 +85,47 @@ so MIDI export later is straightforward. Hierarchy: note < beat < bar < phrase.
 
 ## Voices
 
-`pad`, `bass`, `melody`, `percussion` (+ optional `texture`). Each generator is a
-pure per-bar function of a `BarContext`.
+`pad`, `bass`, `melody`, `motion`, `percussion` — each generator is a pure per-bar
+function of a `BarContext`. `texture` is a reserved `VoiceId` in the event and role
+vocabularies but has no generator and no renderer: `ToneRenderer` excludes it from
+its mix type and drops such events silently, so nothing currently emits it.
 
 - **Pad** — harmonic bed; light voice leading (`Voicing.ts`), register from
   brightness, note count from density/energy, re-attacks from energy/complexity.
 - **Bass** — chord root; sustained at low energy, growing to a pulse with fifths,
-  octaves, and next-root anticipation (kept diatonic in v0.1).
+  octaves, and next-root anticipation (`BassStyle` / `BassGrooveStyle` now select
+  between default, root-drive, walking, sub, funk and montuno motion).
 - **Melody** — motif-driven: pick/return/introduce a motif, adapt to the chord,
   apply a role-appropriate variation, schedule. Density/energy gate whether it
-  sounds at all; **silence is valid**.
+  sounds at all; **silence is valid**. Core owns register folding through an
+  optional `MelodyStyle.register`, so every renderer sees the same octave range.
 - **Percussion** — abstract kick/snare/hat from a small grammar; energy-gated
-  (disappears at low energy), density drives the hat pulse.
+  (disappears at low energy), density drives the hat pulse. Named grooves plus
+  shared structural anchors (`percussion/grooveAnchors.ts`) let the bass interlock
+  with the kick per genre.
+- **Motion** — a fifth voice added after v0.1; arpeggio/ostinato/stab figuration
+  selected by `StylePack.motion`.
+
+### Orchestration (added after v0.1)
+
+Above the generators sits an orchestration layer that decides *which forces play
+and who leads*, as opposed to what each one plays:
+
+```
+PhraseDirector.plan() → OrchestrationDirector.plan() → Orchestrator.composeBar()
+```
+
+`OrchestrationDirector` owns an `Arrangement` (the energy-gated, hysteretic voice
+gate from v0.1) and produces an `OrchestrationPlan` carrying `activeRoles`,
+`activity` (a shared ~1.0 busyness budget), `depth`, `prominence` and `focus`.
+The plan rides on `BarContext`, so every generator reads one shared decision
+instead of re-deriving density from raw state.
+
+**Current limits, stated plainly:** the director receives `FormState` but does not
+read it, so ensemble membership is energy-only; `focus` does not rotate over long
+form; and the renderer does not yet consume `depth`/`prominence`. Only `pad` and
+`melody` read the activity budget. `V0.3_ORCHESTRATION.md` §10 is the authoritative
+per-item status.
 
 ## State convergence
 
@@ -116,12 +149,47 @@ absolute ticks, and ramps BPM so tempo changes are smooth.
 
 `packages/core` has deterministic Vitest coverage: seed reproducibility, seed
 divergence, pitch validity (in-scale), scheduling horizon, no-regeneration of
-committed bars, state bounds across transitions, silence at low energy, and
-harmony continuity/cadence resolution.
+committed bars, state bounds across transitions, silence at low energy, harmony
+continuity/cadence resolution, humanization bounds, orchestration role/depth/
+activity assignment, and per-genre conformance (power voicing, backbeat, Latin
+clave, swing, bass/kick interlock).
 
-## Out of scope for v0.1
+Verified counts: 254 tests across 26 core files, plus 64 (+3 skipped) in
+`corpus`, 20 in `midi` and 9 in `styles`.
 
-Neural/LLM generation, imported MIDI, jazz/chromatic harmony, key modulation,
-multiple meters, polyrhythm, microtonality, Web MIDI hardware, multiplayer,
-server components, AudioWorklet DSP, full MIDI export. The event model is
-designed so MIDI export is easy to add later.
+`packages/renderer-tone` and `apps/demo` have **no tests** — the renderer is the
+one place Tone.js and real scheduling live, and it is currently unverified.
+
+## Measurement (added after v0.1)
+
+Quality is measured, not asserted. Two independent layers live under `tools/`:
+
+- `tools/ear/` — three audio listeners (MuQ-MuLan, Essentia `genre_discogs400`,
+  MAEST), fused into a genre verdict with a confusion matrix.
+- `tools/judge/` — a symbolic "ear" (`groove-stats.mjs`, `groove-gap.mjs`) that
+  measures the *notes* rather than the audio: density, drum/bass placement,
+bass-kick interlock, grid deviation, velocity spread. It exists because audio
+models score timbre and texture and were structurally blind to whether the
+performance was quantised.
+
+Targets come from 48 reviewed human recordings (`groove-reference.json`). The
+measured outcome is documented in `README.md` and is deliberately unflattering:
+only Blues and Electronic pass the per-class trust gates. See `GROOVE-CRITERIA.md`
+for the acceptance contract and where the reference corpus must not be trusted.
+
+## Out of scope for v0.1 — and what has since shipped
+
+Recorded intent for v0.1 was to exclude: neural/LLM generation, imported MIDI,
+jazz/chromatic harmony, key modulation, multiple meters, polyrhythm,
+microtonality, Web MIDI hardware, multiplayer, server components, AudioWorklet
+DSP, and full MIDI export.
+
+Since then: **full MIDI export shipped** (`packages/midi`), **imported MIDI
+shipped** as corpus ingestion (not as a runtime input), **jazz/chromatic harmony
+shipped** via seventh chords and extended chord styles, **AudioWorklet DSP
+shipped** as the demo's FluidSynth-WASM playback path, and **corpus-derived
+StylePacks shipped** as a genre source.
+
+Still genuinely out of scope: neural/LLM generation, key modulation, multiple
+meters (4/4 only), polyrhythm, microtonality, Web MIDI hardware, multiplayer, and
+server components.

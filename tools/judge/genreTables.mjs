@@ -19,20 +19,7 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "../..");
 
-export const GM = {
-  "genre-classical": { melody: 40, pad: 48, bass: 43 },
-  "genre-pop": { melody: 0, pad: 4, bass: 33, motion: 0 },
-  "genre-rock-pop": { melody: 29, pad: 28, bass: 33 },
-  "genre-hiphop": { melody: 4, pad: 89, bass: 38, motion: 4 },
-  "genre-jazz": { melody: 66, pad: 4, bass: 32, motion: 0 },
-  "genre-blues": { melody: 27, pad: 4, bass: 33 },
-  "genre-folk": { melody: 25, pad: 24, bass: 32 },
-  "genre-latin": { melody: 56, pad: 0, bass: 33, motion: 24 },
-  "genre-funk": { melody: 28, pad: 28, bass: 33, motion: 4 },
-  "genre-metal": { melody: 30, pad: 30, bass: 33 },
-  "genre-electronic": { melody: 81, pad: 89, bass: 38, motion: 81 },
-  "genre-ambient": { melody: 73, pad: 89 },
-};
+export const GM = styles.GM_PROGRAMS;
 
 // Per-genre initial state (tempo + mood) — MIRROR of GENRE_STATE in main.ts.
 export const STATE = {
@@ -51,15 +38,8 @@ export const STATE = {
 };
 
 // GM program number → human name, for the programs LIME actually uses.
-export const GM_NAMES = {
-  0: "Acoustic Grand Piano", 4: "Electric Piano (Rhodes)", 18: "Rock Organ",
-  24: "Nylon Guitar", 25: "Steel Guitar", 27: "Clean Electric Guitar",
-  28: "Muted Electric Guitar", 29: "Overdriven Guitar", 30: "Distortion Guitar",
-  32: "Acoustic Bass", 33: "Finger Electric Bass", 38: "Synth Bass 1", 40: "Violin",
-  43: "Contrabass", 48: "String Ensemble", 56: "Trumpet", 66: "Tenor Sax",
-  73: "Flute", 81: "Saw Lead", 89: "Warm Pad",
-};
-export const gmName = (n) => (n === undefined ? undefined : `${GM_NAMES[n] ?? "program"} (GM ${n})`);
+export const GM_NAMES = styles.GM_PROGRAM_NAMES;
+export const gmName = styles.gmProgramName;
 
 export const NAMES = {
   "genre-classical": "Classical", "genre-pop": "Pop", "genre-rock-pop": "Rock",

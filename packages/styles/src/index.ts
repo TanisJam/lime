@@ -23,3 +23,10 @@ export {
   BLUES_TUNING,
   type GenreTuning,
 } from "./genreTuning.js";
+export {
+  GM_PROGRAMS,
+  GM_PROGRAM_NAMES,
+  GUITAR_PROGRAMS,
+  gmProgramName,
+  type GmProgramSet,
+} from "./gmPrograms.js";

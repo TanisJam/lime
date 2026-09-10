@@ -3,9 +3,16 @@
 **Goal:** LIME should play in twelve genres and *sound like* each one — not just
 tweak harmony, but carry the genre's instrumentation, groove, and timbre.
 
-This is a research/spec note. It fixes what defines each genre, how we classify
-the corpus into them, what we extract, and how we render the sound. Nothing here
-is built yet; it is the foundation to review before we build.
+> **Status: largely implemented.** This note is kept as the design rationale, but
+> its original framing sentence — "Nothing here is built yet; it is the foundation
+> to review before we build" — is no longer true and is the single most misleading
+> line in the repo. All twelve genres ship (`packages/styles/src/genres.ts` plus the
+> corpus-derived rock pack), §7's staged rollout is complete, and most of §6's
+> "engine gaps" are closed and test-covered. Read §8 for the verified per-item
+> status before re-designing anything described here.
+
+This note fixes what defines each genre, how we classify the corpus into them,
+what we extract, and how we render the sound.
 
 ---
 
@@ -208,8 +215,9 @@ the corpus's instrumentation profile picks which the genre uses.
 
 ## 6. Engine gaps this surfaces
 
-Some genres need composition features v0.2/v0.3 doesn't fully have yet — these
-join the v0.3 harmonic-realization work:
+Some genres needed composition features v0.2/v0.3 did not fully have. Most of
+this list has since been built and is covered by tests — see §8 for the
+per-item status before treating any of these as open:
 
 - 7th/9th/13th chords & extensions (jazz, R&B, soul).
 - Dominant-7th-throughout & blue notes (blues).
@@ -235,6 +243,34 @@ join the v0.3 harmonic-realization work:
 
 The principle stays LIME's: the host asks for a genre + an emotion + a state, and
 the engine composes it — now with the right instruments, groove, and harmony.
+
+---
+
+## 8. Implementation status (verified against the tree)
+
+| Item | Status | Evidence |
+|---|---|---|
+| Twelve genre StylePacks | **Done** | `packages/styles/src/genres.ts` (11 authored) + corpus `genre-rock-pop.json`. Rock is deliberately corpus-derived. |
+| Single merge point for per-genre tuning | **Done** | `packages/styles/src/genreTuning.ts` — `applyGenreTuning()`, consumed identically by the demo (`apps/demo/src/main.ts`) and the judge (`tools/judge/genreTables.mjs`) |
+| §2 GM-instrumentation classification | **Done** | `packages/corpus/src/analysis/` — instrumentation + drum statistics |
+| §3 per-genre fingerprints | **Done** | exercised by `packages/core/test/genreStyle.test.ts`, `genreConformance.test.ts`, `rockConformance.test.ts` |
+| §6 extensions (7th/9th/13th) | **Done** (code) | `chordStyle: "seventh"`, `seventhChordVoicing` in `harmony/Voicing.ts` |
+| §6 power chords + phrygian-dominant | **Done** (code) | `powerChordVoicing`, covered by `test/genreStyle.test.ts` |
+| §6 clave-locked syncopation | **Done** (code) | Latin clave/conga/bombo, covered by `test/genreStyle.test.ts` |
+| §6 swing/shuffle | **Done** (code) | `grooveVariation` / `grooveDensity` styles, covered by the corresponding tests |
+| §5 timbre — authored renderer layer | **Done, split by backend** | FluidSynth + GM SoundFont for 10 genres; local sampled Tone palettes for `genre-ambient`, `genre-hiphop` (`apps/demo/src/main.ts`, `SAMPLED_GENRES`) |
+| §7.5 genre blends, sub-styles, user-authored genres | **NOT built** | no blend or sub-style machinery exists |
+
+**What this does not claim:** that the twelve genres *sound* correct. That is
+measured, not asserted, and the measured answer is in the root `README.md`: only
+Blues and Electronic pass the per-class trust gates of the calibrated judge. Treat
+the table above as "the feature exists and is tested", never as "the genre is right".
+
+**Still missing, and worth knowing:** every genre is rendered through a single
+GM program map per voice (`tools/judge/genreTables.mjs`, mirrored in the demo's
+FluidSynth path). There is no instrument abstraction layer yet, so a genre cannot
+ask for *several* lead timbres or swap one mid-performance — that is the Phase 9
+item in `V0.3_ORCHESTRATION.md`.
 
 ---
 
