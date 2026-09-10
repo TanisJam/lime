@@ -289,6 +289,15 @@ export const funkPack = genrePack({
   // the "ghost" note in GROOVE-CRITERIA.md). High, but the funk() ghost
   // probabilities themselves also matter more than this knob alone.
   grooveVariation: 0.75,
+  // Grounded, from a blind listening test — see GROOVE-CRITERIA.md, "Deliberately
+  // open" → resolved. The pushed line (syncopation >= 0.6, onsets {0,3,6,10,13})
+  // overshoots real funk (bassOffbeat 0.79 against 0.53, bass16th 0.40 against
+  // 0.20) while the grounded one ({0,3,6,8,10,12}) lands on the reference (0.50,
+  // 0.17). The listener preferred neither over the other across 8 clips, and the
+  // pre-registered rule for that outcome was to take the measured target, since
+  // nothing is lost by preferring it. The [0,6] kick anchor is identical in both,
+  // so the interlock — the line's identity — is untouched.
+  bassGroove: { syncopation: 0.3 },
 });
 
 /** Clásica — functional triads, expressive, no drum kit. */

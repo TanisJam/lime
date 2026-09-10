@@ -294,10 +294,37 @@ node tools/judge/ab-listen.mjs --variant=bass-syncopation
 node tools/judge/ab-listen.mjs --variant=bass-syncopation --seeds=1,2,3,4 --seconds=20
 ```
 
-Output goes to `out/ab/<variant>/`: the clips, a `PROMPT.md` saying what to
-listen for, and `ANSWER-KEY.json` to be read **last**.
+Output goes to `out/ab/<variant>/`: the clips (WAV for measurement, MP3 so the
+test can leave the desk), a `PROMPT.md` saying what to listen for, a
+`RATIONALE.md` explaining what the numbers say, and `ANSWER-KEY.json` to be read
+**last**.
+
+`RATIONALE.md` is a separate file, and `PROMPT.md` does not restate it, for a
+reason worth keeping: this is a *preference* test, and naming which variant the
+measurements favour is priming. Blinding removes the label; it does not remove
+the sentence that tells you which answer is correct. Read the rationale after
+answering.
 
 Each variant is expressed as a StylePack patch, so whichever the ear picks
 becomes a configuration value rather than a code edit. Clips skip the first 24
 bars deliberately: a clip taken from bar 0 is always the intro of a two-minute
 form arch, which is the bias that made every earlier clip unrepresentative.
+
+### Taking the test on a phone
+
+```bash
+node tools/judge/ab-page.mjs                 # every rendered test
+node tools/judge/ab-page.mjs --variant=bass-syncopation --open
+```
+
+`ab-page.mjs` turns a rendered test into one self-contained HTML file per
+variant, `out/ab/<variant>/listen.html` — clips embedded, no server, works
+offline by double-click or copy. Answers are kept in `localStorage` and shown as
+one line in the `PROMPT.md` format, so a session can be interrupted and resumed.
+
+The page keeps the same discipline as the files: clip chips are labelled with the
+perceptual poles only (`pushed` / `grounded` — the parentheticals are stripped),
+the answer key and the measurement rationale both sit behind a confirmation
+button, and a browser check asserts none of those strings appear in the page
+text before the reveal. An A/B page whose two sides leak which is which is worse
+than no test at all.

@@ -147,9 +147,9 @@ Not every row above is equally earned.
   (see above). Expert and non-expert listeners also disagree sharply on
   sensitivity thresholds, so any single ceiling is audience-dependent.
 
-## Two measurement traps
+## Three measurement traps
 
-Both of these hid real defects for a long time. Neither is obvious.
+All of these hid real defects for a long time. None is obvious.
 
 **Strip velocity before asking whether a groove varies.** Counting distinct
 bars *including* velocity showed 92–96 out of 96 for every genre — healthy
@@ -165,26 +165,30 @@ ever byte-identical, so any position comparison must snap first (a 60-tick,
 below the spacing between genuinely distinct positions). Without it, jitter
 reads as rhythmic variety and every regression looks like an improvement.
 
-`tools/judge/groove-gap.mjs` does both correctly. Prefer it over hand-rolled
-counting.
+**A share metric drops when the denominator grows — check the absolute count
+before calling it a regression.** `bassKickLock` is *onsets landing on the kick,
+as a share of all bass onsets*. Adding notes that legitimately are not on the
+kick lowers it without the interlock changing at all. This bit during the funk
+bass-syncopation change: the grounded onset set reads `bassKickLock` 0.50 against
+the pushed set's 0.60, which looks like a regression in exactly the metric the
+repo spent a whole session fixing. The absolute counts say otherwise:
+
+| variant | bass onsets/bar | on-kick/bar | share |
+|---|---|---|---|
+| pushed `{0,3,6,10,13}` | 4.36 | **2.61** | 0.60 |
+| grounded `{0,3,6,8,10,12}` | 5.23 | **2.61** | 0.50 |
+
+On-kick notes per bar are **identical**. The grounded line simply plays more
+notes, so the same interlock is a smaller share. When a share moves, ask whether
+the numerator or the denominator moved — a share is not a quantity.
+
+`tools/judge/groove-gap.mjs` does the first two correctly. Prefer it over
+hand-rolled counting, and read its shares with the caveat above.
 
 ## Deliberately open
 
-Two gaps are left open on purpose. Both are recorded here so nobody "fixes"
-them without knowing what they are trading away.
-
-**Funk's syncopation overshoot** — `bassOffbeat` 0.79 against 0.53, `bass16th`
-0.40 against 0.20, `drumOffbeat` 0.64 against 0.48.
-
-The cause is understood exactly: the funk bass onset set is `{0, 3, 6, 10, 13}`,
-so four of five onsets fall off the quarter (0.80) and two of five land on odd
-16ths (0.40) — matching the measurements to two decimals. A set of
-`{0, 3, 6, 8, 10, 12}` would give 0.50 and 0.17 while keeping the `[0, 6]`
-kick anchor intact.
-
-It is left alone because **Funk is the one genre a human has confirmed by ear.**
-Changing it to chase a number is precisely the failure this document exists to
-prevent. It needs a listening pass, not a patch.
+One gap is left open on purpose. It is recorded here so nobody "fixes" it
+without knowing what they are trading away.
 
 **Rock's `velStd`** — 0.19 against 0.14, at the tolerance boundary. Reducing
 the metrical accent depth was tried and moved it not at all: `velStd` is the
@@ -195,17 +199,32 @@ metric. The corpus was checked as the alternative explanation and cleared: the
 reference recordings carry a median of 72–96 distinct velocity values per song,
 so unlike `ghost` this is real data.
 
-## How to use this
+## Resolved by a listening pass
 
-1. Run `node tools/judge/groove-gap.mjs`. It renders, measures, and prints only
-   the metrics that are off target, largest gap first.
-2. Fix the largest gap **structurally** — in the StylePack or the generator, not
-   as a local patch that can drift back. A knob that only the demo sets is not a
-   fix; the library's own output is what the criteria are about.
-3. Re-run it. **A passing unit test is not evidence that the music changed** —
-   it says the code does what it was told, not that the output improved.
-4. For anything the measurement cannot adjudicate — jitter magnitude above all —
-   confirm by ear before believing it.
-5. When a metric moves but you cannot explain *why*, stop and find out. A number
-   that improved for a reason you do not understand will regress for a reason
-   you do not understand.
+**Funk's syncopation overshoot — closed 2026-09-10, on the ear, not the table.**
+
+The gap was `bassOffbeat` 0.79 against 0.53 and `bass16th` 0.40 against 0.20,
+caused by the funk bass onset set `{0, 3, 6, 10, 13}`, where four of five onsets
+fall off the quarter and two of five land on odd 16ths. The alternative
+`{0, 3, 6, 8, 10, 12}` measures 0.50 and 0.17 — on the reference.
+
+It went to a blind A/B test (`node tools/judge/ab-listen.mjs
+--variant=bass-syncopation`): 8 clips, 4 seeds per variant, loudness-matched,
+shuffled, with the measurement rationale withheld until after answering. The
+listener preferred neither; every clip was acceptable. The test's own
+pre-registered rule for that outcome is to **take the measured target, because
+nothing is lost by preferring it**, and that is what was applied:
+`funkPack.bassGroove.syncopation = 0.3`.
+
+That is a three-way result worth remembering as one: the ear did not overrule the
+table, and the table did not overrule the ear. The ear said "either", which is the
+one answer that hands the decision back to measurement.
+
+`drumOffbeat` 0.64 against 0.48 was part of the same gap and is untouched — it
+belongs to the percussion groove, not the bass line, and the listening test only
+posed the bass question.
+
+Note the corrected reading of `bassKickLock`: 0.50 after the change, against 0.60
+before and 0.74 for real funk — but with an **identical 2.61 on-kick bass notes
+per bar** in both variants. See the third measurement trap above. The interlock
+is unchanged; only the share moved.
