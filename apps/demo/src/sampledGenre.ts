@@ -95,7 +95,7 @@ export const drumKitFactory: InstrumentFactory = (): LimeInstrument => {
 // Instrument factories (GM soundfont patches).
 const overdrive = sf("overdriven_guitar", 0.5);
 const distortion = sf("distortion_guitar", 0.5);
-const cleanGtr = sf("electric_guitar_clean", 0.6);
+const cleanGtr = sf("electric_guitar_clean", 0.6, 2800);
 const jazzGtr = sf("electric_guitar_jazz", 0.6);
 const mutedGtr = sf("electric_guitar_muted", 0.6);
 const rhodes = sf("electric_piano_1", 0.6);
@@ -128,7 +128,7 @@ export const GENRE_PALETTES_SAMPLED: Record<string, Palette> = {
   "genre-blues": { melody: cleanGtr, pad: rockOrgan, bass: eBass, percussion: drumKitFactory },
   "genre-folk": { melody: steel, pad: steel, bass: upright },
   "genre-latin": { melody: trumpet, pad: piano, bass: eBass, percussion: drumKitFactory, motion: nylon },
-  "genre-funk": { melody: mutedGtr, pad: mutedGtr, bass: eBass, percussion: drumKitFactory, motion: rhodes },
+  "genre-funk": { melody: cleanGtr, pad: mutedGtr, bass: eBass, percussion: drumKitFactory, motion: rhodes },
   "genre-metal": { melody: distortion, pad: distortion, bass: eBass, percussion: drumKitFactory },
   "genre-electronic": { melody: saw, pad: warmPad, bass: synthBass, percussion: drumKitFactory, motion: saw },
   "genre-ambient": { melody: flute, pad: warmPad },

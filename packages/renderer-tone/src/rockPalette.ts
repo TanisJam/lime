@@ -55,6 +55,8 @@ export function guitarVoice(opts: {
   attack: number;
   sustain: number;
   release: number;
+  pickGain?: number;
+  presenceGain?: number;
 }) {
   const synth = new Tone.PolySynth(Tone.Synth, {
     oscillator: { type: "fatsawtooth", spread: 16, count: 2 },
@@ -65,7 +67,7 @@ export function guitarVoice(opts: {
   const dist = new Tone.Distortion({ distortion: opts.distortion, oversample: "4x", wet: 0.95 });
   const cheb = new Tone.Chebyshev({ order: opts.chebyshev, wet: 0.3 });
   const mid = new Tone.Filter({ type: "peaking", frequency: 1000, Q: 1, gain: 5 });
-  const presence = new Tone.Filter({ type: "peaking", frequency: 2600, Q: 1.2, gain: 3 });
+  const presence = new Tone.Filter({ type: "peaking", frequency: 2600, Q: 1.2, gain: opts.presenceGain ?? 3 });
   const cab = new Tone.Filter({ frequency: opts.cabHz, type: "lowpass", rolloff: -24 });
   const output = new Tone.Gain(1);
   synth.chain(hp, dist, cheb, mid, presence, cab, output);
@@ -74,7 +76,7 @@ export function guitarVoice(opts: {
   const pick = new Tone.NoiseSynth({
     noise: { type: "white" },
     envelope: { attack: 0.001, decay: 0.02, sustain: 0 },
-    volume: linToDb(0.22),
+    volume: linToDb(opts.pickGain ?? 0.22),
   });
   const pickHp = new Tone.Filter({ frequency: 2500, type: "highpass" });
   pick.chain(pickHp, output);
@@ -118,6 +120,20 @@ export const rockGuitarFactory: InstrumentFactory = (config) =>
     attack: 0.004,
     sustain: 0.6,
     release: 0.25,
+  });
+
+/** Clean, low-gain guitar for funk's clipped, syncopated melody figures. */
+export const funkGuitarFactory: InstrumentFactory = (config) =>
+  guitarVoice({
+    gain: config?.gain ?? 0.28,
+    distortion: 0.12,
+    chebyshev: 2,
+    cabHz: 4200,
+    attack: 0.012,
+    sustain: 0.68,
+    release: 0.32,
+    pickGain: 0.06,
+    presenceGain: 0,
   });
 
 /** Harmonic bed — sustained rhythm guitar (power chords, a touch less gain). */

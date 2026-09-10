@@ -1,7 +1,7 @@
 import * as Tone from "tone";
 import type { VoiceId } from "@lime/core";
 import { linToDb, type InstrumentFactory } from "./instruments.js";
-import { guitarVoice, rockBassFactory, rockKitFactory } from "./rockPalette.js";
+import { funkGuitarFactory, guitarVoice, rockBassFactory, rockKitFactory } from "./rockPalette.js";
 
 /**
  * Genre timbre palettes beyond rock — the synth "sounds like the genre" layer,
@@ -165,7 +165,7 @@ export const LATIN_INSTRUMENTS: Partial<Record<VoiceId, InstrumentFactory>> = {
 };
 /** Funk — bright clav-ish lead, punchy bass, funk kit. */
 export const FUNK_INSTRUMENTS: Partial<Record<VoiceId, InstrumentFactory>> = {
-  melody: brightLead, pad: warmPad, bass: popBassFactory, percussion: rockKitFactory,
+  melody: funkGuitarFactory, pad: warmPad, bass: popBassFactory, percussion: rockKitFactory,
 };
 /** Clásica — warm string-ish ensemble, soft bass, no kit. */
 export const CLASSICAL_INSTRUMENTS: Partial<Record<VoiceId, InstrumentFactory>> = {
