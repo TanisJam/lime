@@ -198,6 +198,31 @@ describe("funk's subdivision and backbeat budget", () => {
     );
   });
 
+  it("never stacks two displaced kicks on the same 16th step", () => {
+    // Each displaced draw picks a spot independently, so two of the three could
+    // land on the same step — measured at 3.3 % of kicks before this was fixed,
+    // which doubles that hit's velocity and reads as an accent the groove never
+    // asked for. One spot is consumed per hit.
+    // `kit()` returns bar-relative times, so each bar must be counted separately:
+    // keying on the step alone would stack all BARS onto each step and report every
+    // downbeat as a duplicate.
+    const gen = new PercussionGenerator({ groove: "funk", grooveVariation: 0.75 });
+    let stacked = 0;
+    for (let bar = 0; bar < BARS; bar++) {
+      const ctx = makeBarContext(bar, ENERGY, `funk-stack-${bar}`);
+      const kicks = (gen.generateBar(ctx) as NoteEvent[]).filter(
+        (e) => e.percussion === "kick",
+      );
+      const perStep = new Map<number, number>();
+      for (const e of kicks) {
+        const step = Math.round((e.time - ctx.barStartTick) / 120) % 16;
+        perStep.set(step, (perStep.get(step) ?? 0) + 1);
+      }
+      stacked += [...perStep.values()].filter((n) => n > 1).length;
+    }
+    expect(stacked).toBe(0);
+  });
+
   it("buys its sixteenth subdivision from the kick, not from extra ghosts", () => {
     // The displaced kicks are the free subdivision: the kick is not part of the
     // `backbeat` share, so odd-step kicks raise `drum16th` at no cost to it.
