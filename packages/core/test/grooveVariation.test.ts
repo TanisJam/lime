@@ -137,6 +137,77 @@ describe("funk hat layer", () => {
   });
 });
 
+describe("funk's subdivision and backbeat budget", () => {
+  /**
+   * The tension that governs this groove, and the reason `drum16th` and `backbeat`
+   * cannot both be bought with ghosts.
+   *
+   * `backbeat` is a share over the SNARE ALONE — 2 / (2 + ghosts) — so every ghost
+   * spent on sixteenth subdivision lowers the backbeat reading while the backbeat
+   * itself never moves. `drum16th` counts the whole kit, so the subdivision has to
+   * come from somewhere the backbeat does not pay for. Three of funk's four
+   * displaced kick spots (3, 9, 11) are odd 16th steps, which is exactly that.
+   *
+   * Measured on LIME's output, the two ends of this trade: leaning on ghosts took
+   * `drum16th` to 0.11 with `backbeat` at 0.63; leaning on the kick takes
+   * `drum16th` to 0.17 with `backbeat` at 0.54. Both metrics pass, and which one is
+   * spent where is now an explicit choice rather than an accident.
+   */
+  const ENERGY = 0.72;
+  const BARS = 48;
+
+  function kit(grooveVariation = 0.75) {
+    const gen = new PercussionGenerator({ groove: "funk", grooveVariation });
+    const out: NoteEvent[] = [];
+    let sounding = 0;
+    for (let bar = 0; bar < BARS; bar++) {
+      const ctx = makeBarContext(bar, ENERGY, `funk-budget-${bar}`);
+      const hits = gen.generateBar(ctx) as NoteEvent[];
+      if (!hits.length) continue;
+      sounding++;
+      out.push(...hits.map((e) => ({ ...e, time: e.time - ctx.barStartTick })));
+    }
+    return { out, sounding };
+  }
+
+  it("keeps the backbeat share within tolerance while the kit subdivides", () => {
+    const { out } = kit();
+    const step = (t: number) => Math.round(t / 120) % 16;
+    const snares = out.filter((e) => e.percussion === "snare");
+    const share =
+      snares.filter((e) => step(e.time) === 4 || step(e.time) === 12).length / snares.length;
+    // Reference 0.63, tolerance 0.12.
+    expect(share).toBeGreaterThanOrEqual(0.51);
+    expect(share).toBeLessThanOrEqual(1.0);
+  });
+
+  it("plays the backbeat itself at full strength, not as one more hit in a crowd", () => {
+    // The absolute contract behind the share: whatever the ghost density, the two
+    // backbeat snares must be there and must be the loudest thing in the snare
+    // voice. A share can drift for reasons that have nothing to do with the
+    // backbeat, which is what makes this worth asserting separately.
+    const { out, sounding } = kit();
+    const step = (t: number) => Math.round(t / 120) % 16;
+    const snares = out.filter((e) => e.percussion === "snare");
+    const onBeat = snares.filter((e) => step(e.time) === 4 || step(e.time) === 12);
+    const ghosts = snares.filter((e) => step(e.time) !== 4 && step(e.time) !== 12);
+    expect(onBeat.length / sounding).toBeGreaterThanOrEqual(1.9);
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
+    expect(mean(onBeat.map((e) => e.velocity))).toBeGreaterThan(
+      mean(ghosts.map((e) => e.velocity)) + 0.25,
+    );
+  });
+
+  it("buys its sixteenth subdivision from the kick, not from extra ghosts", () => {
+    // The displaced kicks are the free subdivision: the kick is not part of the
+    // `backbeat` share, so odd-step kicks raise `drum16th` at no cost to it.
+    const { out } = kit();
+    const step = (t: number) => Math.round(t / 120) % 16;
+    const oddKicks = out.filter((e) => e.percussion === "kick" && step(e.time) % 2 === 1);
+    expect(oddKicks.length).toBeGreaterThan(0);
+  });
+});
+
 describe("funk ghost snares", () => {
   it("plays audible ghosts, not counted-but-inaudible ones", () => {
     // Funk's defining texture per GROOVE-CRITERIA.md. The reference corpus cannot

@@ -518,37 +518,45 @@ export class PercussionGenerator {
     const kickAnchors = new Set<number>(FUNK_KICK_SIXTEENTHS);
     this.hit(ev, ctx, Math.round(s * FUNK_KICK_SIXTEENTHS[0]), "kick", 0.82 + 0.15 * dyn);
     this.hit(ev, ctx, Math.round(s * FUNK_KICK_SIXTEENTHS[1]), "kick", 0.55);
-    // Displaced kick: an extra syncopated hit off the anchors — real funk
-    // kick drums rarely sit still at just two hits per bar.
-    if (gv > 0 && ctx.rng.bool(gv * 0.3)) {
+    // Displaced kicks: a real funk kick rarely sits still at just two hits per bar,
+    // and these are where the groove's sixteenth-note offbeats come from. Three of
+    // the four spots (3, 9, 11) are ODD 16th steps, so they feed `drum16th` from the
+    // KICK rather than from the snare. That is why the subdivision is bought here
+    // and not with more ghosts: `backbeat` is a share over the snare alone —
+    // 2 / (2 + ghosts) — so every ghost spent on subdivision lowers the backbeat
+    // reading while the backbeat itself never moves. The kick has no such budget.
+    if (gv > 0) {
       const spots = [3, 9, 11, 14].filter((p) => !kickAnchors.has(p));
-      this.hit(ev, ctx, s * ctx.rng.pick(spots), "kick", 0.4 + 0.1 * dyn);
+      if (ctx.rng.bool(gv * 0.72)) {
+        this.hit(ev, ctx, s * ctx.rng.pick(spots), "kick", 0.4 + 0.1 * dyn);
+      }
+      if (ctx.rng.bool(gv * 0.55)) {
+        this.hit(ev, ctx, s * ctx.rng.pick(spots), "kick", 0.34 + 0.08 * dyn);
+      }
+      if (ctx.rng.bool(gv * 0.35)) {
+        this.hit(ev, ctx, s * ctx.rng.pick(spots), "kick", 0.3 + 0.08 * dyn);
+      }
     }
 
     this.hit(ev, ctx, beat, "snare", 0.7 + 0.15 * dyn);
     if (beats >= 4) this.hit(ev, ctx, beat * 3, "snare", 0.7 + 0.15 * dyn);
-    // Ghost snares: funk's defining texture. Scattered across the off-16ths,
-    // leaving the backbeat (already hit above) and the kick anchors alone.
+    // Ghost snares: funk's defining texture, and the sixteenth subdivision now that
+    // the hats sit on eighths. ODD steps only — a ghost on an even step lands
+    // exactly on top of a hat, so it adds density without adding subdivision, which
+    // pushes `drum16th` DOWN while looking like more groove.
+    //
+    // Density is bounded by `backbeat` rather than chosen for feel: that metric is
+    // 2 / (2 + ghosts), so the bar carries only ~1.9 ghosts before the backbeat
+    // share leaves tolerance even though the backbeat itself never moves.
+    // GROOVE-CRITERIA.md is equally clear that the reference corpus cannot set a
+    // ghost target — it measures ~0.00 for every label including funk, because the
+    // Lakh transcriptions flattened them.
     if (gv > 0) {
       for (let i = 0; i < beats * 4; i++) {
         if (i === 4 || i === 12) continue; // the backbeat itself
         if (kickAnchors.has(i % 16)) continue; // never crowd the kick anchors
-        // The ghosts carry the groove's sixteenth subdivision now that the hats sit
-        // on eighths, so they take the ODD 16th steps. That is the musically correct
-        // assignment rather than a metric trick: GROOVE-CRITERIA.md names ghost notes
-        // as funk's defining texture, and in real funk the snare is what subdivides —
-        // a hat machine is not.
-        //
-        // They are also louder than the ~0.14 this carried before. At that level they
-        // were counted by the metrics and inaudible in the mix — the one combination
-        // that hides a texture defect from both the table and the ear. The reference
-        // corpus cannot set this target (it measures ~0.00 ghosts for EVERY label
-        // including funk, because the Lakh transcriptions flattened them); the
-        // literature does.
-        const isOddStep = i % 2 === 1;
-        if (ctx.rng.bool(gv * (isOddStep ? 0.42 : 0.1))) {
-          const vel = isOddStep ? 0.2 + 0.1 * ctx.rng.next() : 0.14 + 0.08 * ctx.rng.next();
-          this.hit(ev, ctx, s * i, "snare", vel);
+        if (i % 2 === 1 && ctx.rng.bool(gv * 0.3)) {
+          this.hit(ev, ctx, s * i, "snare", 0.2 + 0.1 * ctx.rng.next());
         }
       }
     }
@@ -556,27 +564,26 @@ export class PercussionGenerator {
     // Hats on eighths, accented on the beat.
     //
     // A full sixteenth grid put every subdivision at ~0.23 velocity: 75 % of the
-    // percussion by count, the loudest voice in the mix, and the brightest thing
-    // in the genre — dropping the hats alone takes a funk render's spectral
-    // centroid from 2262 Hz to 1980 Hz, dropping all percussion takes it to
-    // 1460 Hz. Sixteenths measured `drumOffbeat` 0.65 against a 0.48 reference,
-    // because a sixteenth grid scores 0.75 on that metric by construction.
-    //
-    // Eighths measure 0.42, and they leave the sixteenth subdivision to the part
-    // of the kit that should own it: the ghost snares.
+    // percussion by count, the loudest voice in the mix, and the brightest thing in
+    // the genre — dropping the hats alone takes a funk render's spectral centroid
+    // from 2262 Hz to 1980 Hz, and dropping all percussion takes it to 1460 Hz.
+    // Sixteenths measured `drumOffbeat` 0.65 against a 0.48 reference, because a
+    // sixteenth grid scores 0.75 on that metric by construction. Eighths measure
+    // 0.42, and they leave the subdivision to the displaced kicks and the ghosts.
     const hatVel = 0.34 + 0.1 * dyn;
     const ghostVel = 0.16 + 0.05 * dyn;
     for (let i = 0; i < beats * 2; i++) {
       const onBeat = i % 2 === 0;
       let vel = onBeat ? hatVel : ghostVel;
-      // Occasionally open a hat on the "and" instead of keeping it closed, off
-      // the beat only, so it colours the pulse rather than blurring it.
+      // Occasionally open a hat on the "and" instead of keeping it closed, off the
+      // beat only, so it colours the pulse rather than blurring it.
       if (gv > 0 && !onBeat && ctx.rng.bool(gv * 0.15)) vel = 0.3 + 0.08 * dyn;
       this.hit(ev, ctx, s * i * 2, "hat", vel);
     }
     return ev;
   }
 
+    /**
   /**
    * Latin: 3-2 son clave on claves, a one-drum conga tumbao, a bombo kick and a
    * running shaker.
