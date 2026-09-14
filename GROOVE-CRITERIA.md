@@ -78,24 +78,55 @@ listening test already caught one defect the whole model stack missed.
 
 ## Measured targets
 
-Medians over 8 real recordings per genre. Source: `groove-reference.json`.
+Medians over 8 real recordings per genre. Source: `groove-reference.json`. Bass
+and drum rows are **voice-scoped**: a reference with no bass, or no drums, is
+excluded from that row's median rather than counted as a measured zero (see
+the measurement trap below). `notesPerBeat` and `velStd` are unscoped and use
+all 8.
 
 | metric | Funk | Jazz | Blues | Rock | Pop | Electronic |
 |---|---|---|---|---|---|---|
 | `notesPerBeat` | 7.92 | 5.01 | 6.11 | 4.83 | 7.33 | 4.30 |
-| `drumHitsPerBar` | 18.1 | 18.2 | 16.6 | 15.6 | 21.7 | 30.5 |
-| `drumOffbeat` | 0.48 | 0.38 | 0.43 | 0.46 | 0.47 | 0.62 |
-| `drum16th` | 0.28 | 0.06 | 0.21 | 0.03 | 0.12 | 0.28 |
-| `backbeat` | 0.63 | 0.40 | 0.55 | 0.46 | 0.81 | 0.29 |
-| `bassOffbeat` | 0.53 | 0.38 | 0.17 | 0.53 | 0.16 | 0.63 |
-| `bass16th` | 0.20 | 0.05 | 0.12 | 0.08 | 0.00 | 0.10 |
-| `bassKickLock` | 0.74 | 0.86 | 0.89 | 0.66 | 0.69 | 0.31 |
+| `drumHitsPerBar` | 18.1 | 18.2 | 20.3 | 16.7 | 21.7 | 30.5 |
+| `drumOffbeat` | 0.48 | 0.38 | 0.50 | 0.50 | 0.47 | 0.62 |
+| `drum16th` | 0.28 | 0.06 | 0.23 | 0.05 | 0.12 | 0.28 |
+| `backbeat` | 0.63 | 0.40 | 0.63 | 0.50 | 0.81 | 0.29 |
+| `bassOffbeat` | 0.59 | 0.46 | 0.30 | 0.53 | 0.29 | 0.70 |
+| `bass16th` | 0.35 | 0.09 | 0.23 | 0.08 | 0.01 | 0.29 |
+| `bassKickLock` | 0.81 | 0.94 | 0.92 | 0.66 | 0.83 | 0.50 |
 | `velStd` | 0.17 | 0.17 | 0.15 | 0.14 | 0.16 | 0.18 |
 
 Two of these deserve comment. **`backbeat` is not 1.00 anywhere** — real
 drummers put snares in other places too, and a rigid 1.00 is the signature of a
-caricature. And **`bassKickLock` is high everywhere except Electronic** (0.66–0.89):
+caricature. And **`bassKickLock` is high everywhere except Electronic** (0.66–0.94):
 real rhythm sections interlock, they do not merely share a downbeat.
+
+**A fourth measurement trap, of the same shape as the three below: a reference
+with no bass is not a reference whose bass does nothing.** `aggregate()` used to
+take every label's median over all 8 references, filtering out only non-finite
+values — and `grooveStats()` reports a *finite* 0 for every bass metric on a
+bassless file, and every drum metric on a drumless one. Those structural zeros
+were being folded into the median as if they were performance data, biasing
+every bass figure low and several drum figures low too. 9 of the 48 references
+have no bass (2 Funk/R&B, 1 Jazz, 2 Blues, 2 Pop, 2 Electronic) and 3 have no
+drums (`blues-04`, `blues-06`, `rock-03` — the two Blues ones lack bass as
+well); Rock is the only genre with no bassless reference, which is why its bass
+row is the one that did not move. `aggregate()` now excludes a
+row from a metric's median when it lacks the voice that metric measures, and
+records how many references each figure actually rests on as `_metricN`. The
+bass and drum rows in the table above moved as a result; `notesPerBeat` and
+`velStd` did not, because they are computed from every voice and so need no
+scoping.
+
+**A related note on the registry's own metadata: `tracks=` in
+`calibration-registry.json`'s `selectionNotes` counts Standard MIDI File
+chunks, not instruments.** Ten of the 48 references are MIDI format 0, which
+packs every instrument into a single track, so `tracks=1` there describes file
+layout, not ensemble size — `funk-rb-05` is one track carrying 15 sounding
+voices, and `jazz-04` is one track and the second-densest Jazz reference in the
+set. `channels=` is the field that actually describes the ensemble. This
+misled a previous investigation into thinking single-track references were
+thin arrangements; it is recorded here so it does not mislead the next one.
 
 ## Literature targets
 
@@ -228,3 +259,12 @@ Note the corrected reading of `bassKickLock`: 0.50 after the change, against 0.6
 before and 0.74 for real funk — but with an **identical 2.61 on-kick bass notes
 per bar** in both variants. See the third measurement trap above. The interlock
 is unchanged; only the share moved.
+
+*(2026-09-14: the funk figures cited through this section — `bassOffbeat` 0.53,
+`bass16th` 0.20, `bassKickLock` 0.74 — are the corpus targets as measured on
+2026-09-10, before the voice-scoping fix described under "Measured targets"
+above. The corrected targets are 0.59, 0.35 and 0.81 respectively. Recorded
+here unchanged because it is a log of what the decision actually compared
+against at the time; the comparison between LIME's own bass-syncopation
+variants, which is what this section is about, does not depend on the corpus
+figure and is unaffected by the correction.)*

@@ -209,13 +209,52 @@ export function statsForFile(path, options = {}) {
   return grooveStats(score, options);
 }
 
-/** Median of each metric across a set of per-file stat objects. */
+/**
+ * The voice a metric is computed from, when it needs one at all.
+ *
+ * A reference with no bass is not a reference whose bass does nothing — it
+ * cannot measure bass at all, and averaging its silence into the target pulls
+ * every bass figure toward zero. `grooveStats()` reports a finite 0 for every
+ * bass metric on a bassless file and every drum metric on a drumless file (see
+ * `bassOnsetsPerBar`, `drumHitsPerBar`, etc. above): those zeros are structural
+ * — there was nothing to measure — not a performance choice, and folding them
+ * into the median biases the whole genre toward "plays less bass/drums than it
+ * does." A metric absent here is unscoped and draws on every row regardless of
+ * `_hasDrums` / `_hasBass`.
+ */
+const VOICE_OF_METRIC = {
+  drumHitsPerBar: "_hasDrums",
+  drumOffbeat: "_hasDrums",
+  drum16th: "_hasDrums",
+  ghost: "_hasDrums",
+  backbeat: "_hasDrums",
+  swing: "_hasDrums",
+  bassOnsetsPerBar: "_hasBass",
+  bassOffbeat: "_hasBass",
+  bass16th: "_hasBass",
+  bassKickLock: "_hasBass",
+};
+
+/**
+ * Median of each metric across a set of per-file stat objects.
+ *
+ * A voice-scoped metric (see `VOICE_OF_METRIC`) only draws on rows that can
+ * measure it; a row lacking that voice is skipped rather than counted as a
+ * measured zero. If no row in the set qualifies, the result is non-finite —
+ * `printTable`'s `fmt()` renders that as "n/a" rather than a fabricated zero.
+ */
 export function aggregate(rows) {
   const out = {};
+  const metricN = {};
   for (const [name] of METRICS) {
-    out[name] = median(rows.map((r) => r[name]).filter((v) => Number.isFinite(v)));
+    const voiceFlag = VOICE_OF_METRIC[name];
+    const qualifying = voiceFlag ? rows.filter((r) => r[voiceFlag]) : rows;
+    const values = qualifying.map((r) => r[name]).filter((v) => Number.isFinite(v));
+    out[name] = values.length ? median(values) : NaN;
+    if (voiceFlag) metricN[name] = values.length;
   }
   out._n = rows.length;
+  out._metricN = metricN;
   return out;
 }
 
