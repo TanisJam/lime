@@ -213,6 +213,23 @@ On-kick notes per bar are **identical**. The grounded line simply plays more
 notes, so the same interlock is a smaller share. When a share moves, ask whether
 the numerator or the denominator moved — a share is not a quantity.
 
+**When a genre's kick never leaves the quarter-note steps, `bassOffbeat` and
+`bassKickLock` stop being two independent numbers — check whether a reference
+pair is even jointly reachable before tuning toward both.** `bassKickLock` is
+the share of bass onsets landing on a step where that file's kick also lands;
+`bassOffbeat` is the share NOT on a quarter-note step. For a kick set that is
+exactly the quarters (LIME's electronic four-on-the-floor never varies), every
+onset is either on a quarter or off one, so `bassOffbeat ≡ 1 − bassKickLock`
+by construction — the two numbers are complements, and a reference pair that
+sums above 1 (electronic's 0.70 and 0.50 sum to 1.20) is jointly unreachable
+without changing the kick itself. Real recordings escape this because their
+kicks stray off the quarter too, enlarging the kick set independently of the
+bass; a metronomic kick has no such escape hatch. Chasing the higher
+`bassKickLock` target here would only drag `bassOffbeat` down to match, moving
+one target onto the other rather than hitting both. This is the same shape as
+funk's backbeat/subdivision budget: two shares drawn from the same fixed pool
+cannot both move toward a sum the pool doesn't have.
+
 `tools/judge/groove-gap.mjs` does the first two correctly. Prefer it over
 hand-rolled counting, and read its shares with the caveat above.
 

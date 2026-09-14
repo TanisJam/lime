@@ -208,19 +208,56 @@ export class BassGenerator {
     // field or a bass-side groove parameter.
     if (this.bassStyle === "sub") {
       if (state.tempo >= 110) {
-        // House/techno riff: mostly on the "and" of each beat — electronic
-        // is the one genre whose bass deliberately does NOT lock to the
-        // kick (measured bassKickLock 0.31, the lowest of any genre); it
-        // plays *between* the four-on-the-floor kicks, only occasionally
-        // touching them, rather than doubling them the way root-drive does.
+        // House/techno riff on a 16-step grid, not a plain eighth-note one —
+        // an eighth-note grid can only ever land on even 16th steps, so
+        // bass16th (the share on an ODD 16th step) measured a structural
+        // 0.000 no matter how the two eighth probabilities were tuned; the
+        // grid itself couldn't express the metric (GROOVE-CRITERIA.md).
+        //
+        // Electronic is still the one genre whose bass deliberately does NOT
+        // lock hard to the kick — it plays around the four-on-the-floor kick
+        // more than it doubles it — but the corrected reference bassKickLock
+        // is 0.50, not the 0.31 this comment used to cite (that figure came
+        // from a median that folded bassless references in as zeros, fixed
+        // alongside this branch). 0.50 is unreachable here regardless of
+        // tuning: LIME's electronic kick is a pure four-on-the-floor, so its
+        // kick set is exactly the quarter steps {0,4,8,12}, which makes
+        // bassOffbeat (share OFF the quarter) and bassKickLock (share ON the
+        // quarter) complements of the same quantity — they sum to 1 by
+        // construction. The reference's 0.70/0.50 pair sums to 1.20, which
+        // only a kick that itself strays off the quarter can reach. Chasing
+        // bassKickLock 0.50 with a metronomic kick would only drag
+        // bassOffbeat down to 0.50 and miss that target instead (see the
+        // kick-set-identity trap in GROOVE-CRITERIA.md). The probabilities
+        // below (quarter 0.51, off-quarter eighth 0.59, odd 16th 0.225) were
+        // solved to land bassOnsetsPerBar (6.20) and bass16th (0.29) on the
+        // reference and leave bassKickLock as high as the shared kick set
+        // allows (~0.33) without touching the kick itself.
         if (arc >= 0.2) {
+          const sixteenth = beat / 4;
           const eighth = beat / 2;
-          const steps = meter.numerator * 2;
+          const steps = meter.numerator * 4; // 16 steps in 4/4
           for (let i = 0; i < steps; i++) {
-            const onKick = i % 2 === 0; // coincides with the quarter-note kick
-            if (!rng.bool(onKick ? 0.35 : 0.85)) continue;
-            const pitch = !onKick && rng.bool(0.35) ? octave : root;
-            push(Math.round(eighth * i), Math.round(eighth), pitch);
+            const onQuarter = i % 4 === 0;
+            const onEighth = i % 2 === 0; // includes the quarters
+            const p = onQuarter ? 0.51 : onEighth ? 0.59 : 0.225;
+            if (!rng.bool(p)) continue;
+            // Root by default; an occasional octave pop off the quarter, as
+            // before — a 16th-step onset is too short to hold an eighth, so it
+            // gets the shorter duration.
+            const pitch = !onQuarter && rng.bool(0.35) ? octave : root;
+            const duration = onEighth ? eighth : sixteenth;
+            push(Math.round(sixteenth * i), Math.round(duration), pitch);
+          }
+          // A sub bass is one voice: an eighth on an even step that is
+          // followed by an odd-step sixteenth would otherwise sound under it,
+          // stacking two low fundamentals into mud. Each note is cut at the
+          // next onset. This runs after every draw, so the random sequence —
+          // and with it every onset position the groove metrics measure — is
+          // unchanged; only how long a note rings is.
+          for (let n = 0; n + 1 < events.length; n++) {
+            const gap = events[n + 1]!.time - events[n]!.time;
+            if (events[n]!.duration > gap) events[n] = { ...events[n]!, duration: gap };
           }
         }
         return events;

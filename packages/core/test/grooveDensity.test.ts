@@ -196,9 +196,14 @@ describe("BassGenerator sub bass: tempo-differentiated house riff vs 808 drone",
       }
     }
     expect(total).toBeGreaterThan(0);
-    // Electronic is the one genre whose bass deliberately does NOT lock to
-    // the kick (measured bassKickLock 0.31, the lowest of any genre,
-    // GROOVE-CRITERIA.md) — most onsets should fall between the quarters.
+    // Electronic is the one genre whose bass deliberately does NOT lock hard
+    // to the kick — most onsets should fall between the quarters. The
+    // corrected reference bassKickLock is 0.50 (the 0.31 this comment used to
+    // cite was a contaminated median), but 0.50 is unreachable here: LIME's
+    // electronic kick is a pure four-on-the-floor, so bassKickLock and
+    // bassOffbeat are complements that sum to 1 by construction — see the
+    // kick-set-identity trap in GROOVE-CRITERIA.md and the comment on the
+    // "sub" branch in BassGenerator.ts.
     expect(onKick / total).toBeLessThan(0.5);
   });
 
@@ -209,5 +214,102 @@ describe("BassGenerator sub bass: tempo-differentiated house riff vs 808 drone",
     const c = new BassGenerator("sub").generateBar(makeBarContext(7, ENERGY, "sub-det-hiphop", 88));
     const d = new BassGenerator("sub").generateBar(makeBarContext(7, ENERGY, "sub-det-hiphop", 88));
     expect(c).toEqual(d);
+  });
+});
+
+describe("BassGenerator sub bass: electronic's 16-step grid (bass16th fix)", () => {
+  // An eighth-note-only grid can only ever land on an EVEN 16th step, so
+  // bass16th (the share of bass onsets on an ODD step) measured a structural
+  // 0.000 no matter how the two eighth probabilities were tuned — the grid
+  // could not express the metric at all. The fix moves electronic's riff onto
+  // a 16-step grid with a genuine odd-step probability; these tests pin that
+  // an odd step is reachable and that the onset density stays in a musically
+  // sane band, not the exact rendered pattern (see GROOVE-CRITERIA.md's "a
+  // passing test is not evidence the music changed").
+  it("reaches an odd 16th step across seeds — the old eighth-only grid never could", () => {
+    let sawOddStep = false;
+    outer: for (const seed of ["odd-step-a", "odd-step-b", "odd-step-c", "odd-step-d"]) {
+      for (let bar = 0; bar < BARS; bar++) {
+        const ctx = makeBarContext(bar, ENERGY, seed, 126);
+        for (const e of new BassGenerator("sub").generateBar(ctx)) {
+          if (sixteenthOf(e, ctx) % 2 === 1) {
+            sawOddStep = true;
+            break outer;
+          }
+        }
+      }
+    }
+    expect(sawOddStep).toBe(true);
+  });
+
+  it("keeps onsets per bar in a sane band around the reference (~6.2, GROOVE-CRITERIA.md)", () => {
+    const gen = new BassGenerator("sub");
+    let onsets = 0;
+    for (let bar = 0; bar < BARS; bar++) {
+      onsets += gen.generateBar(makeBarContext(bar, ENERGY, "electronic-bass-band", 126)).length;
+    }
+    const perBar = onsets / BARS;
+    // A wide band on purpose: it proves the grid produces a musically
+    // plausible density, not that it hits the corpus median to the decimal —
+    // that comparison belongs to `node tools/judge/groove-gap.mjs`.
+    expect(perBar).toBeGreaterThan(4);
+    expect(perBar).toBeLessThan(8);
+  });
+
+  it("puts a share of onsets on odd 16th steps near the reference (~0.29, GROOVE-CRITERIA.md)", () => {
+    const gen = new BassGenerator("sub");
+    let onsets = 0;
+    let odd = 0;
+    for (const seed of ["odd-share-a", "odd-share-b", "odd-share-c", "odd-share-d"]) {
+      for (let bar = 0; bar < BARS; bar++) {
+        const ctx = makeBarContext(bar, ENERGY, seed, 126);
+        for (const e of gen.generateBar(ctx)) {
+          onsets++;
+          if (sixteenthOf(e, ctx) % 2 === 1) odd++;
+        }
+      }
+    }
+    // Reachability alone would stay green if the odd-step probability were
+    // cut to almost nothing. A wide band pins the share without pinning the
+    // corpus median to the decimal.
+    expect(onsets).toBeGreaterThan(0);
+    const share = odd / onsets;
+    expect(share).toBeGreaterThan(0.15);
+    expect(share).toBeLessThan(0.45);
+  });
+
+  it("never lets one bass note ring into the next — a sub bass is a single voice", () => {
+    const gen = new BassGenerator("sub");
+    let pairs = 0;
+    for (const seed of ["no-overlap-a", "no-overlap-b"]) {
+      for (let bar = 0; bar < BARS; bar++) {
+        const notes = gen
+          .generateBar(makeBarContext(bar, ENERGY, seed, 126))
+          .slice()
+          .sort((a, b) => a.time - b.time);
+        for (let n = 0; n + 1 < notes.length; n++) {
+          pairs++;
+          expect(notes[n]!.time + notes[n]!.duration).toBeLessThanOrEqual(notes[n + 1]!.time);
+        }
+      }
+    }
+    // Guard against a vacuous pass: the grid must actually have produced
+    // adjacent notes for the assertion above to mean anything.
+    expect(pairs).toBeGreaterThan(0);
+  });
+
+  it("hip-hop's drone (tempo < 110) still never touches an odd 16th step", () => {
+    const gen = new BassGenerator("sub");
+    let onsets = 0;
+    for (let bar = 0; bar < BARS; bar++) {
+      const ctx = makeBarContext(bar, ENERGY, "hiphop-bass-odd-check", 88);
+      for (const e of gen.generateBar(ctx)) {
+        onsets++;
+        expect(sixteenthOf(e, ctx) % 2).toBe(0);
+      }
+    }
+    // Without this the loop above passes on a silent bass as readily as on a
+    // correct one.
+    expect(onsets).toBeGreaterThan(0);
   });
 });
