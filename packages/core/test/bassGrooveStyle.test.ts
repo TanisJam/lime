@@ -31,7 +31,7 @@ const phrases = new PhrasePlanner({ phraseLengthBars: 4 });
 // — @lime/core cannot depend on @lime/styles (the dependency runs the other
 // way) — the same way bassKickAnchorLock.test.ts hardcodes its own anchors.
 const ROCK_GROOVE: BassGrooveStyle = { syncopation: 0.45, kickLock: 0.65 };
-const POP_GROOVE: BassGrooveStyle = { syncopation: 0.07, kickLock: 0.165 };
+const POP_GROOVE: BassGrooveStyle = { syncopation: 0.05, kickLock: 0.5 };
 const JAZZ_GROOVE: BassGrooveStyle = { syncopation: 0.34, kickLock: 0.82 };
 const BLUES_GROOVE: BassGrooveStyle = { syncopation: 0.1, kickLock: 0.16 };
 
@@ -125,9 +125,23 @@ describe("per-genre bass shaping breaks the jazz/blues walking-bass tie", () => 
   it("rock and pop, sharing bassStyle 'root-drive', produce different offbeat shares", () => {
     const rock = offbeatShare("root-drive", ROCK_GROOVE, 0.78, 64, "rock-vs-pop");
     const pop = offbeatShare("root-drive", POP_GROOVE, 0.78, 64, "rock-vs-pop");
-    // Pop's bass sits on the beat far more than it syncopates (0.16 target)
-    // against rock's driving, syncopated pulse (0.53 target).
-    expect(rock).toBeGreaterThan(pop + 0.2);
+    // Pop's off-beat share comes mostly from doubling the kick on the "and of
+    // 3" (0.29 target) against rock's driving, syncopated pulse (0.53 target).
+    // The margin was 0.2 when pop's target read 0.16 — a figure a contaminated
+    // reference median produced (GROOVE-CRITERIA.md, fourth measurement trap).
+    // The corrected gap is 0.24, so 0.1 still proves a real separation without
+    // sitting on the edge of sampling noise.
+    expect(rock).toBeGreaterThan(pop + 0.1);
+  });
+
+  it("pop's own off-beat share sits in a band around its corrected target (0.29)", () => {
+    const pop = offbeatShare("root-drive", POP_GROOVE, 0.78, 64, "pop-offbeat-band");
+    // The comparison with rock above cannot catch pop drifting back to its
+    // original tuning (syncopation 0.07, kickLock 0.165), which was fitted to
+    // a contaminated 0.16 target and still clears the rock margin. That tuning
+    // measures below this floor; the corrected one sits inside the band.
+    expect(pop).toBeGreaterThan(0.2);
+    expect(pop).toBeLessThan(0.45);
   });
 });
 

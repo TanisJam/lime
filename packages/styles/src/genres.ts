@@ -109,14 +109,22 @@ export const popPack = genrePack({
   id: "genre-pop", modes: ["major", "naturalMinor"], defaultMode: "major", keyPc: 0,
   tempoRange: [100, 128], chordStyle: "triad", bassStyle: "root-drive", groove: "backbeat",
   motion: "arp",
-  // Pop's bass sits ON the beat far more than it syncopates — measured
-  // bassOffbeat 0.16, the lowest of any genre, against a still-solid
-  // bassKickLock 0.69 (GROOVE-CRITERIA.md: "pop bass sits on the beat, it
-  // does not syncopate"). Low `syncopation` keeps the driving-eighths grammar
-  // mostly to the two structural anchors (plus a modest on-beat filler);
-  // `kickLock` only has to do a little extra work locking the rest, since
-  // the sparse pocket already favours the anchors on its own.
-  bassGroove: { syncopation: 0.07, kickLock: 0.165 },
+  // Pop's bass is the most kick-locked line of the backbeat genres —
+  // reference bassKickLock 0.83 — and its off-beat share (0.29) comes almost
+  // entirely from doubling the kick's own push on the "and of 3" (step 10),
+  // not from free syncopation. That is why both targets are reachable at
+  // once here, unlike electronic: the backbeat kick itself leaves the quarter
+  // at step 10, so a note there counts as off-beat AND on the kick.
+  //
+  // This pack was first tuned against bassOffbeat 0.16 / bassKickLock 0.69,
+  // figures from a reference median that folded bassless recordings in as
+  // zeros (GROOVE-CRITERIA.md, fourth measurement trap). Against the
+  // corrected targets it measured 0.13 / 0.68. The fix moves the line's
+  // weight onto step 10 (`kickLock` 0.165 → 0.5, which also thins the
+  // on-beat filler that counted toward neither metric) and keeps free
+  // off-beat filler rare (`syncopation` 0.07 → 0.05). Measured with the
+  // judge's own ruler: bassOffbeat 0.31, bassKickLock 0.81.
+  bassGroove: { syncopation: 0.05, kickLock: 0.5 },
   // Pop's measured backbeat is the highest of any genre (0.81,
   // GROOVE-CRITERIA.md) — pop drumming really is close to rigid, but not
   // literally 1.00; the fractional part below (0.15) gives occasional

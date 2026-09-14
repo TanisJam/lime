@@ -93,8 +93,8 @@ export const ROCK_TUNING: GenreTuning = {
   // way). Net improvement. Revisit if a listening pass disagrees.
   //
   // Rock and pop both use `root-drive`, but rock's bass sits further off the
-  // beat (measured bassOffbeat target 0.53 vs pop's 0.16) while needing a
-  // comparable kick-lock (0.66 vs pop's 0.69, GROOVE-CRITERIA.md) — a driving
+  // beat (measured bassOffbeat target 0.53 vs pop's 0.29) and locks to the
+  // kick less tightly (0.66 vs pop's 0.83, GROOVE-CRITERIA.md) — a driving
   // rock eighth-note pulse, not pop's tighter pocket. High `syncopation`
   // keeps the off-anchor eighths busy; high `kickLock` leans them onto the
   // "and of 3" (the same spot the backbeat's own extra kick push lands on)
