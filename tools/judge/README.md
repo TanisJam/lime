@@ -50,6 +50,43 @@ velocities while the rhythm never changes), and it snaps onsets to a coarse grid
 before comparing positions (otherwise the humanisation layer's few milliseconds
 of jitter read as rhythmic variety). Both traps hid real defects for a long time.
 
+### The symbolic eye
+
+The melodic counterpart of the groove tools above: none of `groove-stats.mjs`'s
+metrics ever asked whether the melody sits on the harmony under it, moves by
+step or by leap, or clashes with the chord. These measure that, from onset
+ticks, pitches and programs alone.
+
+- **`melody-stats.mjs`** — detects the melody voice in a Standard MIDI File (a
+  voice is `(track, program)`; the pick favours the highest-pitched
+  sufficiently-monophonic candidate, falling back to the most monophonic one)
+  and measures it against its own accompaniment: chord-tone agreement
+  (including an implied-third clause for power-chord beds), semitone clashes,
+  step/leap motion, and mean note duration. Takes files or
+  `--manifest=<json>` and prints per-label medians; a file with no detectable
+  melody is reported as skipped, not silently dropped.
+  ```bash
+  node tools/judge/melody-stats.mjs <file.mid> [...]
+  node tools/judge/melody-stats.mjs --manifest=<file.json>
+  node tools/judge/melody-stats.mjs --json <file.mid>
+  ```
+- **`melody-reference.json`** — those statistics for the same 48 human-labelled
+  reference recordings, frozen. Derived medians only; no corpus audio or MIDI
+  is redistributed. Carries caveats on the detection heuristic, the
+  implied-third approximation, and what the quantised corpus can and cannot
+  measure.
+- **`melody-gap.mjs`** — renders LIME per genre with that genre's own GM
+  programs, measures the melody with the identical detection rule and
+  metrics, and diffs against `melody-reference.json`. Because detection is a
+  heuristic, it also reports per genre whether it actually found LIME's true
+  melody voice (known at render time) — a mismatch is a warning, never a
+  silent substitution of ground truth into the numbers.
+  ```bash
+  node tools/judge/melody-gap.mjs            # off-target rows only
+  node tools/judge/melody-gap.mjs --all      # every metric
+  node tools/judge/melody-gap.mjs --bars=192 --seeds=1,2,3,4
+  ```
+
 ## Prerequisites
 
 - `fluidsynth` CLI (`sudo apt install -y fluidsynth`) and the SoundFont

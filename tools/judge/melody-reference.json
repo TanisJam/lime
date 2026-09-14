@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "description": "Median symbolic melody statistics of real, human-labelled reference recordings, measured by tools/judge/melody-stats.mjs. Derived statistics only - no source audio or MIDI is redistributed.",
+  "source": {
+    "corpus": "Lakh MIDI Dataset Clean subset",
+    "url": "https://colinraffel.com/projects/lmd/",
+    "licence": "CC-BY-4.0",
+    "registry": "tools/judge/calibration-registry.json",
+    "itemsPerLabel": 8
+  },
+  "caveats": {
+    "detection": "Melody detection is a heuristic (monophony plus register), not ground truth. On a handful of references it picks a doubling or a counter-line instead of the vocal/lead part; the eight-file median resists this, but any single file's row can mislead if read on its own.",
+    "impliedThird": "The implied-third clause in melChordTone/melStrongChordTone credits a minor or major third above the lowest sounding accompaniment note only when the accompaniment carries no third of its own - the power-chord case (root+fifth). Once a triad sounds, only its real pitch classes count, so a wrong-quality third is not credited. It remains an approximation over an inverted or fourth-shaped bed, where the lowest sounding note is not the harmonic root and the implied-third test targets the wrong pitch classes.",
+    "quantisation": "The corpus is quantised, step-sequenced transcriptions, not performance captures. Pitch-relationship metrics (chord tone, clash, step, leap) survive this fine; nothing in this file measures timing feel or ornamentation - see groove-reference.json's own caveats for why that distinction matters on the rhythm side.",
+    "barLeapSplit": "An attempt to split melLeap into 'within the bar' vs 'across the bar line' gave contradictory results between two measuring tools on this corpus and is deliberately NOT included as a metric here."
+  },
+  "labels": {
+    "Funk/R&B": {
+      "melChordTone": 0.7272727272727273,
+      "melStrongChordTone": 0.8478260869565217,
+      "melClash": 0.18457300275482094,
+      "melStep": 0.7066592674805772,
+      "melLeap": 0.09858597285067873,
+      "melDurBeats": 0.5466800001633505,
+      "_n": 8,
+      "_metricN": {
+        "melChordTone": 7,
+        "melStrongChordTone": 7,
+        "melClash": 7,
+        "melStep": 8,
+        "melLeap": 8,
+        "melDurBeats": 8
+      }
+    },
+    "Jazz": {
+      "melChordTone": 0.8131868131868132,
+      "melStrongChordTone": 0.8235294117647058,
+      "melClash": 0.20266947664207938,
+      "melStep": 0.606740681998414,
+      "melLeap": 0.066122726500085,
+      "melDurBeats": 0.8745064484126983,
+      "_n": 8,
+      "_metricN": {
+        "melChordTone": 8,
+        "melStrongChordTone": 7,
+        "melClash": 8,
+        "melStep": 8,
+        "melLeap": 8,
+        "melDurBeats": 8
+      }
+    },
+    "Blues": {
+      "melChordTone": 0.6059246269169933,
+      "melStrongChordTone": 0.6255555555555556,
+      "melClash": 0.12319620505461214,
+      "melStep": 0.3355660087943553,
+      "melLeap": 0.10324334458192727,
+      "melDurBeats": 0.5836011929489309,
+      "_n": 8,
+      "_metricN": {
+        "melChordTone": 8,
+        "melStrongChordTone": 8,
+        "melClash": 8,
+        "melStep": 8,
+        "melLeap": 8,
+        "melDurBeats": 8
+      }
+    },
+    "Rock": {
+      "melChordTone": 0.672170270796805,
+      "melStrongChordTone": 0.7154255319148937,
+      "melClash": 0.15415438467207074,
+      "melStep": 0.6996742536698004,
+      "melLeap": 0.0443902171528844,
+      "melDurBeats": 0.5828176991583479,
+      "_n": 8,
+      "_metricN": {
+        "melChordTone": 8,
+        "melStrongChordTone": 8,
+        "melClash": 8,
+        "melStep": 8,
+        "melLeap": 8,
+        "melDurBeats": 8
+      }
+    },
+    "Pop": {
+      "melChordTone": 0.758215060945066,
+      "melStrongChordTone": 0.7987882653061225,
+      "melClash": 0.14983351831298558,
+      "melStep": 0.5987315875613748,
+      "melLeap": 0.05804367201426025,
+      "melDurBeats": 0.5705500071175298,
+      "_n": 8,
+      "_metricN": {
+        "melChordTone": 8,
+        "melStrongChordTone": 8,
+        "melClash": 8,
+        "melStep": 8,
+        "melLeap": 8,
+        "melDurBeats": 8
+      }
+    },
+    "Electronic": {
+      "melChordTone": 0.953592632981946,
+      "melStrongChordTone": 1,
+      "melClash": 0.07146220069948883,
+      "melStep": 0.619672131147541,
+      "melLeap": 0.10366826156299841,
+      "melDurBeats": 0.8027703459432552,
+      "_n": 8,
+      "_metricN": {
+        "melChordTone": 8,
+        "melStrongChordTone": 8,
+        "melClash": 8,
+        "melStep": 8,
+        "melLeap": 8,
+        "melDurBeats": 8
+      }
+    }
+  }
+}
