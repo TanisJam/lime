@@ -28,7 +28,7 @@ const phrases = new PhrasePlanner({ phraseLengthBars: 4 });
 
 // Mirrors the tuned values in packages/styles/src/genres.ts (popPack, jazzPack,
 // bluesPack) and genreTuning.ts (ROCK_TUNING). Duplicated rather than imported
-// — @lime/core cannot depend on @lime/styles (the dependency runs the other
+// — @tanisjam/lime-core cannot depend on @tanisjam/lime-styles (the dependency runs the other
 // way) — the same way bassKickAnchorLock.test.ts hardcodes its own anchors.
 const ROCK_GROOVE: BassGrooveStyle = { syncopation: 0.45, kickLock: 0.65 };
 const POP_GROOVE: BassGrooveStyle = { syncopation: 0.05, kickLock: 0.5 };

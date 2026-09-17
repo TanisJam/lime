@@ -1,6 +1,6 @@
 import * as Tone from "tone";
-import type { SynthVoiceConfig, PercussionSound, VoiceId } from "@lime/core";
-import { PERCUSSION_MIDI } from "@lime/core";
+import type { SynthVoiceConfig, PercussionSound, VoiceId } from "@tanisjam/lime-core";
+import { PERCUSSION_MIDI } from "@tanisjam/lime-core";
 import { linToDb, type InstrumentFactory } from "./instruments.js";
 
 /**
@@ -11,7 +11,7 @@ import { linToDb, type InstrumentFactory } from "./instruments.js";
  * before sampled instruments.
  *
  * Selected per-genre by the host (the demo maps a rock StylePack to this set);
- * `@lime/core` stays timbre-agnostic.
+ * `@tanisjam/lime-core` stays timbre-agnostic.
  */
 
 const midiNote = (pitch: number): string => Tone.Frequency(pitch, "midi").toNote();

@@ -7,7 +7,7 @@ import type {
   MelodyStyle,
   RhythmStyle,
   FeelStyle,
-} from "@lime/core";
+} from "@tanisjam/lime-core";
 
 /**
  * Canonical per-genre tuning, layered on top of a genre's base StylePack —

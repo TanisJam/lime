@@ -22,8 +22,8 @@
  *    Channels are assigned in `trackOrder` among the voices actually present.
  */
 
-import { TICKS_PER_QUARTER } from "@lime/core";
-import type { NoteEvent, VoiceId } from "@lime/core";
+import { TICKS_PER_QUARTER } from "@tanisjam/lime-core";
+import type { NoteEvent, VoiceId } from "@tanisjam/lime-core";
 import { encodeVLQ } from "./vlq.js";
 
 /** The GM drum channel index (channel 10, 0-based 9). */

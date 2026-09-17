@@ -8,7 +8,7 @@ import type {
   MusicalStatePatch,
   StylePack,
   TransitionTable,
-} from "@lime/core";
+} from "@tanisjam/lime-core";
 import type { HarmonyModel } from "../analysis/harmonyStats.js";
 import type { MelodyModel } from "../analysis/melodyStats.js";
 import type { RhythmModel } from "../analysis/rhythmStats.js";

@@ -1,5 +1,5 @@
 import * as Tone from "tone";
-import type { VoiceId } from "@lime/core";
+import type { VoiceId } from "@tanisjam/lime-core";
 import { linToDb, type InstrumentFactory } from "./instruments.js";
 import { funkGuitarFactory, guitarVoice, rockBassFactory, rockKitFactory } from "./rockPalette.js";
 

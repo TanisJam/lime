@@ -11,7 +11,7 @@ import type {
   EnsembleStyle,
   FeelStyle,
   Register,
-} from "@lime/core";
+} from "@tanisjam/lime-core";
 
 /**
  * Authored genre StylePacks.

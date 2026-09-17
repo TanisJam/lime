@@ -17,17 +17,17 @@ importers:
 
   apps/demo:
     dependencies:
-      '@lime/core':
-        specifier: workspace:*
+      '@tanisjam/lime-core':
+        specifier: workspace:^
         version: link:../../packages/core
-      '@lime/midi':
-        specifier: workspace:*
+      '@tanisjam/lime-midi':
+        specifier: workspace:^
         version: link:../../packages/midi
-      '@lime/renderer-tone':
-        specifier: workspace:*
+      '@tanisjam/lime-renderer-tone':
+        specifier: workspace:^
         version: link:../../packages/renderer-tone
-      '@lime/styles':
-        specifier: workspace:*
+      '@tanisjam/lime-styles':
+        specifier: workspace:^
         version: link:../../packages/styles
       js-synthesizer:
         specifier: ^1.13.0
@@ -54,8 +54,8 @@ importers:
 
   packages/corpus:
     dependencies:
-      '@lime/core':
-        specifier: workspace:*
+      '@tanisjam/lime-core':
+        specifier: workspace:^
         version: link:../core
       fast-xml-parser:
         specifier: ^4.5.0
@@ -79,8 +79,8 @@ importers:
 
   packages/midi:
     dependencies:
-      '@lime/core':
-        specifier: workspace:*
+      '@tanisjam/lime-core':
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       typescript:
@@ -92,21 +92,21 @@ importers:
 
   packages/renderer-tone:
     dependencies:
-      '@lime/core':
-        specifier: workspace:*
+      '@tanisjam/lime-core':
+        specifier: workspace:^
         version: link:../core
+    devDependencies:
       tone:
         specifier: ^15.0.4
         version: 15.1.22
-    devDependencies:
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
 
   packages/styles:
     dependencies:
-      '@lime/core':
-        specifier: workspace:*
+      '@tanisjam/lime-core':
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       '@types/node':

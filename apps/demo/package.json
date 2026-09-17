@@ -11,10 +11,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@lime/core": "workspace:*",
-    "@lime/midi": "workspace:*",
-    "@lime/renderer-tone": "workspace:*",
-    "@lime/styles": "workspace:*",
+    "@tanisjam/lime-core": "workspace:^",
+    "@tanisjam/lime-midi": "workspace:^",
+    "@tanisjam/lime-renderer-tone": "workspace:^",
+    "@tanisjam/lime-styles": "workspace:^",
     "js-synthesizer": "^1.13.0",
     "tone": "^15.0.4"
   },

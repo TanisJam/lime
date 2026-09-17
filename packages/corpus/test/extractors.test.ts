@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { LimeEngine } from "@lime/core";
+import { LimeEngine } from "@tanisjam/lime-core";
 import type { CorpusNote, CorpusScore } from "../src/ir.js";
 import { MelodyModelBuilder, extractMelodyLine } from "../src/analysis/melodyStats.js";
 import { RhythmModelBuilder, type RhythmModel } from "../src/analysis/rhythmStats.js";

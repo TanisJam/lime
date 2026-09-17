@@ -1,4 +1,4 @@
-import { MODE_INTERVALS, type Mode } from "@lime/core";
+import { MODE_INTERVALS, type Mode } from "@tanisjam/lime-core";
 import type { CorpusScore } from "../ir.js";
 import { scoreDurationTicks } from "../ir.js";
 

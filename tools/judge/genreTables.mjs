@@ -6,7 +6,7 @@
  * its own copy of GM/STATE/NAMES because it is bundled for the browser and
  * cannot import from here — but the per-genre style TUNING (defaultMode,
  * harmonyMotion, melody rebalancing, grooveVariation, etc.) lives in exactly
- * one place, `@lime/styles`' `applyGenreTuning`, and every consumer (this
+ * one place, `@tanisjam/lime-styles`' `applyGenreTuning`, and every consumer (this
  * file, the demo, its offline render page) calls that instead of hand-copying
  * an override table. See `packages/styles/src/genreTuning.ts` for why.
  */
@@ -48,7 +48,7 @@ export const NAMES = {
   "genre-funk": "Funk/R&B", "genre-metal": "Metal", "genre-ambient": "Ambient",
 };
 
-// Resolve a StylePack by id: authored packs from @lime/styles, rock from corpus.
+// Resolve a StylePack by id: authored packs from @tanisjam/lime-styles, rock from corpus.
 export const AUTHORED = {
   "genre-classical": styles.classicalPack, "genre-pop": styles.popPack,
   "genre-hiphop": styles.hiphopPack, "genre-electronic": styles.electronicPack,
@@ -59,9 +59,9 @@ export const AUTHORED = {
 };
 /**
  * Resolve a StylePack by id: rock is corpus-derived (its own JSON has no
- * authored StylePack in `@lime/styles`), the rest are authored. Either way,
+ * authored StylePack in `@tanisjam/lime-styles`), the rest are authored. Either way,
  * the genre's canonical tuning — defaultMode, harmonyMotion, melody
- * rebalancing, grooveVariation, etc. — is applied by `@lime/styles`'
+ * rebalancing, grooveVariation, etc. — is applied by `@tanisjam/lime-styles`'
  * `applyGenreTuning`, the single place that merge is expressed. See
  * `packages/styles/src/genreTuning.ts`.
  */

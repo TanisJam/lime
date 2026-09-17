@@ -6,15 +6,16 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r --filter \"./packages/**\" build",
-    "test": "pnpm --filter @lime/core test:run && pnpm --filter @lime/corpus test:run && pnpm --filter @lime/midi test:run && pnpm --filter @lime/styles test:run",
-    "test:watch": "pnpm --filter @lime/core test",
+    "test": "pnpm --filter @tanisjam/lime-core test:run && pnpm --filter @tanisjam/lime-corpus test:run && pnpm --filter @tanisjam/lime-midi test:run && pnpm --filter @tanisjam/lime-styles test:run",
+    "test:watch": "pnpm --filter @tanisjam/lime-core test",
     "analyze": "node tools/analyze.mjs",
-    "corpus:build": "pnpm --filter @lime/corpus build && node packages/corpus/dist/cli/build.js",
-    "corpus:label": "pnpm --filter @lime/corpus build && node packages/corpus/dist/cli/label.js",
-    "corpus:build-library": "pnpm --filter @lime/corpus build && node packages/corpus/dist/cli/build-library.js",
+    "corpus:build": "pnpm --filter @tanisjam/lime-corpus build && node packages/corpus/dist/cli/build.js",
+    "corpus:label": "pnpm --filter @tanisjam/lime-corpus build && node packages/corpus/dist/cli/label.js",
+    "corpus:build-library": "pnpm --filter @tanisjam/lime-corpus build && node packages/corpus/dist/cli/build-library.js",
     "typecheck": "pnpm -r typecheck",
     "dev": "pnpm --filter @lime/demo dev",
-    "demo": "pnpm --filter @lime/demo dev"
+    "demo": "pnpm --filter @lime/demo dev",
+    "release:dry": "pnpm -r --filter \"./packages/**\" publish --dry-run --no-git-checks"
   },
   "keywords": [
     "music",
@@ -25,6 +26,7 @@
     "game-audio"
   ],
   "license": "MIT",
+  "author": "Mauricio Romero",
   "packageManager": "pnpm@10.7.0",
   "devDependencies": {
     "playwright": "^1.63.0",

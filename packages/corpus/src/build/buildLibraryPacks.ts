@@ -7,7 +7,7 @@ import {
   type Mode,
   type MusicalStatePatch,
   type StylePack,
-} from "@lime/core";
+} from "@tanisjam/lime-core";
 import { parseScoreFile } from "../score/parseScore.js";
 import { detectKey } from "../analysis/keyDetection.js";
 import { chordify } from "../analysis/chordify.js";

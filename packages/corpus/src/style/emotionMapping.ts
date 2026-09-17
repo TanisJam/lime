@@ -1,4 +1,4 @@
-import type { MusicalStatePatch } from "@lime/core";
+import type { MusicalStatePatch } from "@tanisjam/lime-core";
 import type { EmotionAnnotation } from "../ir.js";
 
 function clamp01(v: number): number {

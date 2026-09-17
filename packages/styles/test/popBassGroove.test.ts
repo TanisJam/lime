@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { createLime, type MusicalState } from "@lime/core";
+import { createLime, type MusicalState } from "@tanisjam/lime-core";
 import { applyGenreTuning, popPack } from "../src/index.js";
 
 /**
  * Pop's bass was retuned against corrected reference targets (GROOVE-CRITERIA.md,
- * fourth measurement trap). `@lime/core`'s own bass tests can only exercise a
+ * fourth measurement trap). `@tanisjam/lime-core`'s own bass tests can only exercise a
  * hand-copied mirror of `popPack.bassGroove`, because core cannot depend on this
  * package — so a change to the shipped pack alone would slip past them. This
  * suite renders the pack itself, end to end, the way the demo and the judge do.

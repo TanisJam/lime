@@ -1,4 +1,4 @@
-import type { Mode } from "@lime/core";
+import type { Mode } from "@tanisjam/lime-core";
 import type { CorpusScore } from "../ir.js";
 import { scoreDurationTicks } from "../ir.js";
 import type { EmotionAnnotation } from "../ir.js";

@@ -1,6 +1,6 @@
 import * as Tone from "tone";
-import type { InstrumentFactory, LimeInstrument } from "@lime/renderer-tone";
-import type { SynthVoiceConfig, VoiceId } from "@lime/core";
+import type { InstrumentFactory, LimeInstrument } from "@tanisjam/lime-renderer-tone";
+import type { SynthVoiceConfig, VoiceId } from "@tanisjam/lime-core";
 
 /**
  * Sampled-instrument palette for the demo's A/B toggle.

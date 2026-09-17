@@ -4,18 +4,18 @@ import {
   type MusicalStatePatch,
   type StylePack,
   type VoiceId,
-} from "@lime/core";
+} from "@tanisjam/lime-core";
 import {
   createToneRenderer,
   ROCK_INSTRUMENTS, METAL_INSTRUMENTS, POP_INSTRUMENTS, JAZZ_INSTRUMENTS,
   BLUES_INSTRUMENTS, HIPHOP_INSTRUMENTS, ELECTRONIC_INSTRUMENTS, FOLK_INSTRUMENTS,
   LATIN_INSTRUMENTS, FUNK_INSTRUMENTS, CLASSICAL_INSTRUMENTS,
   type InstrumentFactory,
-} from "@lime/renderer-tone";
+} from "@tanisjam/lime-renderer-tone";
 import {
   classicalPack, popPack, hiphopPack, electronicPack, jazzPack, bluesPack,
   folkPack, latinPack, funkPack, metalPack, ambientPack, applyGenreTuning,
-} from "@lime/styles";
+} from "@tanisjam/lime-styles";
 import { GENRE_PALETTES_SAMPLED } from "./sampledGenre";
 
 /**
@@ -31,7 +31,7 @@ import { GENRE_PALETTES_SAMPLED } from "./sampledGenre";
  * The style packs and initial states below MIRROR `tools/judge/render.mjs`;
  * keep them in sync so both sets of clips are comparable. Per-genre style
  * tuning (defaultMode, harmonyMotion, melody rebalancing, grooveVariation,
- * etc.) is NOT mirrored here — it comes from `@lime/styles`' single
+ * etc.) is NOT mirrored here — it comes from `@tanisjam/lime-styles`' single
  * `applyGenreTuning`, the same one `render.mjs` and the demo's `main.ts` call
  * (see `packages/styles/src/genreTuning.ts`).
  *
@@ -57,7 +57,7 @@ const STATE: Record<string, MusicalStatePatch> = {
   "genre-ambient": { energy: 0.32, valence: 0.5, tension: 0.2, density: 0.3, complexity: 0.25, instability: 0.15, brightness: 0.5, tempo: 68 },
 };
 
-/** Authored packs from @lime/styles. MIRROR of AUTHORED in render.mjs. */
+/** Authored packs from @tanisjam/lime-styles. MIRROR of AUTHORED in render.mjs. */
 const AUTHORED: Record<string, StylePack> = {
   "genre-classical": classicalPack, "genre-pop": popPack,
   "genre-hiphop": hiphopPack, "genre-electronic": electronicPack,
@@ -77,7 +77,7 @@ const rockCorpusPack: StylePack | undefined = Object.values(rockModules)[0]?.def
 /**
  * Resolve a StylePack by genre id and apply its canonical tuning. Rock has no
  * authored pack (its corpus JSON is the base pack); every other genre comes
- * from `@lime/styles`. Either way, `applyGenreTuning` is the single place the
+ * from `@tanisjam/lime-styles`. Either way, `applyGenreTuning` is the single place the
  * per-genre tuning merge is expressed — see `packages/styles/src/genreTuning.ts`.
  */
 function stylePack(id: string): StylePack | undefined {

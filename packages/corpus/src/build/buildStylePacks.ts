@@ -1,4 +1,4 @@
-import type { Mode, MusicalStatePatch, StylePack } from "@lime/core";
+import type { Mode, MusicalStatePatch, StylePack } from "@tanisjam/lime-core";
 import { parseScoreFile } from "../score/parseScore.js";
 import { detectKey } from "../analysis/keyDetection.js";
 import { chordify } from "../analysis/chordify.js";

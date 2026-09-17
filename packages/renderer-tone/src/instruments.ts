@@ -1,6 +1,6 @@
 import * as Tone from "tone";
-import type { SynthVoiceConfig, PercussionSound, VoiceId } from "@lime/core";
-import { PERCUSSION_MIDI } from "@lime/core";
+import type { SynthVoiceConfig, PercussionSound, VoiceId } from "@tanisjam/lime-core";
+import { PERCUSSION_MIDI } from "@tanisjam/lime-core";
 
 /**
  * A pluggable LIME instrument.
@@ -11,7 +11,7 @@ import { PERCUSSION_MIDI } from "@lime/core";
  * knows nothing about panning, sends, reverb, or muting — that mix plumbing is
  * the renderer's job — so a custom instrument only has to make a good sound.
  *
- * Instruments live entirely in `@lime/renderer-tone`; `@lime/core` never imports
+ * Instruments live entirely in `@tanisjam/lime-renderer-tone`; `@tanisjam/lime-core` never imports
  * Tone.js or any instrument/sample knowledge.
  */
 export interface LimeInstrument {

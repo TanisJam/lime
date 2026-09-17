@@ -251,7 +251,7 @@ listening test is the only instrument that settles it.
 folding, tempo or mood in the app, update the mirrors here too.
 
 Not yet replicated: CC74 brightness cap (`melodyCut`) and pan. Add CC export to
-`@lime/midi` if the judge flags timbre issues that trace to those.
+`@tanisjam/lime-midi` if the judge flags timbre issues that trace to those.
 
 ## The ears
 

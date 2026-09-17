@@ -12,9 +12,9 @@ import {
   type NoteEvent,
   type VoiceId,
   type PhrasePlan,
-} from "@lime/core";
-import { eventsToStandardMidiFile } from "@lime/midi";
-import { createToneRenderer, type ToneRenderer } from "@lime/renderer-tone";
+} from "@tanisjam/lime-core";
+import { eventsToStandardMidiFile } from "@tanisjam/lime-midi";
+import { createToneRenderer, type ToneRenderer } from "@tanisjam/lime-renderer-tone";
 import { GENRE_PALETTES_SAMPLED } from "./sampledGenre";
 import { FluidRenderer, GM_PROGRAMS } from "./fluidRenderer";
 
@@ -40,7 +40,7 @@ const GENRE_LABELS: Record<string, string> = {
 import {
   classicalPack, popPack, hiphopPack, electronicPack, jazzPack, bluesPack,
   folkPack, latinPack, funkPack, metalPack, ambientPack, applyGenreTuning,
-} from "@lime/styles";
+} from "@tanisjam/lime-styles";
 import * as Tone from "tone";
 import { SAMPLED_INSTRUMENTS } from "./sampledInstruments";
 
@@ -115,7 +115,7 @@ const GENRE_STATE: Record<string, MusicalStatePatch> = {
 const rockPack = corpusPacks.find((p) => p.id === "genre-rock-pop");
 
 // Per-genre style tuning (defaultMode, harmonyMotion, melody rebalancing,
-// grooveVariation, etc.) is `@lime/styles`' `applyGenreTuning` — the single
+// grooveVariation, etc.) is `@tanisjam/lime-styles`' `applyGenreTuning` — the single
 // place that merge is expressed (see packages/styles/src/genreTuning.ts).
 // The demo no longer keeps its own copy of that override table.
 const entry = (style: StylePack): StyleEntry => ({

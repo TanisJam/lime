@@ -6,7 +6,7 @@ import {
   type SynthVoiceConfig,
   type VoiceId,
   TICKS_PER_QUARTER,
-} from "@lime/core";
+} from "@tanisjam/lime-core";
 import {
   type LimeInstrument,
   type InstrumentFactory,
@@ -65,7 +65,7 @@ export interface ToneRendererOptions {
    * Optional per-voice instrument factories. A voice with a custom factory uses
    * it; otherwise the built-in self-contained palette is used. This is how a
    * better instrument (e.g. a {@link Tone.Sampler}-based one with your own
-   * samples) is plugged in later without touching `@lime/core`.
+   * samples) is plugged in later without touching `@tanisjam/lime-core`.
    */
   instruments?: Partial<Record<VoiceId, InstrumentFactory>>;
 }

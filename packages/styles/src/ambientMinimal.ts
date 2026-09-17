@@ -1,4 +1,4 @@
-import type { StylePack } from "@lime/core";
+import type { StylePack } from "@tanisjam/lime-core";
 
 /**
  * ambient-minimal — the single built-in style for v0.1.

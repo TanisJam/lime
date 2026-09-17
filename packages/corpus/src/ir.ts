@@ -1,4 +1,4 @@
-import type { Mode } from "@lime/core";
+import type { Mode } from "@tanisjam/lime-core";
 
 /**
  * Corpus intermediate representation (IR).

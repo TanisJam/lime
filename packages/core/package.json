@@ -1,8 +1,35 @@
 {
-  "name": "@lime/core",
+  "name": "@tanisjam/lime-core",
   "version": "0.1.0",
   "description": "LIME core — pure TypeScript continuous adaptive composer. No audio dependencies.",
   "type": "module",
+  "license": "MIT",
+  "author": "Mauricio Romero",
+  "homepage": "https://github.com/TanisJam/lime#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TanisJam/lime.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/TanisJam/lime/issues"
+  },
+  "keywords": [
+    "music",
+    "generative",
+    "adaptive",
+    "procedural",
+    "composer",
+    "game-audio",
+    "midi"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,14 +37,17 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
-  "files": ["dist"],
+  "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "pnpm run clean && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "prepublishOnly": "pnpm run build"
   },
   "devDependencies": {
     "typescript": "^5.5.4",

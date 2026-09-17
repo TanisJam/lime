@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { LimeEngine, analyzeComposition } from "@lime/core";
+import { LimeEngine, analyzeComposition } from "@tanisjam/lime-core";
 import {
   loadEmopia, loadVgmidi, loadLakh, loadOpenscore, loadPdmx, type TaggedFile,
 } from "../datasets/index.js";

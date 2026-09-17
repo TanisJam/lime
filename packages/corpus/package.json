@@ -1,5 +1,5 @@
 {
-  "name": "@lime/corpus",
+  "name": "@tanisjam/lime-corpus",
   "version": "0.1.0",
   "description": "LIME corpus tooling — ingest free scores/MIDI, extract style statistics, compile StylePacks. Node-only dev tooling; never bundled to the browser. Ships derived statistics, never corpus files.",
   "type": "module",
@@ -21,7 +21,7 @@
     "corpus:build": "node dist/cli/build.js"
   },
   "dependencies": {
-    "@lime/core": "workspace:*",
+    "@tanisjam/lime-core": "workspace:^",
     "fast-xml-parser": "^4.5.0",
     "fflate": "^0.8.2",
     "midi-file": "^1.2.4"

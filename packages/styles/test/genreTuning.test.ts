@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import type { StylePack } from "@lime/core";
+import type { StylePack } from "@tanisjam/lime-core";
 import {
   GENRE_TUNING,
   ROCK_TUNING,

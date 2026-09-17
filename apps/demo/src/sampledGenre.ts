@@ -1,7 +1,7 @@
 import * as Tone from "tone";
-import type { InstrumentFactory, LimeInstrument } from "@lime/renderer-tone";
-import type { VoiceId, PercussionSound } from "@lime/core";
-import { PERCUSSION_MIDI } from "@lime/core";
+import type { InstrumentFactory, LimeInstrument } from "@tanisjam/lime-renderer-tone";
+import type { VoiceId, PercussionSound } from "@tanisjam/lime-core";
+import { PERCUSSION_MIDI } from "@tanisjam/lime-core";
 
 /**
  * Sampled genre palettes — real General-MIDI soundfont instruments (MusyngKite),

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import type { NoteEvent } from "@lime/core";
-import { TICKS_PER_QUARTER } from "@lime/core";
+import type { NoteEvent } from "@tanisjam/lime-core";
+import { TICKS_PER_QUARTER } from "@tanisjam/lime-core";
 import {
   eventsToStandardMidiFile,
   toMidiVelocity,

@@ -1,4 +1,4 @@
-# @lime/corpus
+# @tanisjam/lime-corpus
 
 Node-only tooling to turn free scores/MIDI into LIME **StylePacks**. It ingests
 symbolic music, extracts **statistics** (chord-transition tendencies, key,
@@ -70,7 +70,7 @@ constrained corpus (e.g. I↔V only) provably dominates the generated harmony.
 2. Build the package and run the CLI:
 
    ```bash
-   pnpm --filter @lime/corpus build
+   pnpm --filter @tanisjam/lime-corpus build
    node packages/corpus/dist/cli/build.js --limit 300 --analyze
    ```
 
@@ -90,7 +90,7 @@ only) plus a `suggestedState` from the emotion mapping.
 3. Use one in LIME:
 
    ```ts
-   import pack from "@lime/corpus/generated/emopia-Q4.json" assert { type: "json" };
+   import pack from "@tanisjam/lime-corpus/generated/emopia-Q4.json" assert { type: "json" };
    const music = createLime({ seed: "x", style: pack.style, renderer, initialState: pack.suggestedState });
    ```
 

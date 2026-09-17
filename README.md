@@ -10,9 +10,9 @@ bars into the future, remembering and developing material as the intent changes.
 No song boundaries, no loop restarts, no crossfading between tracks.
 
 ```ts
-import { createLime } from "@lime/core";
-import { createToneRenderer } from "@lime/renderer-tone";
-import { ambientMinimal } from "@lime/styles";
+import { createLime } from "@tanisjam/lime-core";
+import { createToneRenderer } from "@tanisjam/lime-renderer-tone";
+import { ambientMinimal } from "@tanisjam/lime-styles";
 
 const music = createLime({
   seed: "forest-level-12",
@@ -29,14 +29,24 @@ music.transitionTo(
 );
 ```
 
-## Workspace
+## Install
+
+```bash
+npm install @tanisjam/lime-core @tanisjam/lime-renderer-tone @tanisjam/lime-styles tone
+# optional: Standard MIDI File export
+npm install @tanisjam/lime-midi
+```
+
+## Packages
 
 | Package | What it is |
 | --- | --- |
-| `@lime/core` | Pure-TypeScript composer. **No audio dependencies.** |
-| `@lime/renderer-tone` | Browser renderer (Tone.js). |
-| `@lime/styles` | Built-in StylePacks (`ambient-minimal`). |
-| `@lime/demo` | Vite demo: sliders, mood buttons, live debug panel, showcase. |
+| [`@tanisjam/lime-core`](./packages/core) | Pure-TypeScript composer. **No audio dependencies.** |
+| [`@tanisjam/lime-renderer-tone`](./packages/renderer-tone) | Browser renderer (Tone.js). |
+| [`@tanisjam/lime-styles`](./packages/styles) | Built-in StylePacks (`ambient-minimal`, genre packs, GM programs). |
+| [`@tanisjam/lime-midi`](./packages/midi) | Standard MIDI File (SMF) export, zero runtime dependencies. |
+| `@tanisjam/lime-corpus` (private) | Corpus tooling — ingest MIDI/MusicXML, extract style statistics, compile StylePacks. Not published. |
+| `@lime/demo` (private) | Vite demo: sliders, mood buttons, live debug panel, showcase. Not published. |
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for the design.
 
@@ -54,7 +64,7 @@ pnpm demo           # start the Vite demo at http://localhost:5173
 > are gitignored (large and regenerable). Run the `setup-fluidsynth.mjs` script
 > once after `pnpm install`, or the demo audio will not load.
 
-> The demo consumes the `@lime/*` packages from their built `dist`, so run
+> The demo consumes the `@tanisjam/lime-*` packages from their built `dist`, so run
 > `pnpm build` again after changing `core`, `styles`, or `renderer-tone`.
 
 ## Demo

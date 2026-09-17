@@ -1,4 +1,4 @@
-// @lime/corpus — Node-only tooling to ingest free scores/MIDI, extract style
+// @tanisjam/lime-corpus — Node-only tooling to ingest free scores/MIDI, extract style
 // statistics, and compile StylePacks. Never bundled to the browser; ships
 // derived statistics, never corpus files.
 

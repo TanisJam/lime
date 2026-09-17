@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { LimeEngine, analyzeComposition } from "@lime/core";
+import { LimeEngine, analyzeComposition } from "@tanisjam/lime-core";
 import { HarmonyModelBuilder } from "../src/analysis/harmonyStats.js";
 import { compileStylePack } from "../src/style/compileStylePack.js";
 import { emotionToState, quadrantToEmotion } from "../src/style/emotionMapping.js";

@@ -1,7 +1,7 @@
 import * as JSSynth from "js-synthesizer";
-import type { MusicRenderer, MusicalEvent, VoiceId } from "@lime/core";
-import { TICKS_PER_QUARTER } from "@lime/core";
-import * as styles from "@lime/styles";
+import type { MusicRenderer, MusicalEvent, VoiceId } from "@tanisjam/lime-core";
+import { TICKS_PER_QUARTER } from "@tanisjam/lime-core";
+import * as styles from "@tanisjam/lime-styles";
 
 /**
  * FluidRenderer — a MusicRenderer backed by FluidSynth compiled to WebAssembly
@@ -271,7 +271,7 @@ export class FluidRenderer implements MusicRenderer {
 }
 
 /**
- * Per-genre GM program map. The values live in `@lime/styles` as the single
+ * Per-genre GM program map. The values live in `@tanisjam/lime-styles` as the single
  * source of truth so the judge's offline renders and this live path cannot
  * diverge — they once did, and Funk was listened to through an instrument the
  * demo never played. See `packages/styles/src/gmPrograms.ts`.
