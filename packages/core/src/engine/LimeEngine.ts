@@ -54,7 +54,26 @@ export interface LimeConfig {
 
 /** Public engine surface. */
 export interface Lime {
+  /**
+   * Begin (or resume) playback through the configured renderer.
+   *
+   * **Stop/start contract:** `stop()` halts the renderer but never resets the
+   * composition — key, form position, motif memory, harmonic plan, and the
+   * composed-ahead horizon all survive. A later `start()` resumes the *same*
+   * piece from where it left off; it does not start a fresh piece at bar 0.
+   * Internally this works by re-anchoring the renderer's clock (which most
+   * renderers reset to tick 0 on `stop()`, e.g. `Tone.Transport.stop()`) onto
+   * the composition's own timeline, and by re-sending whatever was already
+   * composed but not yet played — `stop()` wipes the renderer's own schedule,
+   * so that material would otherwise be lost rather than merely paused.
+   * Calling `start()` while already running is a no-op; interleaving
+   * `start()`/`stop()` never double-registers the internal pump timer.
+   */
   start(): Promise<void>;
+  /**
+   * Halt the renderer. See {@link start} for what survives a subsequent
+   * restart. Safe to call when not running (no-op).
+   */
   stop(): void;
   setState(patch: MusicalStatePatch, options?: StateChangeOptions): void;
   transitionTo(patch: MusicalStatePatch, options: StateChangeOptions): void;
@@ -173,6 +192,25 @@ export class LimeEngine implements Lime {
   private running = false;
   private pumpTimer: unknown = undefined;
 
+  /**
+   * Maps composition ticks (what `composeBar`/`eventsByBar`/checkpoints all
+   * speak) onto the renderer's own clock: `rendererTick = compositionTick -
+   * transportOffsetTicks`. Zero while the renderer's clock and the
+   * composition timeline are still aligned (always true until the first
+   * `stop()`); `start()` recomputes it so a restart resumes the composition
+   * in progress instead of realigning it to bar 0 of a fresh piece — see the
+   * `Lime.start` JSDoc for the full contract.
+   */
+  private transportOffsetTicks = 0;
+  /**
+   * The composition tick the playhead was at the moment `stop()` last ran —
+   * i.e. where playback should resume from on the next `start()`. Read via
+   * `toCompositionTick`, so it already accounts for whatever offset was in
+   * effect at that moment (relevant after two `stop()`s without an
+   * intervening reset).
+   */
+  private compositionTickAtStop = 0;
+
   private readonly eventsByBar = new Map<number, NoteEvent[]>();
   private readonly tempoByBar = new Map<number, number>();
   private lastScheduledTempo: number;
@@ -236,7 +274,8 @@ export class LimeEngine implements Lime {
     this.scheduler = new CompositionScheduler({
       meter: this.meter,
       lookAheadBars: this.lookAheadBars,
-      now: () => (this.renderer ? this.renderer.now() : 0),
+      // Composition-space, not raw renderer ticks — see `transportOffsetTicks`.
+      now: () => (this.renderer ? this.toCompositionTick(this.renderer.now()) : 0),
       composeBar: (bar) => {
         this.composeBar(bar);
       },
@@ -255,9 +294,22 @@ export class LimeEngine implements Lime {
     this.running = true;
     this.renderer.setTempo(this.stateManager.currentState.tempo);
     await this.renderer.start();
+    // stop() may have run while the renderer was starting; don't re-anchor,
+    // reschedule into a stopped renderer, or leave a live pump timer behind.
+    if (!this.running) return;
+    // Re-anchor composition ticks onto the renderer's (possibly just-reset)
+    // clock so the composition resumes exactly where `stop()` left it — see
+    // the `Lime.start` JSDoc for the contract this implements.
+    this.transportOffsetTicks = this.compositionTickAtStop - this.renderer.now();
+    // The renderer's own schedule was wiped by `stop()` (e.g.
+    // `Tone.Transport.cancel()`); re-send whatever was already composed but
+    // not yet played before topping up the horizon below.
+    this.rescheduleUnplayedHorizon();
     // Fill the initial horizon immediately so playback has material.
     this.scheduler.pump();
-    this.pumpTimer = timers.setInterval(() => this.pump(), this.pumpIntervalMs);
+    if (this.pumpTimer === undefined) {
+      this.pumpTimer = timers.setInterval(() => this.pump(), this.pumpIntervalMs);
+    }
   }
 
   stop(): void {
@@ -266,6 +318,9 @@ export class LimeEngine implements Lime {
     if (this.pumpTimer !== undefined) {
       timers.clearInterval(this.pumpTimer);
       this.pumpTimer = undefined;
+    }
+    if (this.renderer) {
+      this.compositionTickAtStop = this.toCompositionTick(this.renderer.now());
     }
     this.renderer?.stop();
   }
@@ -377,7 +432,7 @@ export class LimeEngine implements Lime {
     this.tempoByBar.set(bar, state.tempo);
     this.pruneMaps(bar);
 
-    if (this.renderer) this.renderer.schedule(events);
+    if (this.renderer) this.renderer.schedule(this.shiftToRenderer(events));
     return events;
   }
 
@@ -436,8 +491,49 @@ export class LimeEngine implements Lime {
 
   private playheadBar(): number {
     return this.renderer
-      ? Math.floor(this.renderer.now() / ticksPerBar(this.meter))
+      ? Math.floor(this.toCompositionTick(this.renderer.now()) / ticksPerBar(this.meter))
       : this.scheduler.composedThroughBar;
+  }
+
+  /** Composition tick (what `eventsByBar`/checkpoints use) for a renderer tick. */
+  private toCompositionTick(rendererTick: number): number {
+    return rendererTick + this.transportOffsetTicks;
+  }
+
+  /** Renderer tick for a composition tick — the inverse of {@link toCompositionTick}. */
+  private toRendererTick(compositionTick: number): number {
+    return compositionTick - this.transportOffsetTicks;
+  }
+
+  /**
+   * Translate already-composed events (composition-space ticks) into
+   * renderer-space ticks before handing them to `renderer.schedule`. A no-op
+   * (and identity-preserving) until the first `stop()`/`start()` cycle
+   * introduces a non-zero offset.
+   */
+  private shiftToRenderer(events: NoteEvent[]): NoteEvent[] {
+    if (this.transportOffsetTicks === 0) return events;
+    return events.map((e) => ({ ...e, time: this.toRendererTick(e.time) }));
+  }
+
+  /**
+   * Re-send bars that were already composed (and previously scheduled) but
+   * hadn't played yet when `stop()` ran. `stop()` wipes the renderer's own
+   * schedule, but composition itself isn't rewound — `composedThroughBar`
+   * doesn't move — so these bars won't be recomposed on their own and would
+   * otherwise be silently lost.
+   */
+  private rescheduleUnplayedHorizon(): void {
+    if (!this.renderer) return;
+    const fromBar = Math.floor(this.compositionTickAtStop / ticksPerBar(this.meter));
+    const events: NoteEvent[] = [];
+    for (let bar = Math.max(0, fromBar); bar < this.scheduler.composedThroughBar; bar++) {
+      const barEvents = this.eventsByBar.get(bar);
+      // Skip notes of the stop bar that were already heard before stop(): they
+      // would map to negative renderer ticks and could fire as a burst.
+      if (barEvents) events.push(...barEvents.filter((e) => e.time >= this.compositionTickAtStop));
+    }
+    if (events.length > 0) this.renderer.schedule(this.shiftToRenderer(events));
   }
 
   private resolveApplyBar(quantize: string): number {
@@ -484,15 +580,19 @@ export class LimeEngine implements Lime {
     // Not enough lead before `target`'s own downbeat (see URGENT_LEAD_BEATS)
     // — push out one more bar rather than hand the renderer a replacement it
     // can no longer schedule in time, which would otherwise play as silence.
+    // Both sides of this comparison must be in renderer-space (`renderer.now()`
+    // already is); see `transportOffsetTicks`.
     const leadTicks = URGENT_LEAD_BEATS * ticksPerBeat(this.meter);
-    if (target * ticksPerBar(this.meter) - renderer.now() < leadTicks) target += 1;
+    if (this.toRendererTick(target * ticksPerBar(this.meter)) - renderer.now() < leadTicks) {
+      target += 1;
+    }
 
     if (target < this.scheduler.composedThroughBar) {
       const checkpoint = this.checkpoints.get(target);
       if (!checkpoint) return false; // rolled off the bounded checkpoint window
 
       this.restoreCheckpoint(checkpoint);
-      renderer.cancelFrom(target * ticksPerBar(this.meter));
+      renderer.cancelFrom(this.toRendererTick(target * ticksPerBar(this.meter)));
       this.scheduler.rewindTo(target);
 
       // Every request issued after the checkpoint (see
@@ -628,7 +728,9 @@ export class LimeEngine implements Lime {
 
   private snapshot(): DebugSnapshot {
     const bar = this.playheadBar();
-    const nowTick = this.renderer ? this.renderer.now() : bar * ticksPerBar(this.meter);
+    const nowTick = this.renderer
+      ? this.toCompositionTick(this.renderer.now())
+      : bar * ticksPerBar(this.meter);
     const beat = Math.floor(
       (nowTick - bar * ticksPerBar(this.meter)) / ticksPerBeat(this.meter),
     );

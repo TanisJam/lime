@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { LimeEngine } from "../src/engine/LimeEngine.js";
 import { isNoteEvent, type NoteEvent } from "../src/events/MusicalEvent.js";
+import { FOUR_FOUR, ticksPerBar } from "../src/time/MusicalTime.js";
 import { MockRenderer, testStyle, serialize, allowedPitchClasses } from "./helpers.js";
 
 function headlessEngine(seed: string, initial?: Record<string, number>) {
@@ -106,6 +107,136 @@ describe("LimeEngine — scheduling horizon", () => {
     renderer.setNow(0); // playhead unchanged
     engine.pump();
     expect(renderer.scheduled.length).toBe(firstBatch); // nothing recomposed
+  });
+});
+
+describe("LimeEngine — stop/start resume", () => {
+  const BAR_TICKS = ticksPerBar(FOUR_FOUR);
+
+  it("keeps scheduling notes for the bar actually playing after a stop() then start()", async () => {
+    const renderer = new MockRenderer();
+    const engine = new LimeEngine({
+      seed: "restart-resume",
+      style: testStyle,
+      renderer,
+      lookAheadBars: 4,
+      // Keep the internal pump timer from ever firing during this test.
+      pumpIntervalMs: 1_000_000,
+    });
+
+    await engine.start(); // composes the initial look-ahead horizon
+    // Play for several bars, as the pump timer would tick-by-tick in real use.
+    for (let bar = 1; bar <= 6; bar++) {
+      renderer.setNow(bar * BAR_TICKS);
+      engine.pump();
+    }
+    expect(engine.debug.snapshot().composedThroughBar).toBeGreaterThan(6);
+
+    engine.stop();
+    // MockRenderer.stop() mirrors Tone.Transport.stop(): clock back to 0,
+    // schedule wiped — exactly what a real restart looks like to the engine.
+    expect(renderer.now()).toBe(0);
+    expect(renderer.scheduled.length).toBe(0);
+
+    await engine.start();
+    // One bar of real playback since the restart — the renderer's own clock
+    // is back near 0, just like a fresh session.
+    renderer.setNow(BAR_TICKS);
+    engine.pump();
+
+    // The bug: without resuming the composition onto the renderer's reset
+    // clock, `composedThroughBar` stays far ahead of the (reset) playhead,
+    // so `pump()` composes nothing and nothing is scheduled for what's
+    // actually playing right now — long silence. Assert purely in
+    // renderer-observable terms (what a listener would hear), not via
+    // internal composition-bar bookkeeping.
+    const rendererBar = Math.floor(renderer.now() / BAR_TICKS);
+    const playingNow = renderer.scheduled.filter(
+      (e) => e.time >= rendererBar * BAR_TICKS && e.time < (rendererBar + 1) * BAR_TICKS,
+    );
+    expect(playingNow.length).toBeGreaterThan(0);
+
+    engine.stop();
+  });
+
+  it("resumes the same piece (composedThroughBar keeps advancing, not resetting to 0)", async () => {
+    const renderer = new MockRenderer();
+    const engine = new LimeEngine({
+      seed: "restart-continuity",
+      style: testStyle,
+      renderer,
+      lookAheadBars: 4,
+      pumpIntervalMs: 1_000_000,
+    });
+
+    await engine.start();
+    for (let bar = 1; bar <= 6; bar++) {
+      renderer.setNow(bar * BAR_TICKS);
+      engine.pump();
+    }
+    const composedBeforeStop = engine.debug.snapshot().composedThroughBar;
+
+    engine.stop();
+    await engine.start();
+
+    // A restart must not rewind the composition frontier back toward 0 —
+    // the piece (key, form, motif memory) keeps moving forward from where
+    // it was, not restarting from scratch.
+    expect(engine.debug.snapshot().composedThroughBar).toBeGreaterThanOrEqual(composedBeforeStop);
+
+    engine.stop();
+  });
+
+  it("does not resend notes already heard before a mid-bar stop()", async () => {
+    const renderer = new MockRenderer();
+    const engine = new LimeEngine({
+      seed: "restart-mid-bar",
+      style: testStyle,
+      renderer,
+      lookAheadBars: 4,
+      pumpIntervalMs: 1_000_000,
+    });
+
+    await engine.start();
+    for (let bar = 1; bar <= 3; bar++) {
+      renderer.setNow(bar * BAR_TICKS);
+      engine.pump();
+    }
+    renderer.setNow(3 * BAR_TICKS + BAR_TICKS / 2);
+    engine.stop();
+    await engine.start();
+
+    expect(renderer.scheduled.length).toBeGreaterThan(0);
+    for (const e of renderer.scheduled) expect(e.time).toBeGreaterThanOrEqual(0);
+
+    engine.stop();
+  });
+
+  it("stays stopped when stop() runs while the renderer is still starting", async () => {
+    let release!: () => void;
+    const renderer = new MockRenderer();
+    renderer.start = () =>
+      new Promise<void>((resolve) => {
+        release = () => {
+          renderer.running = true;
+          resolve();
+        };
+      });
+    const engine = new LimeEngine({
+      seed: "restart-race",
+      style: testStyle,
+      renderer,
+      lookAheadBars: 4,
+      pumpIntervalMs: 1_000_000,
+    });
+
+    const starting = engine.start();
+    engine.stop();
+    release();
+    await starting;
+
+    expect(engine.isRunning).toBe(false);
+    expect(renderer.scheduled.length).toBe(0);
   });
 });
 

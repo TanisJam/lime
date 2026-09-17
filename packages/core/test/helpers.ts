@@ -32,8 +32,15 @@ export class MockRenderer implements MusicRenderer {
   async start(): Promise<void> {
     this.running = true;
   }
+  /**
+   * Mirrors `Tone.Transport.stop()` (and `ToneRenderer.stop()`, which also
+   * calls `.cancel()`): the clock resets to 0 and the renderer's own
+   * schedule is wiped — exercises the engine's stop/start resume contract.
+   */
   stop(): void {
     this.running = false;
+    this.ticks = 0;
+    this.scheduled.length = 0;
   }
   schedule(events: MusicalEvent[]): void {
     this.scheduled.push(...events);
