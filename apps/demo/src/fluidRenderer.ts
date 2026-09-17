@@ -142,7 +142,14 @@ export class FluidRenderer implements MusicRenderer {
   setTempo(bpm: number): void {
     this.baseTicks = this.now(); // re-anchor so now() stays continuous
     this.baseTime = this.ctx.currentTime;
+    if (bpm === this.bpm) return;
     this.bpm = bpm;
+    // Queued events were converted tick → ms at the tempo in force when they
+    // were sent, up to the whole look-ahead window earlier. Left alone they
+    // keep playing at the old tempo while newly sent bars use the new one, so
+    // during a tempo ramp the two drift apart by whole beats (heard as out of
+    // time and dissonant). Re-time everything still queued at the new tempo.
+    this.resendTracked();
   }
 
   schedule(events: MusicalEvent[]): void {
@@ -156,7 +163,9 @@ export class FluidRenderer implements MusicRenderer {
     // at or ahead of the playhead), so it is safe to forget. A fixed 8-bar
     // (4/4) window — tempo-independent, since ticks don't scale with bpm.
     const cutoff = this.now() - 8 * 4 * TICKS_PER_QUARTER;
-    this.scheduledEvents = this.scheduledEvents.filter((e) => e.time >= cutoff);
+    // Pruned by END tick: a resend wipes every queued note-off, so a long note
+    // still sounding must stay tracked or it would hang.
+    this.scheduledEvents = this.scheduledEvents.filter((e) => e.time + e.duration >= cutoff);
     for (const e of events) this.sendEvent(e);
   }
 
@@ -209,12 +218,19 @@ export class FluidRenderer implements MusicRenderer {
    * note-on; already finished → nothing to resend.
    */
   cancelFrom(tick: number): void {
-    const keep = this.scheduledEvents.filter((e) => e.time < tick);
-    this.scheduledEvents = keep;
-    if (!this.loaded || !this.seq) return;
+    this.scheduledEvents = this.scheduledEvents.filter((e) => e.time < tick);
+    this.resendTracked();
+  }
+
+  /**
+   * Wipe the sequencer and resend every tracked event at the current tempo,
+   * each by how far along it is (see `cancelFrom()`).
+   */
+  private resendTracked(): void {
+    if (!this.loaded || !this.seq || !this.running) return;
     this.seq.removeAllEvents();
     const nowTick = this.now();
-    for (const e of keep) {
+    for (const e of this.scheduledEvents) {
       if (e.time >= nowTick) {
         this.sendEvent(e);
         continue;
