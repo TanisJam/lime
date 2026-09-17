@@ -14,17 +14,20 @@ import {
   clampTempo,
   clamp01,
 } from "../state/MusicalState.js";
-import { StateManager } from "../state/StateManager.js";
+import { StateManager, type StateManagerSnapshot } from "../state/StateManager.js";
 import { PhrasePlanner } from "../phrase/PhrasePlanner.js";
 import { PhraseDirector } from "../phrase/PhrasePlan.js";
 import { FormDirector } from "../phrase/FormDirector.js";
-import { HarmonyPlanner } from "../harmony/HarmonyPlanner.js";
+import { HarmonyPlanner, type HarmonyPlannerSnapshot } from "../harmony/HarmonyPlanner.js";
 import { pitchClassName } from "../harmony/Scale.js";
 import { chordLabel, chordRoman } from "../harmony/Chord.js";
 import type { NoteEvent } from "../events/MusicalEvent.js";
 import { humanizeBar } from "../humanize/Humanizer.js";
-import { Orchestrator } from "../orchestration/Orchestrator.js";
-import { OrchestrationDirector } from "../orchestration/OrchestrationDirector.js";
+import { Orchestrator, type OrchestratorSnapshot } from "../orchestration/Orchestrator.js";
+import {
+  OrchestrationDirector,
+  type OrchestrationDirectorSnapshot,
+} from "../orchestration/OrchestrationDirector.js";
 import type { OrchestrationPlan } from "../orchestration/OrchestrationPlan.js";
 import { ROLE_FOR_VOICE } from "../orchestration/MusicalRole.js";
 import { CompositionScheduler } from "../scheduler/CompositionScheduler.js";
@@ -72,6 +75,55 @@ export interface Lime {
 }
 
 const RECENT_EVENT_BARS = 8;
+
+/**
+ * A restorable capture of every mutable composition component, taken right
+ * before `composeBar(bar)` runs. Restoring one puts the engine back exactly
+ * where it was before that bar was composed, so `bar` (and everything after
+ * it) can be recomposed from scratch under a new state — the mechanism behind
+ * an `urgent` state change (see {@link StateChangeOptions.urgent}).
+ *
+ * Taking a snapshot only ever reads component state (see each `snapshot()`);
+ * it never consumes RNG or mutates anything, so checkpointing has no effect on
+ * composed output unless a checkpoint is later restored.
+ */
+interface CompositionCheckpoint {
+  readonly bar: number;
+  readonly stateManager: StateManagerSnapshot;
+  readonly harmony: HarmonyPlannerSnapshot;
+  readonly orchestrator: OrchestratorSnapshot;
+  readonly orchestrationDirector: OrchestrationDirectorSnapshot;
+  readonly lastComposedState: MusicalState;
+  readonly lastCapture: BarCapture | undefined;
+  readonly lastOrchestrationPlan: OrchestrationPlan | undefined;
+  readonly lastScheduledTempo: number;
+  readonly eventsByBar: ReadonlyMap<number, NoteEvent[]>;
+  readonly tempoByBar: ReadonlyMap<number, number>;
+}
+
+/**
+ * How far past the look-ahead horizon a checkpoint is still kept, so a
+ * checkpoint remains available even if `resolveApplyBar`'s inertia or a
+ * slightly stale playhead read pushes the urgent target a bar or two past
+ * `composedThroughBar - lookAheadBars`. Checkpoints for bars behind that
+ * window are pruned — they describe bars the playhead has moved past, which
+ * an urgent change can no longer usefully target.
+ */
+const CHECKPOINT_MARGIN_BARS = 2;
+
+/**
+ * Minimum lead time, in beats, an `urgent` rollback leaves before the bar it
+ * targets starts. Both shipped renderers need real lookahead to actually
+ * sound a note handed to them this late: `ToneRenderer` schedules through
+ * Tone.js's own `lookAhead` window and silently drops anything already past
+ * it, and `FluidRenderer` times sequencer events off the same live
+ * `AudioContext` clock. An urgent click landing in the last instants of the
+ * current bar would otherwise hand either renderer a target bar that has
+ * already started (or is about to) by the time it's scheduled — silence, not
+ * a late note. One beat comfortably exceeds either renderer's own scheduling
+ * latency at any tempo this engine supports.
+ */
+const URGENT_LEAD_BEATS = 1;
 
 /** How strongly the form's arch swings the effective energy around the host's. */
 const FORM_SPREAD = 0.7;
@@ -127,6 +179,14 @@ export class LimeEngine implements Lime {
   private lastComposedState: MusicalState;
   private lastCapture: BarCapture | undefined;
   private lastOrchestrationPlan: OrchestrationPlan | undefined;
+
+  /**
+   * Checkpoints captured before composing each not-yet-played bar, keyed by
+   * that bar. Bounded to roughly `lookAheadBars + CHECKPOINT_MARGIN_BARS`
+   * entries (see {@link pruneCheckpoints}) — only bars still ahead of the
+   * playhead are ever worth rolling back to.
+   */
+  private readonly checkpoints = new Map<number, CompositionCheckpoint>();
 
   constructor(config: LimeConfig) {
     this.rng = new SeededRandom(config.seed);
@@ -259,6 +319,7 @@ export class LimeEngine implements Lime {
    * schedule the events, and bookkeep for debug/tempo.
    */
   composeBar(bar: number): NoteEvent[] {
+    this.captureCheckpoint(bar);
     this.stateManager.advanceToBar(bar);
     const hostState = this.stateManager.currentState;
     // The form's slow arch shapes the effective state the composer works from,
@@ -321,14 +382,16 @@ export class LimeEngine implements Lime {
   }
 
   setState(patch: MusicalStatePatch, options: StateChangeOptions = {}): void {
-    const applyAtBar = this.resolveApplyBar(options.quantize ?? "nextBar");
     const durationBars = options.duration?.bars ?? 0;
+    if (options.urgent && this.applyUrgent(patch, durationBars)) return;
+    const applyAtBar = this.resolveApplyBar(options.quantize ?? "nextBar");
     this.stateManager.request(patch, applyAtBar, durationBars);
   }
 
   transitionTo(patch: MusicalStatePatch, options: StateChangeOptions): void {
-    const applyAtBar = this.resolveApplyBar(options.quantize ?? "nextBar");
     const durationBars = options.duration?.bars ?? 4;
+    if (options.urgent && this.applyUrgent(patch, durationBars)) return;
+    const applyAtBar = this.resolveApplyBar(options.quantize ?? "nextBar");
     this.stateManager.request(patch, applyAtBar, durationBars);
   }
 
@@ -394,6 +457,153 @@ export class LimeEngine implements Lime {
     // Committed (already composed) bars are frozen; apply at the earliest
     // uncommitted bar at the latest. This is the parameter-level inertia.
     return Math.max(boundary, this.scheduler.composedThroughBar);
+  }
+
+  /**
+   * The `urgent` fast path: roll composition back to the bar right after the
+   * playhead, discard whatever was already composed (and scheduled) from
+   * there on, and recompose it under `patch`. Returns false when urgent isn't
+   * possible — headless, a renderer without `cancelFrom`, or no checkpoint
+   * that far back — so the caller falls back to the normal quantized path.
+   */
+  private applyUrgent(patch: MusicalStatePatch, durationBars: number): boolean {
+    // Headless: nothing is composed ahead of the frontier in any meaningful
+    // sense — composeThrough/step drive the frontier exactly at the caller's
+    // own pace — so there is nothing to discard. A renderer that can't cancel
+    // scheduled notes can't safely support urgent either, for the same reason
+    // MusicRenderer.cancelFrom documents: it would risk a discarded bar's
+    // notes staying scheduled alongside its recomposed replacement.
+    const renderer = this.renderer;
+    if (!renderer?.cancelFrom) return false;
+
+    const playhead = this.playheadBar();
+    let target = Math.max(
+      playhead,
+      Math.min(playhead + 1, this.scheduler.composedThroughBar),
+    );
+    // Not enough lead before `target`'s own downbeat (see URGENT_LEAD_BEATS)
+    // — push out one more bar rather than hand the renderer a replacement it
+    // can no longer schedule in time, which would otherwise play as silence.
+    const leadTicks = URGENT_LEAD_BEATS * ticksPerBeat(this.meter);
+    if (target * ticksPerBar(this.meter) - renderer.now() < leadTicks) target += 1;
+
+    if (target < this.scheduler.composedThroughBar) {
+      const checkpoint = this.checkpoints.get(target);
+      if (!checkpoint) return false; // rolled off the bounded checkpoint window
+
+      this.restoreCheckpoint(checkpoint);
+      renderer.cancelFrom(target * ticksPerBar(this.meter));
+      this.scheduler.rewindTo(target);
+
+      // Every request issued after the checkpoint (see
+      // `StateManager.requestsSince`) must survive the rollback too — it is
+      // the user's word, just not the latest one. This is NOT the same set as
+      // "still pending after the checkpoint": a request made while later bars
+      // kept composing ahead of it can already have been applied — shifted
+      // out of `pending` by `advanceToBar` at some bar inside the window we
+      // just discarded — so it has to be read from the log, not `pending`.
+      const carryOver = [
+        ...checkpoint.stateManager.pending,
+        ...this.stateManager.requestsSince(checkpoint.stateManager.seq),
+      ];
+      const urgentKeys = Object.keys(patch) as (keyof MusicalStatePatch)[];
+
+      // Re-anchor each to at least `target` (never earlier) but otherwise
+      // keep its own quantization — a deliberately far-out request (e.g.
+      // nextPhrase) still lands there. Urgent is the newest intent, so a
+      // request still due *after* target has its conflicting keys stripped
+      // (dropped if that empties it) instead of reverting them once it fires.
+      type Replay = { patch: MusicalStatePatch; applyAtBar: number; durationBars: number; seq: number; isUrgent?: true };
+      const replayList: Replay[] = [];
+      for (const entry of carryOver) {
+        const applyAtBar = Math.max(entry.applyAtBar, target);
+        let p = entry.patch;
+        if (applyAtBar > target) {
+          p = { ...entry.patch };
+          for (const key of urgentKeys) delete p[key];
+          if (Object.keys(p).length === 0) continue;
+        }
+        replayList.push({ patch: p, applyAtBar, durationBars: entry.durationBars, seq: entry.seq });
+      }
+      // Urgent sorts last among ties at `target` (sentinel seq), so the
+      // merge-onto-latest-pending-target chain (`request`/`replay`) carries
+      // its values into every later entry's merged target, not the reverse.
+      replayList.push({ patch, applyAtBar: target, durationBars, seq: Number.MAX_SAFE_INTEGER, isUrgent: true });
+      replayList.sort((a, b) => a.applyAtBar - b.applyAtBar || a.seq - b.seq);
+
+      this.stateManager.clearPending();
+      for (const entry of replayList) {
+        if (entry.isUrgent) this.stateManager.request(entry.patch, entry.applyAtBar, entry.durationBars);
+        else this.stateManager.replay(entry.patch, entry.applyAtBar, entry.durationBars);
+      }
+    } else {
+      // Nothing has been composed for `target` (or beyond) yet, so there is
+      // nothing to roll back — queuing the change already lands it on the
+      // very next bar to be composed.
+      this.stateManager.request(patch, target, durationBars);
+    }
+    this.scheduler.pump();
+    return true;
+  }
+
+  /** Capture a checkpoint for the state right before `bar` is composed. */
+  private captureCheckpoint(bar: number): void {
+    this.checkpoints.set(bar, {
+      bar,
+      stateManager: this.stateManager.snapshot(),
+      harmony: this.harmony.snapshot(),
+      orchestrator: this.orchestrator.snapshot(),
+      orchestrationDirector: this.orchestrationDirector.snapshot(),
+      lastComposedState: this.lastComposedState,
+      lastCapture: this.lastCapture,
+      lastOrchestrationPlan: this.lastOrchestrationPlan,
+      lastScheduledTempo: this.lastScheduledTempo,
+      eventsByBar: new Map(this.eventsByBar),
+      tempoByBar: new Map(this.tempoByBar),
+    });
+    this.pruneCheckpoints(bar);
+  }
+
+  /**
+   * Keep only checkpoints for bars not yet played, bounded by the look-ahead,
+   * and prune `stateManager`'s request log to match: nothing behind the
+   * oldest checkpoint still held can ever be replayed by an `urgent` rollback
+   * (see `StateManager.requestsSince`/`pruneLogBefore`), so it's safe to drop.
+   */
+  private pruneCheckpoints(bar: number): void {
+    const cutoff = bar - (this.lookAheadBars + CHECKPOINT_MARGIN_BARS);
+    for (const key of this.checkpoints.keys()) {
+      if (key < cutoff) this.checkpoints.delete(key);
+    }
+    let oldestSeq: number | undefined;
+    for (const checkpoint of this.checkpoints.values()) {
+      if (oldestSeq === undefined || checkpoint.stateManager.seq < oldestSeq) {
+        oldestSeq = checkpoint.stateManager.seq;
+      }
+    }
+    if (oldestSeq !== undefined) this.stateManager.pruneLogBefore(oldestSeq);
+  }
+
+  /** Restore every mutable composition component to a captured checkpoint. */
+  private restoreCheckpoint(checkpoint: CompositionCheckpoint): void {
+    this.stateManager.restore(checkpoint.stateManager);
+    this.harmony.restore(checkpoint.harmony);
+    this.orchestrator.restore(checkpoint.orchestrator);
+    this.orchestrationDirector.restore(checkpoint.orchestrationDirector);
+    this.lastComposedState = checkpoint.lastComposedState;
+    this.lastCapture = checkpoint.lastCapture;
+    this.lastOrchestrationPlan = checkpoint.lastOrchestrationPlan;
+    this.lastScheduledTempo = checkpoint.lastScheduledTempo;
+    this.eventsByBar.clear();
+    for (const [bar, events] of checkpoint.eventsByBar) this.eventsByBar.set(bar, events);
+    this.tempoByBar.clear();
+    for (const [bar, tempo] of checkpoint.tempoByBar) this.tempoByBar.set(bar, tempo);
+    // Checkpoints for the bars we are about to recompose describe a future
+    // that no longer exists; drop them so a later urgent change can't roll
+    // back into stale, pre-rollback state.
+    for (const bar of this.checkpoints.keys()) {
+      if (bar >= checkpoint.bar) this.checkpoints.delete(bar);
+    }
   }
 
   private applyPlayheadTempo(): void {

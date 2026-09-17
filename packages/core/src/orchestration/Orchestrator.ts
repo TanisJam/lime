@@ -1,10 +1,10 @@
 import type { NoteEvent } from "../events/MusicalEvent.js";
 import type { SeededRandom } from "../random/SeededRandom.js";
 import { compareEvents } from "../events/MusicalEvent.js";
-import { ComposerMemory } from "../memory/ComposerMemory.js";
-import { PadGenerator } from "../pad/PadGenerator.js";
+import { ComposerMemory, type ComposerMemorySnapshot } from "../memory/ComposerMemory.js";
+import { PadGenerator, type PadGeneratorSnapshot } from "../pad/PadGenerator.js";
 import { BassGenerator } from "../bass/BassGenerator.js";
-import { MelodyGenerator } from "../melody/MelodyGenerator.js";
+import { MelodyGenerator, type MelodyGeneratorSnapshot } from "../melody/MelodyGenerator.js";
 import { PercussionGenerator } from "../percussion/PercussionGenerator.js";
 import { MotionGenerator } from "../motion/MotionGenerator.js";
 import type { BarContext } from "./BarContext.js";
@@ -33,6 +33,22 @@ export interface OrchestratorHints {
   readonly bassGroove?: BassGrooveStyle;
   /** Optional motion layer (arp / ostinato / stab). */
   readonly motion?: MotionStyle;
+}
+
+/**
+ * Restorable capture of the {@link Orchestrator}'s mutable state, for the
+ * engine's composition checkpoints (see `LimeEngine`'s `urgent` state-change
+ * rollback). `BassGenerator`, `PercussionGenerator` and `MotionGenerator` hold
+ * no mutable state of their own (only immutable style config), so they have
+ * nothing to capture; `pad`/`percRng`/`bassRng`/`melodyRng`/`motionRng`/`padRng`
+ * are per-bar RNG *factories* (see `derive` in `SeededRandom`) that never
+ * consume from their own sequence directly, so they need no restoring either
+ * — only `memory` and the melody/pad generators carry state that outlives a bar.
+ */
+export interface OrchestratorSnapshot {
+  readonly memory: ComposerMemorySnapshot;
+  readonly melody: MelodyGeneratorSnapshot;
+  readonly pad: PadGeneratorSnapshot;
 }
 
 /**
@@ -107,5 +123,21 @@ export class Orchestrator {
     if (base.bar === base.chord.bar) this.memory.recordChord(base.chord);
 
     return events.sort(compareEvents);
+  }
+
+  /** Capture the orchestrator's state for a later {@link restore}. */
+  snapshot(): OrchestratorSnapshot {
+    return {
+      memory: this.memory.snapshot(),
+      melody: this.melody.snapshot(),
+      pad: this.pad.snapshot(),
+    };
+  }
+
+  /** Restore a state captured by {@link snapshot}. */
+  restore(snapshot: OrchestratorSnapshot): void {
+    this.memory.restore(snapshot.memory);
+    this.melody.restore(snapshot.melody);
+    this.pad.restore(snapshot.pad);
   }
 }

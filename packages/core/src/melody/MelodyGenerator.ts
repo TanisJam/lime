@@ -6,7 +6,7 @@ import { degreePitch, triadDegrees } from "../harmony/Scale.js";
 import type { BarContext } from "../orchestration/BarContext.js";
 import type { ComposerMemory } from "../memory/ComposerMemory.js";
 import type { Motif } from "../motif/Motif.js";
-import { MotifGenerator } from "../motif/MotifGenerator.js";
+import { MotifGenerator, type MotifGeneratorSnapshot } from "../motif/MotifGenerator.js";
 import { augment, fragment, invert, transpose } from "../motif/MotifTransformer.js";
 import type { MelodyStyle, MelodyScale } from "../style/StylePack.js";
 import type { Register } from "../harmony/Registers.js";
@@ -32,6 +32,17 @@ function snapToScale(pitch: number, keyPc: number, scale: MelodyScale): number {
     if (set.includes((((pc + d) % 12) + 12) % 12)) return pitch + d;
   }
   return pitch;
+}
+
+/**
+ * Restorable capture of {@link MelodyGenerator}'s mutable state (see
+ * `LimeEngine`'s `urgent` state-change rollback). `Motif` values are
+ * immutable, so `activeMotif` is stored by reference.
+ */
+export interface MelodyGeneratorSnapshot {
+  readonly activeMotif: Motif | undefined;
+  readonly lastPitch: number | undefined;
+  readonly motifGen: MotifGeneratorSnapshot;
 }
 
 const MELODY_OCTAVE = 5;
@@ -393,5 +404,21 @@ export class MelodyGenerator {
     }
 
     return events;
+  }
+
+  /** Capture the generator's state for a later {@link restore}. */
+  snapshot(): MelodyGeneratorSnapshot {
+    return {
+      activeMotif: this.activeMotif,
+      lastPitch: this.lastPitch,
+      motifGen: this.motifGen.snapshot(),
+    };
+  }
+
+  /** Restore a state captured by {@link snapshot}. */
+  restore(snapshot: MelodyGeneratorSnapshot): void {
+    this.activeMotif = snapshot.activeMotif;
+    this.lastPitch = snapshot.lastPitch;
+    this.motifGen.restore(snapshot.motifGen);
   }
 }

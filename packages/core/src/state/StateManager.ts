@@ -7,9 +7,32 @@ import {
 } from "./MusicalState.js";
 
 interface PendingChange {
+  /** The raw patch as requested, kept (alongside `target`) so an `urgent`
+   * rollback can replay not-yet-applied requests in original order onto a
+   * new bar instead of only inheriting their already-merged `target`. */
+  patch: MusicalStatePatch;
   target: MusicalState;
   applyAtBar: number;
   durationBars: number;
+  /** Monotonic request order, for replaying changes across a checkpoint
+   * restore in the order the caller actually issued them (see
+   * `StateManager.seq` / `LimeEngine`'s `urgent` rollback). */
+  seq: number;
+}
+
+/**
+ * One `request()` call, recorded so an `urgent` rollback can replay it even
+ * if it has *already* been applied (shifted out of `pending` by
+ * `advanceToBar`) by the time the rollback happens — a checkpoint's own
+ * `pending` only holds requests still waiting, not ones a bar inside the
+ * rolled-back window already consumed. See {@link StateManager.requestsSince}.
+ */
+export interface RequestLogEntry {
+  readonly patch: MusicalStatePatch;
+  /** The bar originally requested (before any `urgent` re-anchoring). */
+  readonly applyAtBar: number;
+  readonly durationBars: number;
+  readonly seq: number;
 }
 
 interface ActiveTransition {
@@ -17,6 +40,24 @@ interface ActiveTransition {
   to: MusicalState;
   startBar: number;
   durationBars: number;
+}
+
+/**
+ * A point-in-time capture of {@link StateManager}'s mutable state, restorable
+ * via {@link StateManager.restore}. Used by the engine's composition
+ * checkpoints (see `LimeEngine`'s `urgent` state-change rollback). `MusicalState`
+ * values are treated as immutable (always replaced, never mutated in place), so
+ * only the containers (`pending`, `active`) need copying. `seq` is the request
+ * counter's value at capture time, so a caller can tell which requests (see
+ * {@link StateManager.requestsSince}) were issued after this checkpoint was
+ * taken — whether or not they have since been applied.
+ */
+export interface StateManagerSnapshot {
+  readonly current: MusicalState;
+  readonly target: MusicalState;
+  readonly active: ActiveTransition | null;
+  readonly pending: readonly PendingChange[];
+  readonly seq: number;
 }
 
 /**
@@ -36,6 +77,22 @@ export class StateManager {
   private target: MusicalState;
   private active: ActiveTransition | null = null;
   private readonly pending: PendingChange[] = [];
+  /**
+   * Monotonic counter stamped onto every `request()` call, in call order.
+   * Deliberately never rewound by `restore()` — it has to stay globally
+   * increasing across any number of rollbacks so a `seq` value recorded in a
+   * checkpoint (or the log below) always means the same point in history.
+   */
+  private seq = 0;
+  /**
+   * Every `request()` call ever made, oldest first, independent of
+   * `pending`/`current` — so a request already applied by the time an
+   * `urgent` rollback happens can still be replayed (see `requestsSince`).
+   * Bounded: `LimeEngine` prunes it alongside its composition checkpoints,
+   * since nothing older than the oldest held checkpoint's `seq` can ever be
+   * needed again.
+   */
+  private readonly log: RequestLogEntry[] = [];
 
   /** Fraction of the remaining gap closed each bar when easing (0–1). */
   readonly easingPerBar: number;
@@ -62,16 +119,68 @@ export class StateManager {
 
   /**
    * Queue a state change to begin at `applyAtBar`. `durationBars = 0` uses
-   * easing; a positive value uses a linear ramp of that length.
+   * easing; a positive value uses a linear ramp of that length. Logged (see
+   * `requestsSince`), so a future `urgent` rollback can replay it even after
+   * it has been applied.
    */
   request(
     patch: MusicalStatePatch,
     applyAtBar: number,
     durationBars = 0,
   ): void {
+    this.enqueue(patch, applyAtBar, durationBars, /* log */ true);
+  }
+
+  /**
+   * Re-queue a request that is already recorded in the log, without logging
+   * it again. Used only by an `urgent` rollback (see `LimeEngine.applyUrgent`)
+   * to replay carried-over requests — logging the replay too would mean a
+   * later rollback could replay the same original intent twice.
+   */
+  replay(patch: MusicalStatePatch, applyAtBar: number, durationBars: number): void {
+    this.enqueue(patch, applyAtBar, durationBars, /* log */ false);
+  }
+
+  private enqueue(
+    patch: MusicalStatePatch,
+    applyAtBar: number,
+    durationBars: number,
+    log: boolean,
+  ): void {
     const merged = applyPatch(this.latestTarget(), patch);
-    this.pending.push({ target: merged, applyAtBar, durationBars });
+    this.seq += 1;
+    const clonedPatch = { ...patch };
+    this.pending.push({ patch: clonedPatch, target: merged, applyAtBar, durationBars, seq: this.seq });
+    // Stable sort (guaranteed by the spec): entries that tie on `applyAtBar`
+    // — e.g. every request an `urgent` rollback collapses onto the same
+    // target bar — keep their request order, so `advanceToBar` still applies
+    // them oldest-first and ends on the most recently requested one.
     this.pending.sort((a, b) => a.applyAtBar - b.applyAtBar);
+    if (log) this.log.push({ patch: clonedPatch, applyAtBar, durationBars, seq: this.seq });
+  }
+
+  /**
+   * Discard every queued-but-not-yet-applied change, without touching
+   * `current`/`target`/`active`. Used by an `urgent` rollback right before
+   * replaying the surviving requests (see `LimeEngine.applyUrgent`) onto the
+   * new target bar via `replay()`.
+   */
+  clearPending(): void {
+    this.pending.length = 0;
+  }
+
+  /** Every logged request issued after `seq` (see `StateManagerSnapshot.seq`), oldest first. */
+  requestsSince(seq: number): readonly RequestLogEntry[] {
+    return this.log.filter((entry) => entry.seq > seq);
+  }
+
+  /**
+   * Drop logged requests at or before `seq` — nothing behind the oldest
+   * composition checkpoint the engine still holds can ever be replayed
+   * again. Keeps the log bounded alongside `LimeEngine`'s checkpoint window.
+   */
+  pruneLogBefore(seq: number): void {
+    while (this.log.length > 0 && this.log[0]!.seq <= seq) this.log.shift();
   }
 
   /**
@@ -104,5 +213,30 @@ export class StateManager {
     } else {
       this.current = lerpState(this.current, this.target, this.easingPerBar);
     }
+  }
+
+  /** Capture the current state for a later {@link restore}. Read-only. */
+  snapshot(): StateManagerSnapshot {
+    return {
+      current: this.current,
+      target: this.target,
+      active: this.active ? { ...this.active } : null,
+      pending: this.pending.map((p) => ({ ...p })),
+      seq: this.seq,
+    };
+  }
+
+  /**
+   * Restore a state captured by {@link snapshot}. Deliberately leaves `seq`
+   * (and the request log) alone: rewinding the counter would let a later
+   * request reuse a `seq` value the log already used for an earlier one,
+   * breaking `requestsSince`'s "after this point" comparisons.
+   */
+  restore(snapshot: StateManagerSnapshot): void {
+    this.current = snapshot.current;
+    this.target = snapshot.target;
+    this.active = snapshot.active ? { ...snapshot.active } : null;
+    this.pending.length = 0;
+    this.pending.push(...snapshot.pending.map((p) => ({ ...p })));
   }
 }

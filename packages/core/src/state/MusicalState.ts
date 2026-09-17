@@ -50,10 +50,29 @@ export type Quantization = "immediate" | "nextBeat" | "nextBar" | "nextPhrase";
 
 /** Options for `setState` / `transitionTo`. */
 export interface StateChangeOptions {
-  /** When the change begins. Default `nextBar`. */
+  /** When the change begins. Default `nextBar`. Ignored when `urgent` succeeds. */
   quantize?: Quantization;
   /** Explicit linear-ramp length. Omit for gradual asymptotic easing. */
   duration?: { bars: number };
+  /**
+   * Make the change audible on the very next bar instead of waiting out the
+   * engine's look-ahead (`LimeConfig.lookAheadBars`, already-composed bars
+   * ahead of the playhead are otherwise frozen). When set, the engine discards
+   * the composed-but-unplayed bars between the playhead and the look-ahead
+   * horizon and recomposes them from the next bar onward under the new state,
+   * superseding `quantize`.
+   *
+   * Only meaningful with a renderer that implements `MusicRenderer.cancelFrom`
+   * — that is what lets the engine un-schedule the discarded bars' notes.
+   * Headless (no renderer, e.g. `composeThrough`/`step`-driven usage) has
+   * nothing composed ahead of the frontier to discard, so `urgent` there is
+   * simply a normal change applied at the next bar. The same fallback applies
+   * whenever the renderer doesn't implement `cancelFrom`, or the engine no
+   * longer holds a checkpoint far back enough to roll back to — `urgent` never
+   * risks double-scheduling notes, it just degrades to the ordinary quantized
+   * path.
+   */
+  urgent?: boolean;
 }
 
 export function clamp01(v: number): number {

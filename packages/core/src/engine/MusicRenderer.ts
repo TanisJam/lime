@@ -26,6 +26,18 @@ export interface MusicRenderer {
   /** Current transport position, in ticks. Drives the composition horizon. */
   now(): number;
 
+  /**
+   * Drop every scheduled event whose start time (in ticks) is `>= tick`.
+   * Optional — only needed to support `urgent` state changes (see
+   * {@link StateChangeOptions.urgent}), which use it to un-schedule
+   * composed-but-unplayed bars before recomposing them under the new state.
+   * A renderer that omits this simply never takes the `urgent` fast path: the
+   * engine falls back to a normal (non-urgent) change instead, so there is
+   * never a risk of a discarded bar's notes staying scheduled alongside its
+   * recomposed replacement.
+   */
+  cancelFrom?(tick: number): void;
+
   /** Release resources. */
   dispose?(): void;
 }

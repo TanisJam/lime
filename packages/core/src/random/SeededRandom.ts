@@ -35,61 +35,78 @@ function cyrb128(str: string): [number, number, number, number] {
   ];
 }
 
-/** sfc32 PRNG — fast, high-quality, fully deterministic. */
-function sfc32(a: number, b: number, c: number, d: number): () => number {
-  return function next(): number {
-    a >>>= 0;
-    b >>>= 0;
-    c >>>= 0;
-    d >>>= 0;
-    let t = (a + b) | 0;
-    a = b ^ (b >>> 9);
-    b = (c + (c << 3)) | 0;
-    c = (c << 21) | (c >>> 11);
-    d = (d + 1) | 0;
-    t = (t + d) | 0;
-    c = (c + t) | 0;
-    return (t >>> 0) / 4294967296;
-  };
+/**
+ * sfc32 internal state — four 32-bit words. Exposed so a long-lived stream's
+ * position can be captured and later restored exactly (see {@link SeededRandom.snapshot}),
+ * which is how the engine's composition checkpoints roll an RNG stream back
+ * without replaying it.
+ */
+export interface SeededRandomState {
+  readonly a: number;
+  readonly b: number;
+  readonly c: number;
+  readonly d: number;
 }
 
 export class SeededRandom {
   /** Canonical seed key; child streams append to it deterministically. */
   readonly seedKey: string;
-  private readonly _next: () => number;
+  private a: number;
+  private b: number;
+  private c: number;
+  private d: number;
 
   constructor(seed: string | number) {
     this.seedKey = typeof seed === "number" ? `n:${seed}` : seed;
     const [a, b, c, d] = cyrb128(this.seedKey);
-    this._next = sfc32(a, b, c, d);
+    this.a = a;
+    this.b = b;
+    this.c = c;
+    this.d = d;
     // Discard a few outputs so closely-related seed keys diverge quickly.
-    for (let i = 0; i < 8; i++) this._next();
+    for (let i = 0; i < 8; i++) this.step();
+  }
+
+  /** One sfc32 step: advances the internal state and returns the float it produced. */
+  private step(): number {
+    this.a >>>= 0;
+    this.b >>>= 0;
+    this.c >>>= 0;
+    this.d >>>= 0;
+    let t = (this.a + this.b) | 0;
+    this.a = this.b ^ (this.b >>> 9);
+    this.b = (this.c + (this.c << 3)) | 0;
+    this.c = (this.c << 21) | (this.c >>> 11);
+    this.d = (this.d + 1) | 0;
+    t = (t + this.d) | 0;
+    this.c = (this.c + t) | 0;
+    return (t >>> 0) / 4294967296;
   }
 
   /** Next float in [0, 1). */
   next(): number {
-    return this._next();
+    return this.step();
   }
 
   /** Float in [min, max). */
   float(min: number, max: number): number {
-    return min + this._next() * (max - min);
+    return min + this.step() * (max - min);
   }
 
   /** Integer in [min, max] inclusive. */
   int(min: number, max: number): number {
-    return min + Math.floor(this._next() * (max - min + 1));
+    return min + Math.floor(this.step() * (max - min + 1));
   }
 
   /** True with probability `p` (default 0.5). */
   bool(p = 0.5): boolean {
-    return this._next() < p;
+    return this.step() < p;
   }
 
   /** Uniformly pick one element. Throws on an empty array. */
   pick<T>(items: readonly T[]): T {
     if (items.length === 0) throw new Error("SeededRandom.pick: empty array");
-    return items[Math.floor(this._next() * items.length)] as T;
+    return items[Math.floor(this.step() * items.length)] as T;
   }
 
   /**
@@ -101,7 +118,7 @@ export class SeededRandom {
     let total = 0;
     for (const w of weights) total += Math.max(0, w);
     if (total <= 0) return this.pick(items);
-    let r = this._next() * total;
+    let r = this.step() * total;
     for (let i = 0; i < items.length; i++) {
       r -= Math.max(0, weights[i] ?? 0);
       if (r < 0) return items[i] as T;
@@ -113,16 +130,35 @@ export class SeededRandom {
   gaussian(): number {
     let u = 0;
     let v = 0;
-    while (u === 0) u = this._next();
-    while (v === 0) v = this._next();
+    while (u === 0) u = this.step();
+    while (v === 0) v = this.step();
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
 
   /**
    * Derive an independent child stream keyed by `name`. Deterministic:
    * the same parent seed and name always yield the same child sequence.
+   * Deriving never consumes from the parent stream's own sequence.
    */
   derive(name: string): SeededRandom {
     return new SeededRandom(`${this.seedKey}/${name}`);
+  }
+
+  /**
+   * Capture this stream's exact internal position. O(1) and read-only — taking
+   * a snapshot never advances the stream, so checkpointing for `urgent` state
+   * changes (see {@link StateChangeOptions.urgent}) has no effect on output
+   * unless a checkpoint is actually restored.
+   */
+  snapshot(): SeededRandomState {
+    return { a: this.a, b: this.b, c: this.c, d: this.d };
+  }
+
+  /** Restore a position captured by {@link snapshot}. */
+  restore(state: SeededRandomState): void {
+    this.a = state.a;
+    this.b = state.b;
+    this.c = state.c;
+    this.d = state.d;
   }
 }

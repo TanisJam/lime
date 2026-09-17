@@ -20,7 +20,7 @@ import type { MusicalState } from "../state/MusicalState.js";
 import type { PhrasePlan } from "../phrase/PhrasePlan.js";
 import type { FormState } from "../phrase/FormDirector.js";
 import type { EnsembleStyle } from "../style/StylePack.js";
-import { Arrangement, type ArrangementVoice } from "./Arrangement.js";
+import { Arrangement, type ArrangementSnapshot, type ArrangementVoice } from "./Arrangement.js";
 import {
   MUSICAL_ROLES,
   ROLE_FOR_VOICE,
@@ -38,6 +38,14 @@ const DEPTH_PROMINENCE: Record<Depth, number> = {
   midground: 0.62,
   background: 0.4,
 };
+
+/**
+ * Restorable capture of the director's hysteresis state, for the engine's
+ * composition checkpoints (see `LimeEngine`'s `urgent` state-change rollback).
+ */
+export interface OrchestrationDirectorSnapshot {
+  readonly arrangement: ArrangementSnapshot;
+}
 
 export class OrchestrationDirector {
   /**
@@ -75,6 +83,16 @@ export class OrchestrationDirector {
   /** Active voices in the arrangement (read-only), for debug back-compat. */
   get activeVoices(): ReadonlySet<ArrangementVoice> {
     return this.arrangement.current;
+  }
+
+  /** Capture the director's hysteresis state for a later {@link restore}. */
+  snapshot(): OrchestrationDirectorSnapshot {
+    return { arrangement: this.arrangement.snapshot() };
+  }
+
+  /** Restore a state captured by {@link snapshot}. */
+  restore(snapshot: OrchestrationDirectorSnapshot): void {
+    this.arrangement.restore(snapshot.arrangement);
   }
 
   // --- internals -----------------------------------------------------------

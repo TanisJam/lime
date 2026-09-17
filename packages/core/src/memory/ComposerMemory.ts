@@ -14,6 +14,21 @@ export interface MusicalCommitment {
 }
 
 /**
+ * Restorable capture of {@link ComposerMemory}'s mutable state, for the
+ * engine's composition checkpoints (see `LimeEngine`'s `urgent` state-change
+ * rollback). `Motif`/`HarmonicEvent`/`MusicalCommitment` values are immutable,
+ * so shallow copies of the containers are enough.
+ */
+export interface ComposerMemorySnapshot {
+  readonly motifs: readonly Motif[];
+  readonly recentMotifIds: readonly string[];
+  readonly pitchHistogram: ReadonlyMap<number, number>;
+  readonly recentChords: readonly HarmonicEvent[];
+  readonly unresolvedCommitments: readonly MusicalCommitment[];
+  readonly usageLog: readonly string[];
+}
+
+/**
  * The composer's short-term memory: what it has played and implied.
  *
  * Purpose is to avoid "random music forever" and instead achieve
@@ -79,5 +94,33 @@ export class ComposerMemory {
         this.unresolvedCommitments.splice(i, 1);
       }
     }
+  }
+
+  /** Capture the memory's state for a later {@link restore}. */
+  snapshot(): ComposerMemorySnapshot {
+    return {
+      motifs: [...this.motifs],
+      recentMotifIds: [...this.recentMotifIds],
+      pitchHistogram: new Map(this.pitchHistogram),
+      recentChords: [...this.recentChords],
+      unresolvedCommitments: [...this.unresolvedCommitments],
+      usageLog: [...this.usageLog],
+    };
+  }
+
+  /** Restore a state captured by {@link snapshot}. */
+  restore(snapshot: ComposerMemorySnapshot): void {
+    this.motifs.length = 0;
+    this.motifs.push(...snapshot.motifs);
+    this.recentMotifIds.length = 0;
+    this.recentMotifIds.push(...snapshot.recentMotifIds);
+    this.pitchHistogram.clear();
+    for (const [pitch, count] of snapshot.pitchHistogram) this.pitchHistogram.set(pitch, count);
+    this.recentChords.length = 0;
+    this.recentChords.push(...snapshot.recentChords);
+    this.unresolvedCommitments.length = 0;
+    this.unresolvedCommitments.push(...snapshot.unresolvedCommitments);
+    this.usageLog.length = 0;
+    this.usageLog.push(...snapshot.usageLog);
   }
 }

@@ -195,6 +195,7 @@ export class ToneRenderer implements MusicRenderer {
     if (!this.running) return;
     Tone.getTransport().stop();
     Tone.getTransport().cancel();
+    this.scheduledIds.clear(); // transport.cancel() already dropped every one of these
     this.running = false;
   }
 
@@ -214,6 +215,13 @@ export class ToneRenderer implements MusicRenderer {
    * transport callback only ever knows about the note it is playing.
    */
   private pending = new Map<string, { startTick: number; duration: number }>();
+
+  /**
+   * Start tick per not-yet-fired transport event id, so an urgent state
+   * change (`MusicRenderer.cancelFrom`) can clear a range of them. Deleted as
+   * each callback fires (or on `stop()`), so it only ever holds pending ones.
+   */
+  private readonly scheduledIds = new Map<number, number>();
 
   schedule(events: MusicalEvent[]): void {
     if (!this.built) this.build();
@@ -245,10 +253,32 @@ export class ToneRenderer implements MusicRenderer {
       const plan = { startTick: e.time, duration: e.duration };
       this.pending.set(key, plan);
 
-      transport.schedule((time) => {
+      const id = transport.schedule((time) => {
+        this.scheduledIds.delete(id);
         if (this.pending.get(key) === plan) this.pending.delete(key);
         this.trigger(e, time, Tone.Ticks(plan.duration).toSeconds());
       }, `${e.time}i`);
+      this.scheduledIds.set(id, e.time);
+    }
+  }
+
+  /**
+   * Drop every scheduled event whose start tick is `>= tick` — used by an
+   * urgent state change to discard composed-but-unplayed bars before their
+   * recomposed replacement is scheduled. Also drops the matching entries from
+   * `pending`, so a cancelled note can no longer be found and shortened by a
+   * later `schedule()` call, and its retrigger-gap bookkeeping in `trigger()`
+   * isn't left describing a note that will never sound.
+   */
+  cancelFrom(tick: number): void {
+    const transport = Tone.getTransport();
+    for (const [id, startTick] of this.scheduledIds) {
+      if (startTick < tick) continue;
+      transport.clear(id);
+      this.scheduledIds.delete(id);
+    }
+    for (const [key, plan] of this.pending) {
+      if (plan.startTick >= tick) this.pending.delete(key);
     }
   }
 

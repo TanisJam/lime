@@ -51,7 +51,12 @@ logic does not perturb harmony. The engine splits the root seed into
 `harmony`, `orchestration → pad/bass/melodyBar/melodyMotif/percussion`, and each
 voice further derives a **bar-scoped** stream (`voiceStream.derive(String(bar))`).
 Bar generation is therefore idempotent and order-independent for randomness;
-cross-bar continuity is carried by explicit fields, not RNG state.
+cross-bar continuity is carried by explicit fields, not RNG state. The few
+streams a component consumes directly rather than only deriving from
+(`HarmonyPlanner`'s and the melody voice's `MotifGenerator`'s) expose
+`snapshot()`/`restore()` — an O(1) capture of the sfc32 state words — so an
+`urgent` state change's composition checkpoint can roll one back exactly,
+without replaying it.
 
 ## Time model
 
@@ -137,13 +142,30 @@ uncommitted bar (parameter-level inertia). Generators sample `currentState` once
 per bar, so most parameters take effect at bar boundaries; brightness is applied
 continuously by the renderer as a filter parameter.
 
+`StateChangeOptions.urgent` bypasses that inertia: instead of waiting for
+`lookAheadBars` of already-composed material to play out, the engine restores a
+composition checkpoint from right before the target bar, discards the
+composed-but-unplayed bars via `MusicRenderer.cancelFrom`, rewinds
+`CompositionScheduler`'s frontier, and recomposes from there under the new
+state — so the change lands on the very next bar. It requires a renderer that
+implements `cancelFrom`; headless usage, or a renderer without it, falls back
+to a normal (non-urgent) change instead of risking double-scheduled notes.
+Every stateful composition component (`StateManager`, `HarmonyPlanner`,
+`Orchestrator`/`ComposerMemory`, `OrchestrationDirector`'s arrangement
+hysteresis, the melody/motif and pad generators' own memory, and every
+directly-consumed `SeededRandom` stream) exposes `snapshot()`/`restore()` for
+this; taking a checkpoint is read-only, so it has no effect on composed output
+unless one is actually restored.
+
 ## Scheduling
 
 `CompositionScheduler` keeps `lookAheadBars` (default 4) composed beyond the
 playhead. `pump()` composes forward one bar at a time and never regenerates a
-committed bar. The renderer is the clock: `now()` returns transport ticks. The
-`ToneRenderer` sets `Transport.PPQ` to match core ticks, schedules events at
-absolute ticks, and ramps BPM so tempo changes are smooth.
+committed bar (`rewindTo` is the one exception, used only by an `urgent` state
+change's rollback). The renderer is the clock: `now()` returns transport
+ticks. The `ToneRenderer` sets `Transport.PPQ` to match core ticks, schedules
+events at absolute ticks, ramps BPM so tempo changes are smooth, and tracks
+each scheduled event's transport id so `cancelFrom` can clear a range of them.
 
 ## Testing
 

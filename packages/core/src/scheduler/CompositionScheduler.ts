@@ -57,6 +57,18 @@ export class CompositionScheduler {
     }
   }
 
+  /**
+   * Rewind the frontier to `bar`, so `pump()`/`composeThrough()` recompose from
+   * there. Used by an `urgent` state change after the caller has already
+   * restored the composition state to what it was before `bar` was composed
+   * and discarded that bar's (and every later composed bar's) scheduled notes.
+   * A no-op if `bar` is not behind the current frontier — the frontier only
+   * ever moves backward here, never forward.
+   */
+  rewindTo(bar: number): void {
+    this._composedThroughBar = Math.min(this._composedThroughBar, bar);
+  }
+
   reset(): void {
     this._composedThroughBar = 0;
   }

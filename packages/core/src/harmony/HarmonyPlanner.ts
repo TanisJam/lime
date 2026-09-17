@@ -1,5 +1,5 @@
 import type { MusicalState } from "../state/MusicalState.js";
-import type { SeededRandom } from "../random/SeededRandom.js";
+import { type SeededRandom, type SeededRandomState } from "../random/SeededRandom.js";
 import { PhrasePlanner } from "../phrase/PhrasePlanner.js";
 import type { Mode } from "./Scale.js";
 import { type HarmonicEvent, makeHarmonicEvent } from "./Chord.js";
@@ -19,6 +19,18 @@ export interface HarmonyPlannerOptions {
   transitions?: TransitionTable;
   /** How much to resist returning to tonic, 0..1. Default 0 (unchanged). */
   harmonyMotion?: number;
+}
+
+/**
+ * Restorable capture of {@link HarmonyPlanner}'s mutable state (see
+ * `LimeEngine`'s `urgent` state-change rollback). `planned` holds immutable
+ * `HarmonicEvent`s, so a shallow array copy is enough.
+ */
+export interface HarmonyPlannerSnapshot {
+  readonly planned: readonly HarmonicEvent[];
+  readonly plannedThroughBar: number;
+  readonly currentDegree: number;
+  readonly rng: SeededRandomState;
 }
 
 /**
@@ -156,5 +168,24 @@ export class HarmonyPlanner {
     }
 
     this.plannedThroughBar = start + len;
+  }
+
+  /** Capture the planner's state (including its RNG position) for a later {@link restore}. */
+  snapshot(): HarmonyPlannerSnapshot {
+    return {
+      planned: [...this.planned],
+      plannedThroughBar: this.plannedThroughBar,
+      currentDegree: this.currentDegree,
+      rng: this.rng.snapshot(),
+    };
+  }
+
+  /** Restore a state captured by {@link snapshot}. */
+  restore(snapshot: HarmonyPlannerSnapshot): void {
+    this.planned.length = 0;
+    this.planned.push(...snapshot.planned);
+    this.plannedThroughBar = snapshot.plannedThroughBar;
+    this.currentDegree = snapshot.currentDegree;
+    this.rng.restore(snapshot.rng);
   }
 }

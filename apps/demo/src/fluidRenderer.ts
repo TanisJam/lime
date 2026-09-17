@@ -52,6 +52,18 @@ export class FluidRenderer implements MusicRenderer {
   private programs: FluidPrograms = {};
   private readonly muted: Record<string, boolean> = {};
 
+  /**
+   * Every event actually sent to the sequencer (see `schedule()`), kept so
+   * `cancelFrom()` can drop the not-yet-played ones and resend the
+   * survivors. The sequencer API (js-synthesizer) has no per-event or
+   * time-ranged cancel — only `removeAllEvents()` (everything) or
+   * `removeAllEventsFromClient()` (still everything for this client, not
+   * time-filtered) — so a selective cancel has to be built on top: wipe the
+   * sequencer, then resend what should stay. See `cancelFrom()` for how a
+   * survivor already mid-flight is resent (never as a fresh note-on).
+   */
+  private scheduledEvents: MusicalEvent[] = [];
+
   constructor() {
     // A native AudioContext (js-synthesizer's AudioWorkletNode needs a real
     // BaseAudioContext, not Tone's standardized-audio-context wrapper).
@@ -134,27 +146,88 @@ export class FluidRenderer implements MusicRenderer {
   }
 
   schedule(events: MusicalEvent[]): void {
+    // Track only what is actually sent below — an event recorded here while
+    // the synth isn't loaded yet would never reach the sequencer at all, so
+    // cancelFrom() would "resend" it later as if it had really been playing.
     if (!this.loaded || !this.seq) return;
-    for (const e of events) {
+    this.scheduledEvents.push(...events);
+    // Bounded bookkeeping: once an event's tick is well behind "now" it can
+    // never again be a candidate for cancelFrom (which only ever targets bars
+    // at or ahead of the playhead), so it is safe to forget. A fixed 8-bar
+    // (4/4) window — tempo-independent, since ticks don't scale with bpm.
+    const cutoff = this.now() - 8 * 4 * TICKS_PER_QUARTER;
+    this.scheduledEvents = this.scheduledEvents.filter((e) => e.time >= cutoff);
+    for (const e of events) this.sendEvent(e);
+  }
+
+  /** LIME tick → js-synthesizer sequencer tick (ms since the sequencer clock's origin). */
+  private toSeqTick(tick: number): number {
+    const deltaTicks = tick - this.now();
+    const targetCtx = this.ctx.currentTime + deltaTicks / this.ticksPerSec();
+    return this.seqBaseTick + (targetCtx - this.ctxBaseTime) * 1000;
+  }
+
+  /** Send a fresh note-on/note-off pair for `e`, unless its start has already passed. */
+  private sendEvent(e: MusicalEvent): void {
+    const ch = CHANNEL[e.voice];
+    if (ch === undefined || this.muted[e.voice] || !this.seq) return;
+    const seqTick = Math.round(this.toSeqTick(e.time));
+    if (seqTick < 0) return;
+    const vel = Math.max(1, Math.min(127, Math.round(e.velocity * 127)));
+    const durMs = (e.duration / this.ticksPerSec()) * 1000;
+    const key = e.pitch;
+    this.seq.sendEventToClientAt(
+      this.clientId,
+      { type: "noteon", channel: ch, key, vel } as unknown as JSSynth.SequencerEvent,
+      seqTick,
+      true,
+    );
+    this.seq.sendEventToClientAt(
+      this.clientId,
+      { type: "noteoff", channel: ch, key } as unknown as JSSynth.SequencerEvent,
+      Math.round(seqTick + Math.max(30, durMs)),
+      true,
+    );
+  }
+
+  /**
+   * Drop every scheduled event whose start tick is `>= tick` — used by an
+   * urgent state change to discard composed-but-unplayed bars before their
+   * recomposed replacement is scheduled.
+   *
+   * The underlying sequencer can only be cleared wholesale (see
+   * `scheduledEvents` above): `removeAllEvents()` wipes every event still in
+   * its queue, including the *pending note-off* of a survivor that is
+   * already sounding (its note-on fired for real before this call — only the
+   * note-off was still queued). Naively resending that survivor as a fresh
+   * note-on/note-off pair would either re-trigger a note that never stopped,
+   * or (the actual bug this fixes) get skipped outright because its note-on
+   * time is already in the past — losing the note-off and hanging the voice
+   * forever. So each survivor is resent by how far along it is: not started
+   * yet → the normal pair; already sounding → only its note-off, at its
+   * original time (or right now if even that has passed) and never a new
+   * note-on; already finished → nothing to resend.
+   */
+  cancelFrom(tick: number): void {
+    const keep = this.scheduledEvents.filter((e) => e.time < tick);
+    this.scheduledEvents = keep;
+    if (!this.loaded || !this.seq) return;
+    this.seq.removeAllEvents();
+    const nowTick = this.now();
+    for (const e of keep) {
+      if (e.time >= nowTick) {
+        this.sendEvent(e);
+        continue;
+      }
+      const endTick = e.time + e.duration;
+      if (endTick <= nowTick) continue; // already finished — nothing pending to fix
       const ch = CHANNEL[e.voice];
       if (ch === undefined || this.muted[e.voice]) continue;
-      const deltaTicks = e.time - this.now();
-      const targetCtx = this.ctx.currentTime + deltaTicks / this.ticksPerSec();
-      const seqTick = this.seqBaseTick + (targetCtx - this.ctxBaseTime) * 1000;
-      if (seqTick < 0) continue;
-      const vel = Math.max(1, Math.min(127, Math.round(e.velocity * 127)));
-      const durMs = (e.duration / this.ticksPerSec()) * 1000;
-      const key = e.pitch;
+      const offTick = Math.max(Math.round(this.toSeqTick(endTick)), 0);
       this.seq.sendEventToClientAt(
         this.clientId,
-        { type: "noteon", channel: ch, key, vel } as unknown as JSSynth.SequencerEvent,
-        Math.round(seqTick),
-        true,
-      );
-      this.seq.sendEventToClientAt(
-        this.clientId,
-        { type: "noteoff", channel: ch, key } as unknown as JSSynth.SequencerEvent,
-        Math.round(seqTick + Math.max(30, durMs)),
+        { type: "noteoff", channel: ch, key: e.pitch } as unknown as JSSynth.SequencerEvent,
+        offTick,
         true,
       );
     }

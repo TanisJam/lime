@@ -63,6 +63,40 @@ describe("SeededRandom", () => {
     }
   });
 
+  it("snapshot/restore rewinds a stream to an exact earlier position", () => {
+    const r = new SeededRandom("checkpoint");
+    const checkpoint = r.snapshot();
+    const original = Array.from({ length: 16 }, () => r.next());
+
+    const rewound = new SeededRandom("checkpoint");
+    rewound.restore(checkpoint);
+    const replayed = Array.from({ length: 16 }, () => rewound.next());
+    expect(replayed).toEqual(original);
+  });
+
+  it("restoring a checkpoint discards everything drawn after it", () => {
+    const r = new SeededRandom("mid-stream");
+    Array.from({ length: 5 }, () => r.next()); // advance past the point we'll capture
+    const checkpoint = r.snapshot();
+    const expected = Array.from({ length: 10 }, () => r.next());
+
+    // Advance further, then roll back — the next 10 draws must match `expected`
+    // exactly, as if the extra draws never happened.
+    Array.from({ length: 20 }, () => r.next());
+    r.restore(checkpoint);
+    const afterRestore = Array.from({ length: 10 }, () => r.next());
+    expect(afterRestore).toEqual(expected);
+  });
+
+  it("snapshot is read-only: taking one never advances the stream", () => {
+    const a = new SeededRandom("readonly-snapshot");
+    const b = new SeededRandom("readonly-snapshot");
+    for (let i = 0; i < 5; i++) a.snapshot(); // repeatedly snapshot, never restore
+    const seqA = Array.from({ length: 10 }, () => a.next());
+    const seqB = Array.from({ length: 10 }, () => b.next());
+    expect(seqA).toEqual(seqB);
+  });
+
   it("weighted() honors zero-weight exclusion", () => {
     const r = new SeededRandom("weighted");
     const counts = { a: 0, b: 0, c: 0 };

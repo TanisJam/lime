@@ -420,7 +420,7 @@ function applyEmotion(preset: EmotionPreset): void {
   currentEmotion = preset;
   highlightEmotion(preset.quadrant);
   if (!music || automationPaused) return;
-  music.transitionTo({ ...preset.state }, { duration: { bars: 8 }, quantize: "nextBar" });
+  music.transitionTo({ ...preset.state }, { duration: { bars: 8 }, quantize: "nextBar", urgent: true });
   if (preset.state.brightness !== undefined) renderer?.setBrightness(preset.state.brightness);
   syncSliders(preset.state);
   clearMoodHighlight();
@@ -482,8 +482,8 @@ function onSlider(key: string, value: number): void {
 function applyMood(name: string, transition: boolean): void {
   if (!music || automationPaused) return;
   const target = MOODS[name]!;
-  if (transition) music.transitionTo({ ...target }, { duration: { bars: 8 }, quantize: "nextBar" });
-  else music.setState({ ...target }, { quantize: "nextBar" });
+  if (transition) music.transitionTo({ ...target }, { duration: { bars: 8 }, quantize: "nextBar", urgent: true });
+  else music.setState({ ...target }, { quantize: "nextBar", urgent: true });
   if (target.brightness !== undefined) renderer?.setBrightness(target.brightness);
 
   // Reflect the mood's target values on the sliders.

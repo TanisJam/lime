@@ -1,7 +1,17 @@
-import type { SeededRandom } from "../random/SeededRandom.js";
+import type { SeededRandom, SeededRandomState } from "../random/SeededRandom.js";
 import { Durations, type MusicalDuration } from "../time/MusicalTime.js";
 import type { MelodyStyle } from "../style/StylePack.js";
 import type { Motif } from "./Motif.js";
+
+/**
+ * Restorable capture of {@link MotifGenerator}'s mutable state (its id
+ * counter and its RNG position) — see `LimeEngine`'s `urgent` state-change
+ * rollback.
+ */
+export interface MotifGeneratorSnapshot {
+  readonly counter: number;
+  readonly rng: SeededRandomState;
+}
 
 /** The shape a motif's pitch contour traces from start to end. */
 export type Contour = "rising" | "falling" | "arch" | "valley" | "static";
@@ -157,5 +167,16 @@ export class MotifGenerator {
         : [Durations.quarter, Durations.eighth, Durations.half];
     const weights = complexity > 0.5 ? [3, 2, 1.5, 1] : [3, 2, 1];
     return this.rng.weighted(pool, weights);
+  }
+
+  /** Capture the generator's state for a later {@link restore}. */
+  snapshot(): MotifGeneratorSnapshot {
+    return { counter: this.counter, rng: this.rng.snapshot() };
+  }
+
+  /** Restore a state captured by {@link snapshot}. */
+  restore(snapshot: MotifGeneratorSnapshot): void {
+    this.counter = snapshot.counter;
+    this.rng.restore(snapshot.rng);
   }
 }

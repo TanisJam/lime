@@ -28,6 +28,9 @@ const GATES: ReadonlyArray<readonly [Exclude<ArrangementVoice, "pad">, VoiceGate
   ["percussion", { on: 0.55, off: 0.44 }],
 ];
 
+/** Restorable capture of {@link Arrangement}'s hysteresis state. */
+export type ArrangementSnapshot = ReadonlySet<ArrangementVoice>;
+
 export class Arrangement {
   private readonly active = new Set<ArrangementVoice>(["pad"]);
   private readonly ensemble: EnsembleStyle | undefined;
@@ -52,5 +55,16 @@ export class Arrangement {
   /** The voices currently in the arrangement (read-only view). */
   get current(): ReadonlySet<ArrangementVoice> {
     return this.active;
+  }
+
+  /** Capture the hysteresis state for a later {@link restore}. */
+  snapshot(): ArrangementSnapshot {
+    return new Set(this.active);
+  }
+
+  /** Restore a state captured by {@link snapshot}. */
+  restore(snapshot: ArrangementSnapshot): void {
+    this.active.clear();
+    for (const voice of snapshot) this.active.add(voice);
   }
 }

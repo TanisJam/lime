@@ -3,12 +3,31 @@ import type { MusicalEvent, NoteEvent } from "../src/events/MusicalEvent.js";
 import type { StylePack } from "../src/style/StylePack.js";
 import { MODE_INTERVALS, type Mode } from "../src/harmony/Scale.js";
 
-/** A renderer that records everything and lets tests control the playhead. */
+/**
+ * A renderer that records everything and lets tests control the playhead.
+ * Implements `cancelFrom` (dropping scheduled events at/after a tick), so it
+ * can exercise the `urgent` state-change path. Construct with
+ * `{ cancelFrom: false }` to simulate a renderer that doesn't support it, and
+ * exercise the fallback path instead.
+ */
 export class MockRenderer implements MusicRenderer {
   readonly scheduled: MusicalEvent[] = [];
   tempo = 0;
   private ticks = 0;
   running = false;
+
+  /** Drop every scheduled event whose start tick is `>= tick`. Undefined when constructed with `{ cancelFrom: false }`. */
+  cancelFrom?: (tick: number) => void;
+
+  constructor(options: { cancelFrom?: boolean } = {}) {
+    if (options.cancelFrom !== false) {
+      this.cancelFrom = (tick: number) => {
+        const kept = this.scheduled.filter((e) => e.time < tick);
+        this.scheduled.length = 0;
+        this.scheduled.push(...kept);
+      };
+    }
+  }
 
   async start(): Promise<void> {
     this.running = true;

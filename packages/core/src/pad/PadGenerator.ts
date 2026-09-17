@@ -19,6 +19,15 @@ import type { ChordStyle } from "../style/StylePack.js";
  * quiets to leave room. The common case (melody leading, bed in back) is
  * unchanged from v0.2, so the orchestration only ever adds contrast.
  */
+/**
+ * Restorable capture of {@link PadGenerator}'s mutable state (the previous
+ * bar's voicing, used for voice leading) — see `LimeEngine`'s `urgent`
+ * state-change rollback.
+ */
+export interface PadGeneratorSnapshot {
+  readonly previousVoicing: readonly number[] | undefined;
+}
+
 export class PadGenerator {
   private previousVoicing: number[] | undefined;
 
@@ -110,5 +119,15 @@ export class PadGenerator {
       }
     }
     return events;
+  }
+
+  /** Capture the generator's state for a later {@link restore}. */
+  snapshot(): PadGeneratorSnapshot {
+    return { previousVoicing: this.previousVoicing ? [...this.previousVoicing] : undefined };
+  }
+
+  /** Restore a state captured by {@link snapshot}. */
+  restore(snapshot: PadGeneratorSnapshot): void {
+    this.previousVoicing = snapshot.previousVoicing ? [...snapshot.previousVoicing] : undefined;
   }
 }
